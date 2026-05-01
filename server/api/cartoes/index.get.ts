@@ -1,24 +1,25 @@
 import db from '../../db/index'
+import { faturaDateRange, transacaoFaturaMonth } from '../../utils/fatura'
 
 export default defineEventHandler(() => {
   const now = new Date()
   const year = now.getFullYear()
-  const mon = String(now.getMonth() + 1).padStart(2, '0')
-  const startDate = `${year}-${mon}-01`
-  const lastDay = new Date(year, now.getMonth() + 1, 0).getDate()
-  const endDate = `${year}-${mon}-${String(lastDay).padStart(2, '0')}`
-  const currentMonth = `${year}-${mon}`
+  const month = now.getMonth() + 1
+  const currentMonth = `${year}-${String(month).padStart(2, '0')}`
 
   const cartoes = db.prepare(`
     SELECT id, nome, banco, banco_key, limite, melhor_data_compra, vencimento FROM cartoes ORDER BY nome ASC
   `).all() as any[]
 
   return cartoes.map(c => {
+    const cutoff = c.melhor_data_compra as number
+    const { startDate, endDate } = faturaDateRange(year, month, cutoff)
+
     const mesesPagos = new Set(
       (db.prepare(`SELECT mes FROM faturas WHERE cartao_id = ? AND pago = 1`).all([c.id]) as any[]).map(r => r.mes)
     )
 
-    // Avulsas do mês atual em diante, excluindo meses com fatura já paga
+    // Avulsas a partir do início da fatura corrente
     const avulsas = db.prepare(`
       SELECT valor, data FROM transacoes
       WHERE tipo = 'despesa' AND cartao_id = ? AND fixa = 0 AND data >= ?
@@ -26,11 +27,10 @@ export default defineEventHandler(() => {
 
     let gastoTotal = 0
     for (const t of avulsas) {
-      const mes = t.data.slice(0, 7)
+      const mes = transacaoFaturaMonth(t.data, cutoff)
       if (!mesesPagos.has(mes)) gastoTotal += t.valor
     }
 
-    // Fixas e parceladas ativas, excluindo meses pagos
     const recorrentes = db.prepare(`
       SELECT valor, data_inicio, data_fim, parcelas FROM transacoes
       WHERE tipo = 'despesa' AND cartao_id = ? AND fixa = 1
@@ -40,7 +40,7 @@ export default defineEventHandler(() => {
     for (const t of recorrentes) {
       if (t.parcelas > 0) {
         const [iy, im] = t.data_inicio.split('-').map(Number)
-        const currentIndex = (year - iy) * 12 + (now.getMonth() + 1 - im)
+        const currentIndex = (year - iy) * 12 + (month - im)
         for (let i = Math.max(0, currentIndex); i < t.parcelas; i++) {
           const parcelaMes = `${iy + Math.floor((im - 1 + i) / 12)}-${String(((im - 1 + i) % 12) + 1).padStart(2, '0')}`
           if (!mesesPagos.has(parcelaMes)) gastoTotal += t.valor
@@ -50,7 +50,7 @@ export default defineEventHandler(() => {
       }
     }
 
-    // Fatura do mês atual (para exibir no card)
+    // gasto_mes: total da fatura do mês corrente (range correto)
     const faturaRow = db.prepare(`
       SELECT COALESCE(SUM(valor), 0) AS total FROM transacoes
       WHERE tipo = 'despesa' AND cartao_id = ?

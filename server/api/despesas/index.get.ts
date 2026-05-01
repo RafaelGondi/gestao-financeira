@@ -1,5 +1,6 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
+import { transacaoFaturaMonth } from '../../utils/fatura'
 
 function parcelaAtual(dataInicio: string, month: string): number {
   const [iy, im] = dataInicio.split('-').map(Number)
@@ -33,16 +34,40 @@ export default defineEventHandler((event) => {
   const lastDay = new Date(Number(year), Number(mon), 0).getDate()
   const endDate = `${year}-${mon}-${String(lastDay).padStart(2, '0')}`
 
-  const avulsas = db.prepare(`
+  // Non-card avulsas: use calendar month as before
+  const avulsasNormais = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas, t.data, NULL AS data_inicio, NULL AS data_fim,
-      t.conta_id, t.cartao_id, c.nome AS conta_nome, c.banco_key, cr.nome AS cartao_nome,
+      t.conta_id, t.cartao_id, c.nome AS conta_nome, c.banco_key, NULL AS cartao_nome,
       CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS pago
     FROM transacoes t
     LEFT JOIN contas c ON c.id = t.conta_id
-    LEFT JOIN cartoes cr ON cr.id = t.cartao_id
-    WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.data >= ? AND t.data <= ?
+    WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id IS NULL
+      AND t.data >= ? AND t.data <= ?
     ORDER BY t.data DESC
   `).all([startDate, endDate])
+
+  // Card avulsas: fetch from prev month's cutoff to end of current month, then filter by fatura month
+  // We grab a broad range (prev month start to current month end) and compute fatura month in JS
+  const prevYear = Number(mon) === 1 ? Number(year) - 1 : Number(year)
+  const prevMon = Number(mon) === 1 ? 12 : Number(mon) - 1
+  const broadStart = `${prevYear}-${String(prevMon).padStart(2, '0')}-01`
+
+  const avulsasCartaoRaw = db.prepare(`
+    SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas, t.data, NULL AS data_inicio, NULL AS data_fim,
+      t.conta_id, t.cartao_id, NULL AS conta_nome, NULL AS banco_key, cr.nome AS cartao_nome,
+      cr.melhor_data_compra,
+      CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS pago
+    FROM transacoes t
+    JOIN cartoes cr ON cr.id = t.cartao_id
+    WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id IS NOT NULL
+      AND t.data >= ? AND t.data <= ?
+    ORDER BY t.data DESC
+  `).all([broadStart, endDate]) as any[]
+
+  const avulsasCartao = avulsasCartaoRaw.filter(t => {
+    const fm = transacaoFaturaMonth(t.data, t.melhor_data_compra)
+    return fm === month
+  }).map(({ melhor_data_compra: _, ...t }) => t)
 
   const fixas = (db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,
@@ -62,5 +87,5 @@ export default defineEventHandler((event) => {
     parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null
   }))
 
-  return [...fixas, ...avulsas]
+  return [...fixas, ...avulsasNormais, ...avulsasCartao]
 })

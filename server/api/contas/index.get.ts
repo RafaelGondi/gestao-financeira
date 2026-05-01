@@ -1,4 +1,5 @@
 import db from '../../db/index'
+import { faturaDateRange } from '../../utils/fatura'
 
 interface Conta {
   id: number
@@ -31,6 +32,7 @@ interface FaturaPaga {
   conta_id: number
   data_pagamento: string
   valor_ajuste: number
+  melhor_data_compra: number
 }
 
 // Conta quantas ocorrências de uma receita fixa já foram recebidas até hoje
@@ -64,7 +66,11 @@ export default defineEventHandler(() => {
   `).all() as Transferencia[]
 
   const faturasPagas = db.prepare(`
-    SELECT cartao_id, mes, conta_id, data_pagamento, COALESCE(valor_ajuste, 0) AS valor_ajuste FROM faturas WHERE pago = 1
+    SELECT f.cartao_id, f.mes, f.conta_id, f.data_pagamento, COALESCE(f.valor_ajuste, 0) AS valor_ajuste,
+      c.melhor_data_compra
+    FROM faturas f
+    JOIN cartoes c ON c.id = f.cartao_id
+    WHERE f.pago = 1
   `).all() as FaturaPaga[]
 
   return contas.map(conta => {
@@ -102,10 +108,8 @@ export default defineEventHandler(() => {
     for (const f of faturasPagas) {
       if (f.conta_id !== conta.id) continue
       if (new Date(f.data_pagamento + 'T12:00:00') > today) continue
-      const [year, mon] = f.mes.split('-')
-      const startDate = `${year}-${mon}-01`
-      const lastDay = new Date(Number(year), Number(mon), 0).getDate()
-      const endDate = `${year}-${mon}-${String(lastDay).padStart(2, '0')}`
+      const [year, mon] = f.mes.split('-').map(Number)
+      const { startDate, endDate } = faturaDateRange(year, mon, f.melhor_data_compra)
       const row = db.prepare(`
         SELECT COALESCE(SUM(valor), 0) AS total FROM transacoes
         WHERE tipo = 'despesa' AND cartao_id = ?

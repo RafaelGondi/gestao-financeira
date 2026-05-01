@@ -72,7 +72,7 @@
     </UFormField>
 
     <UFormField label="Categoria">
-      <UInput v-model="form.categoria" placeholder="Ex: Moradia, Alimentação..." class="w-full" />
+      <SharedCategoriaInput v-model="form.categoria" placeholder="Ex: Moradia, Alimentação..." />
     </UFormField>
 
     <!-- Tipo -->

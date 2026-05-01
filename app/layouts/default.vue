@@ -9,7 +9,7 @@
             <div class="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
               <UIcon name="i-heroicons-banknotes" class="w-5 h-5 text-white" />
             </div>
-            <span class="text-lg font-bold text-gray-900 dark:text-white">Gestão Financeira</span>
+            <span class="text-lg font-bold text-gray-900 dark:text-white">Controle Financeiro</span>
           </div>
 
           <!-- Navigation Links -->

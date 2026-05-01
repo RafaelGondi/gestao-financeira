@@ -4,6 +4,7 @@
       icon="i-heroicons-chevron-left"
       variant="ghost"
       color="neutral"
+      class="cursor-pointer"
       size="sm"
       @click="prev"
     />
@@ -13,6 +14,7 @@
     <UButton
       icon="i-heroicons-chevron-right"
       variant="ghost"
+      class="cursor-pointer"
       color="neutral"
       size="sm"
       @click="next"

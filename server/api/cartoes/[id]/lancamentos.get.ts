@@ -1,24 +1,11 @@
 import db from '../../../db/index'
 import { getRouterParam, getQuery } from 'h3'
+import { faturaDateRange, transacaoFaturaMonth } from '../../../utils/fatura'
 
 function parcelaAtual(dataInicio: string, month: string): number {
   const [iy, im] = dataInicio.split('-').map(Number)
   const [y, m] = month.split('-').map(Number)
   return (y - iy) * 12 + (m - im) + 1
-}
-
-function monthTotal(cartaoId: number, mes: string): number {
-  const [year, mon] = mes.split('-')
-  const startDate = `${year}-${mon}-01`
-  const lastDay = new Date(Number(year), Number(mon), 0).getDate()
-  const endDate = `${year}-${mon}-${String(lastDay).padStart(2, '0')}`
-  const row = db.prepare(`
-    SELECT COALESCE(SUM(valor), 0) AS total FROM transacoes
-    WHERE tipo = 'despesa' AND cartao_id = ?
-      AND ((fixa = 0 AND data >= ? AND data <= ?)
-        OR (fixa = 1 AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)))
-  `).get([cartaoId, startDate, endDate, endDate, startDate]) as { total: number }
-  return row.total
 }
 
 export default defineEventHandler((event) => {
@@ -34,10 +21,9 @@ export default defineEventHandler((event) => {
   const now = new Date()
   const month = (query.month as string) || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-  const [year, mon] = month.split('-')
-  const startDate = `${year}-${mon}-01`
-  const lastDay = new Date(Number(year), Number(mon), 0).getDate()
-  const endDate = `${year}-${mon}-${String(lastDay).padStart(2, '0')}`
+  const [year, mon] = month.split('-').map(Number)
+  const cutoff = cartao.melhor_data_compra as number
+  const { startDate, endDate } = faturaDateRange(year, mon, cutoff)
 
   const avulsas = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas,
@@ -77,6 +63,7 @@ export default defineEventHandler((event) => {
     (db.prepare(`SELECT mes FROM faturas WHERE cartao_id = ? AND pago = 1`).all([cartaoId]) as any[]).map(r => r.mes)
   )
 
+  // Avulsas a partir do início da fatura corrente — usa fatura month para agrupamento
   const avulsasFuturas = db.prepare(`
     SELECT valor, data FROM transacoes
     WHERE tipo = 'despesa' AND cartao_id = ? AND fixa = 0 AND data >= ?
@@ -84,7 +71,7 @@ export default defineEventHandler((event) => {
 
   let gastoTotal = 0
   for (const t of avulsasFuturas) {
-    const mes = t.data.slice(0, 7)
+    const mes = transacaoFaturaMonth(t.data, cutoff)
     if (!mesesPagos.has(mes)) gastoTotal += t.valor
   }
 
@@ -98,13 +85,11 @@ export default defineEventHandler((event) => {
     if (t.parcelas > 0) {
       const [iy, im] = t.data_inicio.split('-').map(Number)
       const currentIndex = (now.getFullYear() - iy) * 12 + (now.getMonth() + 1 - im)
-      const totalParcelas = t.parcelas
-      for (let i = Math.max(0, currentIndex); i < totalParcelas; i++) {
+      for (let i = Math.max(0, currentIndex); i < t.parcelas; i++) {
         const parcelaMes = `${iy + Math.floor((im - 1 + i) / 12)}-${String(((im - 1 + i) % 12) + 1).padStart(2, '0')}`
         if (!mesesPagos.has(parcelaMes)) gastoTotal += t.valor
       }
     } else {
-      // Fixa: conta só o mês atual se não pago
       if (!mesesPagos.has(month)) gastoTotal += t.valor
     }
   }

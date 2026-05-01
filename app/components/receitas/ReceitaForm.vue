@@ -23,7 +23,7 @@
     </UFormField>
 
     <UFormField label="Categoria">
-      <UInput v-model="form.categoria" placeholder="Ex: Salário, Investimento..." class="w-full" />
+      <SharedCategoriaInput v-model="form.categoria" placeholder="Ex: Salário, Investimento..." />
     </UFormField>
 
     <!-- Tipo -->
