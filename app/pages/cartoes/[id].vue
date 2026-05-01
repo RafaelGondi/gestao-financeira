@@ -64,7 +64,7 @@
       <UCard class="border-0 shadow-sm">
         <div class="space-y-2">
           <div class="flex justify-between text-xs text-gray-500">
-            <span>Limite utilizado</span>
+            <span>Limite comprometido</span>
             <span :class="usoPct >= 90 ? 'text-red-500 font-medium' : usoPct >= 70 ? 'text-yellow-500 font-medium' : ''">
               {{ usoPct.toFixed(0) }}%
             </span>
@@ -77,7 +77,7 @@
             />
           </div>
           <div class="flex justify-between text-xs text-gray-400">
-            <span>{{ format(data.cartao.gasto_mes) }}</span>
+            <span>{{ format(data.cartao.gasto_total) }}</span>
             <span>{{ format(data.cartao.limite) }}</span>
           </div>
         </div>
@@ -172,6 +172,7 @@ interface CartaoDetalhe {
   melhor_data_compra: number
   vencimento: number
   gasto_mes: number
+  gasto_total: number
 }
 
 const route = useRoute()
@@ -195,11 +196,11 @@ const cardStyle = computed(() => {
   return { background: `linear-gradient(135deg, ${color}dd 0%, ${color}88 100%)` }
 })
 
-const disponivel = computed(() => (data.value?.cartao.limite ?? 0) - (data.value?.cartao.gasto_mes ?? 0))
+const disponivel = computed(() => (data.value?.cartao.limite ?? 0) - (data.value?.cartao.gasto_total ?? 0))
 const usoPct = computed(() => {
   const limite = data.value?.cartao.limite
   if (!limite) return 0
-  return ((data.value?.cartao.gasto_mes ?? 0) / limite) * 100
+  return ((data.value?.cartao.gasto_total ?? 0) / limite) * 100
 })
 
 function fmtDate(d: string | null) {

@@ -53,5 +53,32 @@ export default defineEventHandler((event) => {
   const lancamentos = [...fixas, ...avulsas]
   const gasto_mes = lancamentos.reduce((s, l) => s + l.valor, 0)
 
-  return { cartao: { ...cartao, gasto_mes }, lancamentos }
+  // Saldo total comprometido (avulsas futuras + parcelas restantes + fixa do mês)
+  const avulsasFuturas = db.prepare(`
+    SELECT COALESCE(SUM(valor), 0) AS total FROM transacoes
+    WHERE tipo = 'despesa' AND cartao_id = ? AND fixa = 0 AND data >= ?
+  `).get([cartaoId, startDate]) as { total: number }
+
+  const recorrentes = db.prepare(`
+    SELECT valor, data_inicio, data_fim, parcelas FROM transacoes
+    WHERE tipo = 'despesa' AND cartao_id = ? AND fixa = 1
+      AND (data_fim IS NULL OR data_fim >= ?)
+  `).all([cartaoId, startDate]) as { valor: number; data_inicio: string; data_fim: string | null; parcelas: number }[]
+
+  const nowDate = new Date()
+  let totalRecorrente = 0
+  for (const t of recorrentes) {
+    if (t.parcelas > 0) {
+      const [iy, im] = t.data_inicio.split('-').map(Number)
+      const currentIndex = (nowDate.getFullYear() - iy) * 12 + (nowDate.getMonth() + 1 - im)
+      const restantes = Math.max(0, t.parcelas - currentIndex)
+      totalRecorrente += t.valor * restantes
+    } else {
+      totalRecorrente += t.valor
+    }
+  }
+
+  const gasto_total = avulsasFuturas.total + totalRecorrente
+
+  return { cartao: { ...cartao, gasto_mes, gasto_total }, lancamentos }
 })

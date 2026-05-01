@@ -78,9 +78,9 @@
           <!-- Barra de uso -->
           <div>
             <div class="flex items-center justify-between text-xs mb-1.5">
-              <span class="text-gray-500">Gasto este mês</span>
+              <span class="text-gray-500">Limite comprometido</span>
               <span class="font-medium" :class="usoPct(cartao) >= 90 ? 'text-red-500' : usoPct(cartao) >= 70 ? 'text-yellow-500' : 'text-gray-500'">
-                {{ format(cartao.gasto_mes) }} / {{ format(cartao.limite) }}
+                {{ format(cartao.gasto_total) }} / {{ format(cartao.limite) }}
               </span>
             </div>
             <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5 overflow-hidden">
@@ -167,6 +167,7 @@ interface Cartao {
   melhor_data_compra: number
   vencimento: number
   gasto_mes: number
+  gasto_total: number
 }
 
 const { format } = useCurrency()
@@ -174,7 +175,7 @@ const { findBank } = useBanks()
 
 function usoPct(cartao: Cartao) {
   if (!cartao.limite) return 0
-  return (cartao.gasto_mes / cartao.limite) * 100
+  return (cartao.gasto_total / cartao.limite) * 100
 }
 
 function cardStyle(cartao: Cartao) {
