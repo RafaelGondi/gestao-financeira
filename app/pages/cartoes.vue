@@ -74,33 +74,49 @@
         </div>
 
         <!-- Card body -->
-        <div class="p-4">
-          <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2 text-xs text-gray-500">
+        <div class="p-4 space-y-3">
+          <!-- Barra de uso -->
+          <div>
+            <div class="flex items-center justify-between text-xs mb-1.5">
+              <span class="text-gray-500">Gasto este mês</span>
+              <span class="font-medium" :class="usoPct(cartao) >= 90 ? 'text-red-500' : usoPct(cartao) >= 70 ? 'text-yellow-500' : 'text-gray-500'">
+                {{ format(cartao.gasto_mes) }} / {{ format(cartao.limite) }}
+              </span>
+            </div>
+            <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5 overflow-hidden">
+              <div
+                class="h-1.5 rounded-full transition-all"
+                :class="usoPct(cartao) >= 90 ? 'bg-red-500' : usoPct(cartao) >= 70 ? 'bg-yellow-400' : 'bg-green-500'"
+                :style="{ width: Math.min(usoPct(cartao), 100) + '%' }"
+              />
+            </div>
+            <p class="text-right text-xs mt-1" :class="usoPct(cartao) >= 90 ? 'text-red-500' : 'text-gray-400'">
+              {{ usoPct(cartao).toFixed(0) }}% utilizado
+            </p>
+          </div>
+
+          <!-- Melhor data + Actions -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 text-xs text-gray-500">
               <UIcon name="i-heroicons-calendar-days" class="w-4 h-4" />
               <span>Melhor compra: dia {{ cartao.melhor_data_compra }}</span>
             </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex gap-2">
-            <UButton
-              icon="i-heroicons-pencil-square"
-              variant="soft"
-              color="neutral"
-              size="xs"
-              class="flex-1"
-              @click="openEditModal(cartao)"
-            >
-              Editar
-            </UButton>
-            <UButton
-              icon="i-heroicons-trash"
-              variant="soft"
-              color="red"
-              size="xs"
-              @click="confirmDelete(cartao)"
-            />
+            <div class="flex items-center gap-1">
+              <UButton
+                icon="i-heroicons-pencil-square"
+                variant="ghost"
+                color="neutral"
+                size="xs"
+                @click="openEditModal(cartao)"
+              />
+              <UButton
+                icon="i-heroicons-trash"
+                variant="ghost"
+                color="red"
+                size="xs"
+                @click="confirmDelete(cartao)"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -150,10 +166,16 @@ interface Cartao {
   limite: number
   melhor_data_compra: number
   vencimento: number
+  gasto_mes: number
 }
 
 const { format } = useCurrency()
 const { findBank } = useBanks()
+
+function usoPct(cartao: Cartao) {
+  if (!cartao.limite) return 0
+  return (cartao.gasto_mes / cartao.limite) * 100
+}
 
 function cardStyle(cartao: Cartao) {
   const bank = findBank(cartao.banco_key)
