@@ -128,7 +128,7 @@
     </div>
 
     <!-- Modal Add/Edit -->
-    <UModal v-model:open="showModal" :title="editingReceita ? 'Editar Receita' : 'Nova Receita'">
+    <UModal v-model:open="showModal" :title="editingReceita ? 'Editar Receita' : 'Nova Receita'" :dismissible="false">
       <template #body>
         <ReceitasReceitaForm
           :initial="editingReceita"

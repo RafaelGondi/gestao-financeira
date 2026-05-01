@@ -133,7 +133,7 @@
     </div>
 
     <!-- Modal Add/Edit -->
-    <UModal v-model:open="showModal" :title="editingDespesa ? 'Editar Despesa' : 'Nova Despesa'">
+    <UModal v-model:open="showModal" :title="editingDespesa ? 'Editar Despesa' : 'Nova Despesa'" :dismissible="false">
       <template #body>
         <DespesasDespesaForm
           :initial="editingDespesa"
