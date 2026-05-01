@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <UFormField label="Conta de destino" required>
+    <UFormField label="Conta de débito" required>
       <USelect
         v-model="form.conta_id"
         :items="contaOptions"
@@ -15,7 +15,7 @@
     </UFormField>
 
     <UFormField label="Descrição" required>
-      <UInput v-model="form.descricao" placeholder="Ex: Salário, Freelance..." class="w-full" />
+      <UInput v-model="form.descricao" placeholder="Ex: Aluguel, Supermercado..." class="w-full" />
     </UFormField>
 
     <UFormField label="Valor" required>
@@ -27,11 +27,11 @@
     </UFormField>
 
     <UFormField label="Categoria">
-      <UInput v-model="form.categoria" placeholder="Ex: Salário, Investimento..." class="w-full" />
+      <UInput v-model="form.categoria" placeholder="Ex: Moradia, Alimentação..." class="w-full" />
     </UFormField>
 
     <!-- Tipo -->
-    <UFormField label="Tipo de receita">
+    <UFormField label="Tipo de despesa">
       <div class="flex gap-2">
         <button
           v-for="opt in tipoOpts"
@@ -55,15 +55,15 @@
 
     <!-- Avulsa -->
     <template v-if="form.tipo === 'avulsa'">
-      <UFormField label="Data prevista de recebimento" required>
+      <UFormField label="Data prevista de pagamento" required>
         <UInput v-model="form.data" type="date" class="w-full" />
       </UFormField>
       <div v-if="form.data" class="flex items-center gap-2 p-3 rounded-lg"
-        :class="isRecebida ? 'bg-green-50 dark:bg-green-900/20' : 'bg-yellow-50 dark:bg-yellow-900/20'">
-        <UIcon :name="isRecebida ? 'i-heroicons-check-circle' : 'i-heroicons-clock'" class="w-5 h-5"
-          :class="isRecebida ? 'text-green-600' : 'text-yellow-600'" />
-        <span class="text-sm font-medium" :class="isRecebida ? 'text-green-700 dark:text-green-400' : 'text-yellow-700 dark:text-yellow-400'">
-          {{ isRecebida ? 'Já recebido (data no passado ou hoje)' : 'A receber em ' + fmtDate(form.data) }}
+        :class="isPago ? 'bg-green-50 dark:bg-green-900/20' : 'bg-yellow-50 dark:bg-yellow-900/20'">
+        <UIcon :name="isPago ? 'i-heroicons-check-circle' : 'i-heroicons-clock'" class="w-5 h-5"
+          :class="isPago ? 'text-green-600' : 'text-yellow-600'" />
+        <span class="text-sm font-medium" :class="isPago ? 'text-green-700 dark:text-green-400' : 'text-yellow-700 dark:text-yellow-400'">
+          {{ isPago ? 'Já pago (data no passado ou hoje)' : 'A pagar em ' + fmtDate(form.data) }}
         </span>
       </div>
     </template>
@@ -107,14 +107,14 @@
     <div class="flex justify-end gap-3 pt-2">
       <UButton type="button" variant="ghost" color="neutral" @click="emit('cancel')">Cancelar</UButton>
       <UButton :loading="loading" color="primary" @click="handleSubmit">
-        {{ isEdit ? 'Salvar Alterações' : 'Adicionar Receita' }}
+        {{ isEdit ? 'Salvar Alterações' : 'Adicionar Despesa' }}
       </UButton>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-interface ReceitaInput {
+interface DespesaInput {
   descricao: string
   valor: number
   categoria?: string
@@ -126,18 +126,18 @@ interface ReceitaInput {
   parcelas?: number
 }
 
-interface ReceitaFormData extends ReceitaInput {
+interface DespesaFormData extends DespesaInput {
   id?: number
   fixa?: number
 }
 
 const props = defineProps<{
-  initial?: ReceitaFormData | null
+  initial?: DespesaFormData | null
   loading?: boolean
 }>()
 
 const emit = defineEmits<{
-  submit: [data: ReceitaInput]
+  submit: [data: DespesaInput]
   cancel: []
 }>()
 
@@ -156,7 +156,7 @@ const contaOptions = computed(() =>
   (contas.value ?? []).map(c => ({ value: c.id, label: `${c.nome} — ${c.banco}` }))
 )
 
-function inferTipo(val: ReceitaFormData): 'avulsa' | 'fixa' | 'parcelada' {
+function inferTipo(val: DespesaFormData): 'avulsa' | 'fixa' | 'parcelada' {
   if (!val.fixa) return 'avulsa'
   if (val.parcelas && val.parcelas > 0) return 'parcelada'
   return 'fixa'
@@ -201,7 +201,7 @@ watch(() => props.initial, (val) => {
   }
 }, { immediate: true })
 
-const isRecebida = computed(() => !!form.data && form.data <= today)
+const isPago = computed(() => !!form.data && form.data <= today)
 const diaInicio = computed(() => form.data_inicio?.split('-')[2] ?? '')
 
 const dataFimParcelada = computed(() => {

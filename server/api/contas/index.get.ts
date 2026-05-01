@@ -61,7 +61,12 @@ export default defineEventHandler(() => {
           movimentacao += t.valor
         }
       } else if (t.tipo === 'despesa') {
-        if (t.pago) movimentacao -= t.valor
+        if (t.fixa) {
+          const n = countReceivedOccurrences(t.data_inicio!, t.data_fim, today)
+          movimentacao -= t.valor * n
+        } else if (new Date(t.data + 'T12:00:00') <= today) {
+          movimentacao -= t.valor
+        }
       }
     }
 

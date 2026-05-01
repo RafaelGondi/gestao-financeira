@@ -1,7 +1,7 @@
 import db from '../../db/index'
 import { readBody } from 'h3'
 
-interface ReceitaBody {
+interface DespesaBody {
   descricao: string
   valor: number
   categoria?: string
@@ -23,7 +23,7 @@ function calcDataFim(dataInicio: string, parcelas: number): string {
 }
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<ReceitaBody>(event)
+  const body = await readBody<DespesaBody>(event)
 
   if (!body.descricao?.trim())
     throw createError({ statusCode: 400, statusMessage: 'Descrição é obrigatória' })
@@ -45,12 +45,12 @@ export default defineEventHandler(async (event) => {
     const dataFim = calcDataFim(body.data_inicio, parcelas)
     const result = db.prepare(`
       INSERT INTO transacoes (descricao, valor, tipo, categoria, conta_id, data, pago, fixa, data_inicio, data_fim, parcelas)
-      VALUES (?, ?, 'receita', ?, ?, ?, 0, 1, ?, ?, ?)
+      VALUES (?, ?, 'despesa', ?, ?, ?, 0, 1, ?, ?, ?)
     `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, body.data_inicio, body.data_inicio, dataFim, parcelas])
 
     return db.prepare(`
       SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data_inicio, t.data_fim, t.data, t.conta_id,
-        c.nome AS conta_nome, c.banco_key, 1 AS recebido
+        c.nome AS conta_nome, c.banco_key, 1 AS pago
       FROM transacoes t LEFT JOIN contas c ON c.id = t.conta_id WHERE t.id = ?
     `).get([result.lastInsertRowid])
   }
@@ -63,13 +63,13 @@ export default defineEventHandler(async (event) => {
 
     const result = db.prepare(`
       INSERT INTO transacoes (descricao, valor, tipo, categoria, conta_id, data, pago, fixa, data_inicio, data_fim, parcelas)
-      VALUES (?, ?, 'receita', ?, ?, ?, 0, 1, ?, ?, 0)
+      VALUES (?, ?, 'despesa', ?, ?, ?, 0, 1, ?, ?, 0)
     `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, body.data_inicio, body.data_inicio, body.data_fim || null])
 
     return db.prepare(`
       SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data_inicio, t.data_fim, t.data, t.conta_id,
         c.nome AS conta_nome, c.banco_key,
-        CASE WHEN t.data_fim IS NOT NULL AND t.data_fim < date('now') THEN 2 ELSE 1 END AS recebido
+        CASE WHEN t.data_fim IS NOT NULL AND t.data_fim < date('now') THEN 2 ELSE 1 END AS pago
       FROM transacoes t LEFT JOIN contas c ON c.id = t.conta_id WHERE t.id = ?
     `).get([result.lastInsertRowid])
   }
@@ -80,13 +80,13 @@ export default defineEventHandler(async (event) => {
 
   const result = db.prepare(`
     INSERT INTO transacoes (descricao, valor, tipo, categoria, conta_id, data, pago, fixa, parcelas)
-    VALUES (?, ?, 'receita', ?, ?, ?, CASE WHEN ? <= date('now') THEN 1 ELSE 0 END, 0, 0)
+    VALUES (?, ?, 'despesa', ?, ?, ?, CASE WHEN ? <= date('now') THEN 1 ELSE 0 END, 0, 0)
   `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, body.data, body.data])
 
   return db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data_inicio, t.data_fim, t.data, t.conta_id,
       c.nome AS conta_nome, c.banco_key,
-      CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS recebido
+      CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS pago
     FROM transacoes t LEFT JOIN contas c ON c.id = t.conta_id WHERE t.id = ?
   `).get([result.lastInsertRowid])
 })

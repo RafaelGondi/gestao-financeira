@@ -59,7 +59,8 @@ if (!g.__db) {
   if (!colNames.includes('fixa'))       db.exec(`ALTER TABLE transacoes ADD COLUMN fixa INTEGER DEFAULT 0`)
   if (!colNames.includes('data_inicio')) db.exec(`ALTER TABLE transacoes ADD COLUMN data_inicio DATE`)
   if (!colNames.includes('data_fim'))   db.exec(`ALTER TABLE transacoes ADD COLUMN data_fim DATE`)
-  if (!colNames.includes('conta_id'))  db.exec(`ALTER TABLE transacoes ADD COLUMN conta_id INTEGER REFERENCES contas(id)`)
+  if (!colNames.includes('conta_id'))   db.exec(`ALTER TABLE transacoes ADD COLUMN conta_id INTEGER REFERENCES contas(id)`)
+  if (!colNames.includes('parcelas'))   db.exec(`ALTER TABLE transacoes ADD COLUMN parcelas INTEGER DEFAULT 0`)
 
   g.__db = db
 }

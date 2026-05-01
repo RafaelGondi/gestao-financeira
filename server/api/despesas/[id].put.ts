@@ -1,7 +1,7 @@
 import db from '../../db/index'
 import { readBody, getRouterParam } from 'h3'
 
-interface ReceitaBody {
+interface DespesaBody {
   descricao: string
   valor: number
   categoria?: string
@@ -27,11 +27,11 @@ export default defineEventHandler(async (event) => {
   if (!id || isNaN(id))
     throw createError({ statusCode: 400, statusMessage: 'ID inválido' })
 
-  const existing = db.prepare(`SELECT id FROM transacoes WHERE id = ? AND tipo = 'receita'`).get([id])
+  const existing = db.prepare(`SELECT id FROM transacoes WHERE id = ? AND tipo = 'despesa'`).get([id])
   if (!existing)
-    throw createError({ statusCode: 404, statusMessage: 'Receita não encontrada' })
+    throw createError({ statusCode: 404, statusMessage: 'Despesa não encontrada' })
 
-  const body = await readBody<ReceitaBody>(event)
+  const body = await readBody<DespesaBody>(event)
 
   if (!body.descricao?.trim())
     throw createError({ statusCode: 400, statusMessage: 'Descrição é obrigatória' })
@@ -92,7 +92,7 @@ export default defineEventHandler(async (event) => {
         WHEN t.fixa = 1 THEN
           CASE WHEN t.data_fim IS NOT NULL AND t.data_fim < date('now') THEN 2 ELSE 1 END
         WHEN t.data <= date('now') THEN 1 ELSE 0
-      END AS recebido
+      END AS pago
     FROM transacoes t LEFT JOIN contas c ON c.id = t.conta_id WHERE t.id = ?
   `).get([id])
 })
