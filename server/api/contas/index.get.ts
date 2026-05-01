@@ -25,6 +25,13 @@ interface Transferencia {
   conta_destino_id: number
 }
 
+interface FaturaPaga {
+  cartao_id: number
+  mes: string
+  conta_id: number
+  data_pagamento: string
+}
+
 // Conta quantas ocorrências de uma receita fixa já foram recebidas até hoje
 function countReceivedOccurrences(dataInicio: string, dataFim: string | null, today: Date): number {
   const inicio = new Date(dataInicio + 'T12:00:00')
@@ -54,6 +61,10 @@ export default defineEventHandler(() => {
   const transferencias = db.prepare(`
     SELECT valor, data, conta_origem_id, conta_destino_id FROM transferencias
   `).all() as Transferencia[]
+
+  const faturasPagas = db.prepare(`
+    SELECT cartao_id, mes, conta_id, data_pagamento FROM faturas WHERE pago = 1
+  `).all() as FaturaPaga[]
 
   return contas.map(conta => {
     const transacoes = db.prepare(`
@@ -85,6 +96,22 @@ export default defineEventHandler(() => {
       if (new Date(tr.data + 'T12:00:00') > today) continue
       if (tr.conta_destino_id === conta.id) movimentacao += tr.valor
       if (tr.conta_origem_id === conta.id) movimentacao -= tr.valor
+    }
+
+    for (const f of faturasPagas) {
+      if (f.conta_id !== conta.id) continue
+      if (new Date(f.data_pagamento + 'T12:00:00') > today) continue
+      const [year, mon] = f.mes.split('-')
+      const startDate = `${year}-${mon}-01`
+      const lastDay = new Date(Number(year), Number(mon), 0).getDate()
+      const endDate = `${year}-${mon}-${String(lastDay).padStart(2, '0')}`
+      const row = db.prepare(`
+        SELECT COALESCE(SUM(valor), 0) AS total FROM transacoes
+        WHERE tipo = 'despesa' AND cartao_id = ?
+          AND ((fixa = 0 AND data >= ? AND data <= ?)
+            OR (fixa = 1 AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)))
+      `).get([f.cartao_id, startDate, endDate, endDate, startDate]) as { total: number }
+      movimentacao -= row.total
     }
 
     return {

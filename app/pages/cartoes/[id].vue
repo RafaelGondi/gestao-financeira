@@ -35,53 +35,67 @@
       <DashboardMonthNavigator v-model="currentMonth" />
     </div>
 
-    <!-- Resumo -->
-    <div v-if="data" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <UCard class="border-0 shadow-sm">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-            <UIcon name="i-heroicons-credit-card" class="w-5 h-5 text-red-600 dark:text-red-400" />
-          </div>
-          <div>
-            <p class="text-xs text-gray-500">Fatura do mês</p>
-            <p class="text-lg font-bold text-gray-900 dark:text-white">{{ format(data.cartao.gasto_mes) }}</p>
-          </div>
-        </div>
-      </UCard>
-
-      <UCard class="border-0 shadow-sm">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-            <UIcon name="i-heroicons-banknotes" class="w-5 h-5 text-green-600 dark:text-green-400" />
-          </div>
-          <div>
-            <p class="text-xs text-gray-500">Disponível</p>
-            <p class="text-lg font-bold text-green-600 dark:text-green-400">{{ format(disponivel) }}</p>
-          </div>
-        </div>
-      </UCard>
-
-      <UCard class="border-0 shadow-sm">
-        <div class="space-y-2">
-          <div class="flex justify-between text-xs text-gray-500">
-            <span>Limite comprometido</span>
-            <span :class="usoPct >= 90 ? 'text-red-500 font-medium' : usoPct >= 70 ? 'text-yellow-500 font-medium' : ''">
-              {{ usoPct.toFixed(0) }}%
+    <!-- Fatura do mês -->
+    <div v-if="data" class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <p class="text-xs text-gray-500 mb-1">Fatura de {{ fmtMonth(currentMonth) }}</p>
+          <p class="text-3xl font-bold" :class="data.fatura?.pago ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'">
+            {{ format(data.cartao.gasto_mes) }}
+          </p>
+          <div class="flex items-center gap-2 mt-2">
+            <UBadge
+              :label="data.fatura?.pago ? 'Paga' : 'Em aberto'"
+              :color="data.fatura?.pago ? 'success' : 'warning'"
+              variant="soft"
+            />
+            <span v-if="data.fatura?.pago" class="text-xs text-gray-400">
+              Paga em {{ fmtDate(data.fatura.data_pagamento) }} · {{ data.fatura.conta_nome }}
             </span>
           </div>
-          <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
-            <div
-              class="h-2 rounded-full transition-all"
-              :class="usoPct >= 90 ? 'bg-red-500' : usoPct >= 70 ? 'bg-yellow-400' : 'bg-green-500'"
-              :style="{ width: Math.min(usoPct, 100) + '%' }"
-            />
-          </div>
-          <div class="flex justify-between text-xs text-gray-400">
-            <span>{{ format(data.cartao.gasto_total) }}</span>
-            <span>{{ format(data.cartao.limite) }}</span>
-          </div>
         </div>
-      </UCard>
+        <div class="flex gap-2">
+          <UButton
+            v-if="!data.fatura?.pago"
+            icon="i-heroicons-check-circle"
+            color="primary"
+            :disabled="data.cartao.gasto_mes === 0"
+            @click="showPagarModal = true"
+          >
+            Pagar fatura
+          </UButton>
+          <UButton
+            v-else
+            icon="i-heroicons-x-circle"
+            variant="soft"
+            color="neutral"
+            :loading="desfazendoPagamento"
+            @click="desfazerPagamento"
+          >
+            Desfazer pagamento
+          </UButton>
+        </div>
+      </div>
+
+      <!-- Barra de limite -->
+      <div class="mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
+        <div class="flex justify-between text-xs text-gray-500 mb-1.5">
+          <span>Limite comprometido</span>
+          <span :class="usoPct >= 90 ? 'text-red-500 font-medium' : usoPct >= 70 ? 'text-yellow-500 font-medium' : ''">
+            {{ format(data.cartao.gasto_total) }} / {{ format(data.cartao.limite) }} · {{ usoPct.toFixed(0) }}%
+          </span>
+        </div>
+        <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
+          <div
+            class="h-2 rounded-full transition-all"
+            :class="usoPct >= 90 ? 'bg-red-500' : usoPct >= 70 ? 'bg-yellow-400' : 'bg-green-500'"
+            :style="{ width: Math.min(usoPct, 100) + '%' }"
+          />
+        </div>
+        <p class="text-xs text-gray-400 mt-1">
+          Disponível: <span class="font-medium text-gray-600 dark:text-gray-300">{{ format(disponivel) }}</span>
+        </p>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -94,19 +108,20 @@
       :description="error.message" icon="i-heroicons-exclamation-triangle" />
 
     <!-- Empty -->
-    <div v-else-if="!data?.lancamentos.length" class="text-center py-20">
-      <div class="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-        <UIcon name="i-heroicons-credit-card" class="w-10 h-10 text-gray-400" />
+    <div v-else-if="!data?.lancamentos.length" class="text-center py-16">
+      <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+        <UIcon name="i-heroicons-credit-card" class="w-8 h-8 text-gray-400" />
       </div>
-      <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Nenhum lançamento neste mês</h3>
-      <p class="text-gray-400 text-sm mb-6">Adicione despesas vinculadas a este cartão</p>
-      <UButton icon="i-heroicons-plus" color="primary" to="/despesas">
-        Ir para Despesas
-      </UButton>
+      <h3 class="text-base font-semibold text-gray-700 dark:text-gray-300 mb-1">Nenhum lançamento neste mês</h3>
+      <p class="text-gray-400 text-sm">Adicione despesas vinculadas a este cartão</p>
     </div>
 
-    <!-- Lista -->
+    <!-- Lista de lançamentos -->
     <div v-else class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+      <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Lançamentos</p>
+        <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ data?.lancamentos.length }} item(s)</p>
+      </div>
       <div
         v-for="(lanc, i) in data.lancamentos"
         :key="`${lanc.id}-${lanc.fixa}`"
@@ -114,16 +129,19 @@
         :class="i < data.lancamentos.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
       >
         <!-- Ícone -->
-        <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" :class="iconBg(lanc)">
-          <UIcon :name="iconName(lanc)" class="w-5 h-5" :class="iconColor(lanc)" />
+        <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+          :class="lanc.fixa ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-gray-100 dark:bg-gray-800'">
+          <UIcon :name="lanc.parcelas > 0 ? 'i-heroicons-queue-list' : lanc.fixa ? 'i-heroicons-arrow-path' : 'i-heroicons-credit-card'"
+            class="w-5 h-5"
+            :class="lanc.fixa ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'" />
         </div>
 
         <!-- Info -->
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <p class="font-medium text-gray-900 dark:text-white truncate">{{ lanc.descricao }}</p>
-            <UBadge v-if="lanc.parcelas > 0" :label="`${lanc.parcela_atual}/${lanc.parcelas}`" color="purple" variant="soft" size="xs"
-              icon="i-heroicons-queue-list" />
+            <UBadge v-if="lanc.parcelas > 0" :label="`${lanc.parcela_atual}/${lanc.parcelas}`"
+              color="purple" variant="soft" size="xs" icon="i-heroicons-queue-list" />
             <UBadge v-else-if="lanc.fixa" label="Fixa" color="info" variant="soft" size="xs"
               icon="i-heroicons-arrow-path" />
           </div>
@@ -136,15 +154,48 @@
           </div>
         </div>
 
-        <!-- Valor e status -->
-        <div class="flex items-center gap-3 flex-shrink-0">
-          <p class="text-base font-semibold text-red-600 dark:text-red-400">
-            - {{ format(lanc.valor) }}
-          </p>
-          <UBadge :label="lanc.pago === 1 ? 'Pago' : 'A pagar'" :color="lanc.pago === 1 ? 'success' : 'warning'" variant="soft" size="sm" />
-        </div>
+        <!-- Valor -->
+        <p class="text-base font-semibold text-red-600 dark:text-red-400 flex-shrink-0">
+          - {{ format(lanc.valor) }}
+        </p>
       </div>
     </div>
+
+    <!-- Modal pagar fatura -->
+    <UModal v-model:open="showPagarModal" title="Pagar fatura" :dismissible="false">
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Registre o pagamento da fatura de
+            <strong class="text-gray-900 dark:text-white">{{ fmtMonth(currentMonth) }}</strong>
+            no valor de
+            <strong class="text-gray-900 dark:text-white">{{ format(data?.cartao.gasto_mes ?? 0) }}</strong>.
+          </p>
+
+          <UFormField label="Conta debitada" required>
+            <USelect
+              v-model="pagamento.conta_id"
+              :items="contaOptions"
+              value-key="value"
+              label-key="label"
+              placeholder="Selecione a conta..."
+              class="w-full"
+            />
+          </UFormField>
+
+          <UFormField label="Data do pagamento" required>
+            <UInput v-model="pagamento.data" type="date" class="w-full" />
+          </UFormField>
+
+          <div class="flex justify-end gap-3 pt-2">
+            <UButton variant="ghost" color="neutral" @click="showPagarModal = false">Cancelar</UButton>
+            <UButton color="primary" :loading="salvandoPagamento" :disabled="!pagamento.conta_id" @click="salvarPagamento">
+              Confirmar pagamento
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -160,7 +211,14 @@ interface Lancamento {
   fixa: number
   parcelas: number
   parcela_atual: number | null
+}
+
+interface Fatura {
+  id: number
   pago: number
+  conta_id: number | null
+  conta_nome: string | null
+  data_pagamento: string | null
 }
 
 interface CartaoDetalhe {
@@ -182,12 +240,9 @@ const { findBank } = useBanks()
 const now = new Date()
 const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 
-const { data, pending, error } = await useFetch<{ cartao: CartaoDetalhe; lancamentos: Lancamento[] }>(
+const { data, pending, error, refresh } = await useFetch<{ cartao: CartaoDetalhe; lancamentos: Lancamento[]; fatura: Fatura | null }>(
   `/api/cartoes/${route.params.id}/lancamentos`,
-  {
-    query: computed(() => ({ month: currentMonth.value })),
-    watch: [currentMonth]
-  }
+  { query: computed(() => ({ month: currentMonth.value })), watch: [currentMonth] }
 )
 
 const cardStyle = computed(() => {
@@ -209,6 +264,12 @@ function fmtDate(d: string | null) {
   return `${day}/${m}/${y}`
 }
 
+function fmtMonth(ym: string) {
+  const [y, m] = ym.split('-')
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+  return `${meses[Number(m) - 1]}/${y}`
+}
+
 function descricaoData(l: Lancamento) {
   if (l.fixa) {
     const dia = l.data_inicio?.split('-')[2]
@@ -217,25 +278,47 @@ function descricaoData(l: Lancamento) {
   return fmtDate(l.data)
 }
 
-function iconName(l: Lancamento) {
-  if (l.fixa) return l.pago === 1 ? 'i-heroicons-check-circle' : 'i-heroicons-arrow-path'
-  return l.pago === 1 ? 'i-heroicons-check-circle' : 'i-heroicons-clock'
+// Pagamento
+const { data: contas } = await useFetch<{ id: number; nome: string; banco: string }[]>('/api/contas')
+const contaOptions = computed(() => (contas.value ?? []).map(c => ({ value: c.id, label: `${c.nome} — ${c.banco}` })))
+
+const showPagarModal = ref(false)
+const salvandoPagamento = ref(false)
+const desfazendoPagamento = ref(false)
+const pagamento = reactive({
+  conta_id: null as number | null,
+  data: new Date().toISOString().split('T')[0]
+})
+
+async function salvarPagamento() {
+  if (!pagamento.conta_id) return
+  salvandoPagamento.value = true
+  try {
+    await $fetch('/api/faturas', {
+      method: 'POST',
+      body: {
+        cartao_id: route.params.id,
+        mes: currentMonth.value,
+        conta_id: pagamento.conta_id,
+        data_pagamento: pagamento.data
+      }
+    })
+    await refresh()
+    showPagarModal.value = false
+  } finally {
+    salvandoPagamento.value = false
+  }
 }
 
-function iconBg(l: Lancamento) {
-  return l.pago === 1
-    ? 'bg-green-100 dark:bg-green-900/30'
-    : l.fixa
-      ? 'bg-blue-100 dark:bg-blue-900/30'
-      : 'bg-yellow-100 dark:bg-yellow-900/30'
-}
-
-function iconColor(l: Lancamento) {
-  return l.pago === 1
-    ? 'text-green-600 dark:text-green-400'
-    : l.fixa
-      ? 'text-blue-600 dark:text-blue-400'
-      : 'text-yellow-600 dark:text-yellow-400'
+async function desfazerPagamento() {
+  if (!data.value?.fatura?.id) return
+  desfazendoPagamento.value = true
+  try {
+    await $fetch(`/api/faturas/${data.value.fatura.id}`, { method: 'DELETE' })
+    await refresh()
+  } finally {
+    desfazendoPagamento.value = false
+  }
 }
 
 useHead({ title: computed(() => `${data.value?.cartao.nome ?? 'Cartão'} — Gestão Financeira`) })

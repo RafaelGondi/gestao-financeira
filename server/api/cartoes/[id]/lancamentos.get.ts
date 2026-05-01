@@ -7,6 +7,20 @@ function parcelaAtual(dataInicio: string, month: string): number {
   return (y - iy) * 12 + (m - im) + 1
 }
 
+function monthTotal(cartaoId: number, mes: string): number {
+  const [year, mon] = mes.split('-')
+  const startDate = `${year}-${mon}-01`
+  const lastDay = new Date(Number(year), Number(mon), 0).getDate()
+  const endDate = `${year}-${mon}-${String(lastDay).padStart(2, '0')}`
+  const row = db.prepare(`
+    SELECT COALESCE(SUM(valor), 0) AS total FROM transacoes
+    WHERE tipo = 'despesa' AND cartao_id = ?
+      AND ((fixa = 0 AND data >= ? AND data <= ?)
+        OR (fixa = 1 AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)))
+  `).get([cartaoId, startDate, endDate, endDate, startDate]) as { total: number }
+  return row.total
+}
+
 export default defineEventHandler((event) => {
   const cartaoId = Number(getRouterParam(event, 'id'))
   if (!cartaoId || isNaN(cartaoId))
@@ -27,8 +41,7 @@ export default defineEventHandler((event) => {
 
   const avulsas = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas,
-      t.data, NULL AS data_inicio, NULL AS data_fim,
-      CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS pago
+      t.data, NULL AS data_inicio, NULL AS data_fim
     FROM transacoes t
     WHERE t.tipo = 'despesa' AND t.cartao_id = ? AND t.fixa = 0
       AND t.data >= ? AND t.data <= ?
@@ -38,14 +51,13 @@ export default defineEventHandler((event) => {
   const fixas = (db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,
       ? || '-' || substr(t.data_inicio, 9, 2) AS data,
-      t.data_inicio, t.data_fim,
-      CASE WHEN ? || '-' || substr(t.data_inicio, 9, 2) <= date('now') THEN 1 ELSE 2 END AS pago
+      t.data_inicio, t.data_fim
     FROM transacoes t
     WHERE t.tipo = 'despesa' AND t.cartao_id = ? AND t.fixa = 1
       AND t.data_inicio <= ?
       AND (t.data_fim IS NULL OR t.data_fim >= ?)
     ORDER BY t.data_inicio ASC
-  `).all([month, month, cartaoId, endDate, startDate]) as any[]).map(t => ({
+  `).all([month, cartaoId, endDate, startDate]) as any[]).map(t => ({
     ...t,
     parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null
   }))
@@ -53,11 +65,28 @@ export default defineEventHandler((event) => {
   const lancamentos = [...fixas, ...avulsas]
   const gasto_mes = lancamentos.reduce((s, l) => s + l.valor, 0)
 
-  // Saldo total comprometido (avulsas futuras + parcelas restantes + fixa do mês)
+  // Fatura do mês
+  const fatura = db.prepare(`
+    SELECT f.id, f.pago, f.conta_id, f.data_pagamento, c.nome AS conta_nome
+    FROM faturas f LEFT JOIN contas c ON c.id = f.conta_id
+    WHERE f.cartao_id = ? AND f.mes = ?
+  `).get([cartaoId, month]) as any || null
+
+  // gasto_total: soma de meses NÃO pagos (avulsas futuras + parcelas restantes)
+  const mesesPagos = new Set(
+    (db.prepare(`SELECT mes FROM faturas WHERE cartao_id = ? AND pago = 1`).all([cartaoId]) as any[]).map(r => r.mes)
+  )
+
   const avulsasFuturas = db.prepare(`
-    SELECT COALESCE(SUM(valor), 0) AS total FROM transacoes
+    SELECT valor, data FROM transacoes
     WHERE tipo = 'despesa' AND cartao_id = ? AND fixa = 0 AND data >= ?
-  `).get([cartaoId, startDate]) as { total: number }
+  `).all([cartaoId, startDate]) as { valor: number; data: string }[]
+
+  let gastoTotal = 0
+  for (const t of avulsasFuturas) {
+    const mes = t.data.slice(0, 7)
+    if (!mesesPagos.has(mes)) gastoTotal += t.valor
+  }
 
   const recorrentes = db.prepare(`
     SELECT valor, data_inicio, data_fim, parcelas FROM transacoes
@@ -65,20 +94,20 @@ export default defineEventHandler((event) => {
       AND (data_fim IS NULL OR data_fim >= ?)
   `).all([cartaoId, startDate]) as { valor: number; data_inicio: string; data_fim: string | null; parcelas: number }[]
 
-  const nowDate = new Date()
-  let totalRecorrente = 0
   for (const t of recorrentes) {
     if (t.parcelas > 0) {
       const [iy, im] = t.data_inicio.split('-').map(Number)
-      const currentIndex = (nowDate.getFullYear() - iy) * 12 + (nowDate.getMonth() + 1 - im)
-      const restantes = Math.max(0, t.parcelas - currentIndex)
-      totalRecorrente += t.valor * restantes
+      const currentIndex = (now.getFullYear() - iy) * 12 + (now.getMonth() + 1 - im)
+      const totalParcelas = t.parcelas
+      for (let i = Math.max(0, currentIndex); i < totalParcelas; i++) {
+        const parcelaMes = `${iy + Math.floor((im - 1 + i) / 12)}-${String(((im - 1 + i) % 12) + 1).padStart(2, '0')}`
+        if (!mesesPagos.has(parcelaMes)) gastoTotal += t.valor
+      }
     } else {
-      totalRecorrente += t.valor
+      // Fixa: conta só o mês atual se não pago
+      if (!mesesPagos.has(month)) gastoTotal += t.valor
     }
   }
 
-  const gasto_total = avulsasFuturas.total + totalRecorrente
-
-  return { cartao: { ...cartao, gasto_mes, gasto_total }, lancamentos }
+  return { cartao: { ...cartao, gasto_mes, gasto_total: gastoTotal }, lancamentos, fatura }
 })

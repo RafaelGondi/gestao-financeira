@@ -48,6 +48,17 @@ if (!g.__db) {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS faturas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cartao_id INTEGER NOT NULL REFERENCES cartoes(id),
+      mes TEXT NOT NULL,
+      pago INTEGER DEFAULT 0,
+      conta_id INTEGER REFERENCES contas(id),
+      data_pagamento DATE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(cartao_id, mes)
+    );
+
     CREATE TABLE IF NOT EXISTS transferencias (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       descricao TEXT,
