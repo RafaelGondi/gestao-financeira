@@ -69,12 +69,16 @@ export default defineEventHandler((event) => {
     return fm === month
   }).map(({ melhor_data_compra: _, ...t }) => t)
 
-  const fixas = (db.prepare(`
+  const prevYear = Number(mon) === 1 ? Number(year) - 1 : Number(year)
+  const prevMon = Number(mon) === 1 ? 12 : Number(mon) - 1
+  const prevMonthStr = `${prevYear}-${String(prevMon).padStart(2, '0')}`
+  const today = new Date().toISOString().split('T')[0]
+
+  const fixasRaw = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,
-      ? || '-' || substr(t.data_inicio, 9, 2) AS data,
       t.data_inicio, t.data_fim, t.conta_id, t.cartao_id,
       c.nome AS conta_nome, c.banco_key, cr.nome AS cartao_nome,
-      CASE WHEN ? || '-' || substr(t.data_inicio, 9, 2) <= date('now') THEN 1 ELSE 2 END AS pago
+      cr.melhor_data_compra
     FROM transacoes t
     LEFT JOIN contas c ON c.id = t.conta_id
     LEFT JOIN cartoes cr ON cr.id = t.cartao_id
@@ -82,10 +86,23 @@ export default defineEventHandler((event) => {
       AND t.data_inicio <= ?
       AND (t.data_fim IS NULL OR t.data_fim >= ?)
     ORDER BY t.data_inicio ASC
-  `).all([month, month, endDate, startDate]) as any[]).map(t => ({
-    ...t,
-    parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null
-  }))
+  `).all([endDate, startDate]) as any[]
+
+  const fixas = fixasRaw.flatMap((t: any) => {
+    const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
+    const cutoffT: number = t.cartao_id && t.melhor_data_compra > 1 ? t.melhor_data_compra : 1
+    const calcMonth = (cutoffT > 1 && dayP >= cutoffT) ? prevMonthStr : month
+    const effectiveDate = calcMonth + '-' + t.data_inicio.slice(8, 10)
+    if (effectiveDate < t.data_inicio) return []
+    if (t.data_fim && effectiveDate > t.data_fim) return []
+    const { melhor_data_compra: _, ...rest } = t
+    return [{
+      ...rest,
+      data: effectiveDate,
+      pago: effectiveDate <= today ? 1 : 2,
+      parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, calcMonth) : null
+    }]
+  })
 
   return [...fixas, ...avulsasNormais, ...avulsasCartao]
 })

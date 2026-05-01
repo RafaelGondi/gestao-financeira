@@ -25,6 +25,11 @@ export default defineEventHandler((event) => {
   const cutoff = cartao.melhor_data_compra as number
   const { startDate, endDate } = faturaDateRange(year, mon, cutoff)
 
+  // Previous calendar month string (for cutoff-shifted installments)
+  const prevYear = mon === 1 ? year - 1 : year
+  const prevMon = mon === 1 ? 12 : mon - 1
+  const prevMonthStr = `${prevYear}-${String(prevMon).padStart(2, '0')}`
+
   const avulsas = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas,
       t.data, NULL AS data_inicio, NULL AS data_fim
@@ -34,19 +39,32 @@ export default defineEventHandler((event) => {
     ORDER BY t.data DESC
   `).all([cartaoId, startDate, endDate])
 
-  const fixas = (db.prepare(`
+  // For fixas/parceladas: the installment day comes from data_inicio.
+  // If day >= cutoff, the installment shown in fatura month YYYY-MM is the one
+  // from the PREVIOUS calendar month (e.g. cutoff=3, day=3 → show March's installment in April fatura).
+  const fixasRaw = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,
-      ? || '-' || substr(t.data_inicio, 9, 2) AS data,
       t.data_inicio, t.data_fim
     FROM transacoes t
     WHERE t.tipo = 'despesa' AND t.cartao_id = ? AND t.fixa = 1
       AND t.data_inicio <= ?
       AND (t.data_fim IS NULL OR t.data_fim >= ?)
     ORDER BY t.data_inicio ASC
-  `).all([month, cartaoId, endDate, startDate]) as any[]).map(t => ({
-    ...t,
-    parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null
-  }))
+  `).all([cartaoId, endDate, startDate]) as any[]
+
+  const fixas = fixasRaw.flatMap((t: any) => {
+    const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
+    const calcMonth = (cutoff > 1 && dayP >= cutoff) ? prevMonthStr : month
+    const effectiveDate = calcMonth + '-' + t.data_inicio.slice(8, 10)
+    // Exclude if before first installment or after last
+    if (effectiveDate < t.data_inicio) return []
+    if (t.data_fim && effectiveDate > t.data_fim) return []
+    return [{
+      ...t,
+      data: effectiveDate,
+      parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, calcMonth) : null
+    }]
+  })
 
   const lancamentos = [...fixas, ...avulsas]
   const gasto_mes = lancamentos.reduce((s, l) => s + l.valor, 0)
