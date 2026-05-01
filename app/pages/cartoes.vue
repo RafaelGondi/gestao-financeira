@@ -53,7 +53,7 @@
         class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden"
       >
         <!-- Card visual header -->
-        <div class="h-28 p-4 relative" :style="cardStyle(cartao)">
+        <NuxtLink :to="`/cartoes/${cartao.id}`" class="block h-28 p-4 relative" :style="cardStyle(cartao)">
           <div class="flex items-start justify-between">
             <div>
               <p class="text-white/70 text-xs font-medium">{{ cartao.banco }}</p>
@@ -71,7 +71,7 @@
               <p class="text-white text-sm font-semibold">Dia {{ cartao.vencimento }}</p>
             </div>
           </div>
-        </div>
+        </NuxtLink>
 
         <!-- Card body -->
         <div class="p-4 space-y-3">
