@@ -102,6 +102,11 @@
               <UIcon name="i-heroicons-building-library" class="w-3 h-3" />
               {{ despesa.conta_nome }}
             </span>
+            <span v-if="despesa.cartao_nome"
+              class="text-xs bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <UIcon name="i-heroicons-credit-card" class="w-3 h-3" />
+              {{ despesa.cartao_nome }}
+            </span>
             <span v-if="despesa.categoria"
               class="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full">
               {{ despesa.categoria }}
@@ -146,14 +151,37 @@
           <p class="text-gray-600 dark:text-gray-400">
             Tem certeza que deseja excluir
             <strong class="text-gray-900 dark:text-white">{{ deletingDespesa?.descricao }}</strong>?
-            <span v-if="deletingDespesa?.fixa" class="block mt-1 text-sm text-orange-500">
-              Esta é uma despesa fixa — será removida de todos os meses.
-            </span>
           </p>
-          <div class="flex justify-end gap-3">
-            <UButton variant="ghost" color="neutral" @click="showDeleteModal = false">Cancelar</UButton>
-            <UButton color="red" :loading="deleting" @click="handleDelete">Excluir</UButton>
-          </div>
+          <template v-if="deletingDespesa?.fixa">
+            <div class="flex flex-col gap-2">
+              <UButton
+                variant="soft"
+                color="neutral"
+                :loading="deleting"
+                icon="i-heroicons-calendar-days"
+                class="w-full justify-start"
+                @click="handleDelete('one')"
+              >
+                Remover só {{ deletingDespesa.parcelas > 0 ? 'esta parcela' : 'este mês' }}
+              </UButton>
+              <UButton
+                color="red"
+                :loading="deleting"
+                icon="i-heroicons-trash"
+                class="w-full justify-start"
+                @click="handleDelete('all')"
+              >
+                Remover {{ deletingDespesa.parcelas > 0 ? 'todas as parcelas' : 'todos os meses' }}
+              </UButton>
+            </div>
+            <UButton variant="ghost" color="neutral" class="w-full" @click="showDeleteModal = false">Cancelar</UButton>
+          </template>
+          <template v-else>
+            <div class="flex justify-end gap-3">
+              <UButton variant="ghost" color="neutral" @click="showDeleteModal = false">Cancelar</UButton>
+              <UButton color="red" :loading="deleting" @click="handleDelete('all')">Excluir</UButton>
+            </div>
+          </template>
         </div>
       </template>
     </UModal>
@@ -176,6 +204,8 @@ interface Despesa {
   conta_id: number | null
   conta_nome: string | null
   banco_key: string | null
+  cartao_id: number | null
+  cartao_nome: string | null
 }
 
 const { format } = useCurrency()
@@ -261,11 +291,13 @@ async function handleSubmit(data: any) {
   }
 }
 
-async function handleDelete() {
+async function handleDelete(scope: 'one' | 'all') {
   if (!deletingDespesa.value) return
   deleting.value = true
   try {
-    await $fetch(`/api/despesas/${deletingDespesa.value.id}`, { method: 'DELETE' })
+    const params: Record<string, string> = { scope }
+    if (scope === 'one') params.month = currentMonth.value
+    await $fetch(`/api/despesas/${deletingDespesa.value.id}`, { method: 'DELETE', query: params })
     await refresh()
     showDeleteModal.value = false
     deletingDespesa.value = null

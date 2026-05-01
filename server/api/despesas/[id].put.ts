@@ -6,6 +6,7 @@ interface DespesaBody {
   valor: number
   categoria?: string
   conta_id?: number | null
+  cartao_id?: number | null
   tipo: 'avulsa' | 'fixa' | 'parcelada'
   data?: string
   data_inicio?: string
@@ -37,11 +38,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Descrição é obrigatória' })
   if (typeof body.valor !== 'number' || body.valor <= 0)
     throw createError({ statusCode: 400, statusMessage: 'Valor inválido' })
-  if (!body.conta_id)
-    throw createError({ statusCode: 400, statusMessage: 'Conta é obrigatória' })
+  if (!body.conta_id && !body.cartao_id)
+    throw createError({ statusCode: 400, statusMessage: 'Conta ou cartão é obrigatório' })
 
   const dateRe = /^\d{4}-\d{2}-\d{2}$/
-  const contaId = Number(body.conta_id)
+  const contaId = body.conta_id ? Number(body.conta_id) : null
+  const cartaoId = body.cartao_id ? Number(body.cartao_id) : null
 
   if (body.tipo === 'parcelada') {
     if (!body.data_inicio || !dateRe.test(body.data_inicio))
@@ -53,10 +55,10 @@ export default defineEventHandler(async (event) => {
     const dataFim = calcDataFim(body.data_inicio, parcelas)
     db.prepare(`
       UPDATE transacoes
-      SET descricao = ?, valor = ?, categoria = ?, conta_id = ?, fixa = 1,
+      SET descricao = ?, valor = ?, categoria = ?, conta_id = ?, cartao_id = ?, fixa = 1,
           data = ?, data_inicio = ?, data_fim = ?, parcelas = ?, pago = 0
       WHERE id = ?
-    `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId,
+    `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, cartaoId,
             body.data_inicio, body.data_inicio, dataFim, parcelas, id])
   } else if (body.tipo === 'fixa') {
     if (!body.data_inicio || !dateRe.test(body.data_inicio))
@@ -66,10 +68,10 @@ export default defineEventHandler(async (event) => {
 
     db.prepare(`
       UPDATE transacoes
-      SET descricao = ?, valor = ?, categoria = ?, conta_id = ?, fixa = 1,
+      SET descricao = ?, valor = ?, categoria = ?, conta_id = ?, cartao_id = ?, fixa = 1,
           data = ?, data_inicio = ?, data_fim = ?, parcelas = 0, pago = 0
       WHERE id = ?
-    `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId,
+    `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, cartaoId,
             body.data_inicio, body.data_inicio, body.data_fim || null, id])
   } else {
     if (!body.data || !dateRe.test(body.data))
@@ -77,17 +79,17 @@ export default defineEventHandler(async (event) => {
 
     db.prepare(`
       UPDATE transacoes
-      SET descricao = ?, valor = ?, categoria = ?, conta_id = ?, fixa = 0,
+      SET descricao = ?, valor = ?, categoria = ?, conta_id = ?, cartao_id = ?, fixa = 0,
           data = ?, data_inicio = NULL, data_fim = NULL, parcelas = 0,
           pago = CASE WHEN ? <= date('now') THEN 1 ELSE 0 END
       WHERE id = ?
-    `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId,
+    `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, cartaoId,
             body.data, body.data, id])
   }
 
   return db.prepare(`
-    SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data_inicio, t.data_fim, t.data, t.conta_id,
-      c.nome AS conta_nome, c.banco_key,
+    SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data_inicio, t.data_fim, t.data,
+      t.conta_id, t.cartao_id, c.nome AS conta_nome, c.banco_key,
       CASE
         WHEN t.fixa = 1 THEN
           CASE WHEN t.data_fim IS NOT NULL AND t.data_fim < date('now') THEN 2 ELSE 1 END
