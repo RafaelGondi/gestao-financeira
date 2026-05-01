@@ -1,0 +1,23 @@
+# Nuxt
+.nuxt/
+.output/
+.data/
+dist/
+
+# Node
+node_modules/
+
+# Banco de dados e cache local
+data/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

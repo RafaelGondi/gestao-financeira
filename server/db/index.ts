@@ -1,0 +1,67 @@
+import Database from 'better-sqlite3'
+import { join } from 'path'
+import { mkdirSync, existsSync } from 'fs'
+
+const g = globalThis as any
+
+if (!g.__db) {
+  const dataDir = join(process.cwd(), 'data')
+  if (!existsSync(dataDir)) {
+    mkdirSync(dataDir, { recursive: true })
+  }
+
+  const db = new Database(join(dataDir, 'financeiro.db'))
+
+  db.pragma('foreign_keys = ON')
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS contas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL,
+      banco TEXT NOT NULL,
+      banco_key TEXT NOT NULL DEFAULT '',
+      saldo_inicial REAL NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS cartoes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL,
+      banco TEXT NOT NULL,
+      limite REAL NOT NULL,
+      melhor_data_compra INTEGER NOT NULL,
+      vencimento INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS transacoes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      descricao TEXT NOT NULL,
+      valor REAL NOT NULL,
+      tipo TEXT NOT NULL CHECK(tipo IN ('receita', 'despesa')),
+      categoria TEXT,
+      data DATE NOT NULL,
+      pago INTEGER DEFAULT 0,
+      cartao_id INTEGER REFERENCES cartoes(id),
+      fixa INTEGER DEFAULT 0,
+      data_inicio DATE,
+      data_fim DATE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  // Migrações para bancos existentes
+  const contaCols = db.prepare(`PRAGMA table_info(contas)`).all() as { name: string }[]
+  const contaColNames = contaCols.map(c => c.name)
+  if (!contaColNames.includes('banco_key')) db.exec(`ALTER TABLE contas ADD COLUMN banco_key TEXT NOT NULL DEFAULT ''`)
+
+  const cols = db.prepare(`PRAGMA table_info(transacoes)`).all() as { name: string }[]
+  const colNames = cols.map(c => c.name)
+  if (!colNames.includes('fixa'))       db.exec(`ALTER TABLE transacoes ADD COLUMN fixa INTEGER DEFAULT 0`)
+  if (!colNames.includes('data_inicio')) db.exec(`ALTER TABLE transacoes ADD COLUMN data_inicio DATE`)
+  if (!colNames.includes('data_fim'))   db.exec(`ALTER TABLE transacoes ADD COLUMN data_fim DATE`)
+  if (!colNames.includes('conta_id'))  db.exec(`ALTER TABLE transacoes ADD COLUMN conta_id INTEGER REFERENCES contas(id)`)
+
+  g.__db = db
+}
+
+export default g.__db as Database.Database
