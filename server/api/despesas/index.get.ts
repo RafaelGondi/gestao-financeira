@@ -69,8 +69,6 @@ export default defineEventHandler((event) => {
     return fm === month
   }).map(({ melhor_data_compra: _, ...t }) => t)
 
-  const prevYear = Number(mon) === 1 ? Number(year) - 1 : Number(year)
-  const prevMon = Number(mon) === 1 ? 12 : Number(mon) - 1
   const prevMonthStr = `${prevYear}-${String(prevMon).padStart(2, '0')}`
   const today = new Date().toISOString().split('T')[0]
 
