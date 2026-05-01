@@ -18,6 +18,13 @@ interface Transacao {
   pago: number
 }
 
+interface Transferencia {
+  valor: number
+  data: string
+  conta_origem_id: number
+  conta_destino_id: number
+}
+
 // Conta quantas ocorrências de uma receita fixa já foram recebidas até hoje
 function countReceivedOccurrences(dataInicio: string, dataFim: string | null, today: Date): number {
   const inicio = new Date(dataInicio + 'T12:00:00')
@@ -44,6 +51,10 @@ export default defineEventHandler(() => {
   const today = new Date()
   today.setHours(23, 59, 59, 0)
 
+  const transferencias = db.prepare(`
+    SELECT valor, data, conta_origem_id, conta_destino_id FROM transferencias
+  `).all() as Transferencia[]
+
   return contas.map(conta => {
     const transacoes = db.prepare(`
       SELECT valor, tipo, fixa, data, data_inicio, data_fim, pago
@@ -68,6 +79,12 @@ export default defineEventHandler(() => {
           movimentacao -= t.valor
         }
       }
+    }
+
+    for (const tr of transferencias) {
+      if (new Date(tr.data + 'T12:00:00') > today) continue
+      if (tr.conta_destino_id === conta.id) movimentacao += tr.valor
+      if (tr.conta_origem_id === conta.id) movimentacao -= tr.valor
     }
 
     return {

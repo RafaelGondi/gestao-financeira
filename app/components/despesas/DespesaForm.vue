@@ -19,11 +19,7 @@
     </UFormField>
 
     <UFormField label="Valor" required>
-      <UInput v-model="form.valorStr" placeholder="0,00" @blur="parseValor" class="w-full">
-        <template #leading>
-          <span class="text-gray-400 text-sm">R$</span>
-        </template>
-      </UInput>
+      <SharedCurrencyInput v-model="form.valor" />
     </UFormField>
 
     <UFormField label="Categoria">
@@ -81,7 +77,7 @@
       <div v-if="form.data_inicio && form.parcelas >= 2" class="flex items-center gap-2 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
         <UIcon name="i-heroicons-queue-list" class="w-5 h-5 text-purple-600 dark:text-purple-400" />
         <span class="text-sm font-medium text-purple-700 dark:text-purple-400">
-          {{ form.parcelas }}x de {{ format(form.valor || 0) }} · de {{ fmtDate(form.data_inicio) }} até {{ fmtDate(dataFimParcelada) }}
+          {{ form.parcelas }}x de {{ format(form.valor) }} · de {{ fmtDate(form.data_inicio) }} até {{ fmtDate(dataFimParcelada) }}
         </span>
       </div>
     </template>
@@ -165,7 +161,6 @@ function inferTipo(val: DespesaFormData): 'avulsa' | 'fixa' | 'parcelada' {
 const form = reactive({
   descricao: '',
   valor: 0,
-  valorStr: '',
   categoria: '',
   conta_id: null as number | null,
   tipo: 'avulsa' as 'avulsa' | 'fixa' | 'parcelada',
@@ -179,7 +174,6 @@ watch(() => props.initial, (val) => {
   if (val) {
     form.descricao = val.descricao
     form.valor = val.valor
-    form.valorStr = String(val.valor).replace('.', ',')
     form.categoria = val.categoria ?? ''
     form.conta_id = val.conta_id ?? null
     form.tipo = inferTipo(val)
@@ -190,7 +184,6 @@ watch(() => props.initial, (val) => {
   } else {
     form.descricao = ''
     form.valor = 0
-    form.valorStr = ''
     form.categoria = ''
     form.conta_id = null
     form.tipo = 'avulsa'
@@ -220,19 +213,12 @@ function fmtDate(d: string) {
   return `${day}/${m}/${y}`
 }
 
-function parseValor() {
-  const cleaned = form.valorStr.replace(/\./g, '').replace(',', '.')
-  const val = parseFloat(cleaned)
-  form.valor = isNaN(val) ? 0 : val
-}
-
 function handleSubmit() {
-  parseValor()
   if (!form.descricao.trim() || form.valor <= 0 || !form.conta_id) return
 
   const base = {
     descricao: form.descricao.trim(),
-    valor: form.valor,
+    valor: Number(form.valor),
     categoria: form.categoria.trim() || undefined,
     conta_id: form.conta_id,
     tipo: form.tipo

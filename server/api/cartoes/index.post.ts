@@ -4,6 +4,7 @@ import { readBody } from 'h3'
 interface CartaoBody {
   nome: string
   banco: string
+  banco_key: string
   limite: number
   melhor_data_compra: number
   vencimento: number
@@ -37,9 +38,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const result = db.prepare(
-    `INSERT INTO cartoes (nome, banco, limite, melhor_data_compra, vencimento)
-     VALUES (?, ?, ?, ?, ?)`
-  ).run([body.nome.trim(), body.banco.trim(), body.limite, body.melhor_data_compra, body.vencimento])
+    `INSERT INTO cartoes (nome, banco, banco_key, limite, melhor_data_compra, vencimento)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run([body.nome.trim(), body.banco.trim(), body.banco_key?.trim() ?? '', body.limite, body.melhor_data_compra, body.vencimento])
 
   const cartao = db.prepare('SELECT * FROM cartoes WHERE id = ?').get([result.lastInsertRowid])
   return cartao

@@ -63,7 +63,8 @@ const navLinks = [
   { to: '/contas', label: 'Contas', icon: 'i-heroicons-building-library' },
   { to: '/receitas', label: 'Receitas', icon: 'i-heroicons-banknotes' },
   { to: '/despesas', label: 'Despesas', icon: 'i-heroicons-arrow-trending-down' },
-  { to: '/cartoes', label: 'Cartões', icon: 'i-heroicons-credit-card' }
+  { to: '/cartoes', label: 'Cartões', icon: 'i-heroicons-credit-card' },
+  { to: '/transferencias', label: 'Transferências', icon: 'i-heroicons-arrows-right-left' }
 ]
 
 function isActive(path: string) {

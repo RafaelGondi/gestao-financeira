@@ -23,7 +23,6 @@
         </button>
       </div>
 
-      <!-- Campo de banco personalizado -->
       <div v-if="form.bancoKey === 'outro' || !form.bancoKey" class="mt-2">
         <UInput v-model="form.bancoCustom" placeholder="Nome do banco..." class="w-full" />
       </div>
@@ -34,18 +33,12 @@
     </UFormField>
 
     <UFormField label="Saldo inicial" required>
-      <UInput v-model="form.saldoStr" placeholder="0,00" @blur="parseSaldo" class="w-full">
-        <template #leading>
-          <span class="text-gray-400 text-sm">R$</span>
-        </template>
-      </UInput>
+      <SharedCurrencyInput v-model="form.saldo" />
       <p class="text-xs text-gray-400 mt-1">Saldo atual na conta no momento do cadastro</p>
     </UFormField>
 
     <div class="flex justify-end gap-3 pt-2">
-      <UButton type="button" variant="ghost" color="neutral" @click="emit('cancel')">
-        Cancelar
-      </UButton>
+      <UButton type="button" variant="ghost" color="neutral" @click="emit('cancel')">Cancelar</UButton>
       <UButton :loading="loading" color="primary" @click="handleSubmit">
         {{ isEdit ? 'Salvar Alterações' : 'Adicionar Conta' }}
       </UButton>
@@ -85,7 +78,6 @@ const form = reactive({
   bancoKey: '',
   bancoCustom: '',
   saldo: 0,
-  saldoStr: ''
 })
 
 watch(() => props.initial, (val) => {
@@ -94,13 +86,11 @@ watch(() => props.initial, (val) => {
     form.bancoKey = val.banco_key ?? ''
     form.bancoCustom = val.banco_key ? '' : val.banco
     form.saldo = val.saldo_inicial
-    form.saldoStr = String(val.saldo_inicial).replace('.', ',')
   } else {
     form.nome = ''
     form.bancoKey = ''
     form.bancoCustom = ''
     form.saldo = 0
-    form.saldoStr = ''
   }
 }, { immediate: true })
 
@@ -109,14 +99,7 @@ function selectBank(bank: Bank) {
   form.bancoCustom = ''
 }
 
-function parseSaldo() {
-  const cleaned = form.saldoStr.replace(/\./g, '').replace(',', '.')
-  const val = parseFloat(cleaned)
-  form.saldo = isNaN(val) ? 0 : val
-}
-
 function handleSubmit() {
-  parseSaldo()
   const bancoNome = form.bancoKey
     ? (BANKS.find(b => b.key === form.bancoKey)?.name ?? form.bancoKey)
     : form.bancoCustom.trim()
@@ -127,7 +110,7 @@ function handleSubmit() {
     nome: form.nome.trim(),
     banco: bancoNome,
     banco_key: form.bancoKey || '',
-    saldo_inicial: form.saldo
+    saldo_inicial: Number(form.saldo)
   })
 }
 </script>

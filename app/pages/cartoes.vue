@@ -53,13 +53,13 @@
         class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden"
       >
         <!-- Card visual header -->
-        <div class="h-28 bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-700 p-4 relative">
+        <div class="h-28 p-4 relative" :style="cardStyle(cartao)">
           <div class="flex items-start justify-between">
             <div>
               <p class="text-white/70 text-xs font-medium">{{ cartao.banco }}</p>
               <p class="text-white text-lg font-bold mt-1">{{ cartao.nome }}</p>
             </div>
-            <UIcon name="i-heroicons-credit-card" class="w-8 h-8 text-white/40" />
+            <SharedBankLogo :bank="findBank(cartao.banco_key)" :size="36" class="rounded-lg opacity-90" />
           </div>
           <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end">
             <div>
@@ -146,12 +146,22 @@ interface Cartao {
   id: number
   nome: string
   banco: string
+  banco_key: string
   limite: number
   melhor_data_compra: number
   vencimento: number
 }
 
 const { format } = useCurrency()
+const { findBank } = useBanks()
+
+function cardStyle(cartao: Cartao) {
+  const bank = findBank(cartao.banco_key)
+  const color = bank?.color ?? '#6366f1'
+  return {
+    background: `linear-gradient(135deg, ${color}dd 0%, ${color}88 100%)`
+  }
+}
 
 const { data: cartoes, pending, error, refresh } = await useFetch<Cartao[]>('/api/cartoes')
 
