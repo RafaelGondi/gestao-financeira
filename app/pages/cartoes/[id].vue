@@ -41,8 +41,14 @@
         <div>
           <p class="text-xs text-gray-500 mb-1">Fatura de {{ fmtMonth(currentMonth) }}</p>
           <p class="text-3xl font-bold" :class="data.fatura?.pago ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'">
-            {{ format(data.cartao.gasto_mes) }}
+            {{ format(valorFaturaPago) }}
           </p>
+          <div v-if="data.fatura?.valor_ajuste" class="text-xs text-gray-400 mt-0.5">
+            Calculado: {{ format(data.cartao.gasto_mes) }}
+            <span :class="data.fatura.valor_ajuste > 0 ? 'text-red-500' : 'text-green-600'">
+              {{ data.fatura.valor_ajuste > 0 ? '+' : '' }}{{ format(data.fatura.valor_ajuste) }}
+            </span>
+          </div>
           <div class="flex items-center gap-2 mt-2">
             <UBadge
               :label="data.fatura?.pago ? 'Paga' : 'Em aberto'"
@@ -59,6 +65,7 @@
             v-if="!data.fatura?.pago"
             icon="i-heroicons-check-circle"
             color="primary"
+            class="cursor-pointer"
             :disabled="data.cartao.gasto_mes === 0"
             @click="showPagarModal = true"
           >
@@ -69,6 +76,7 @@
             icon="i-heroicons-x-circle"
             variant="soft"
             color="neutral"
+            class="cursor-pointer"
             :loading="desfazendoPagamento"
             @click="desfazerPagamento"
           >
@@ -165,12 +173,14 @@
     <UModal v-model:open="showPagarModal" title="Pagar fatura" :dismissible="false">
       <template #body>
         <div class="space-y-4">
-          <p class="text-sm text-gray-600 dark:text-gray-400">
-            Registre o pagamento da fatura de
-            <strong class="text-gray-900 dark:text-white">{{ fmtMonth(currentMonth) }}</strong>
-            no valor de
-            <strong class="text-gray-900 dark:text-white">{{ format(data?.cartao.gasto_mes ?? 0) }}</strong>.
-          </p>
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-xl px-4 py-3">
+            <p class="text-xs text-gray-500 mb-0.5">Fatura de {{ fmtMonth(currentMonth) }}</p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ format(valorModalFatura) }}</p>
+            <p v-if="ajusteModal !== 0" class="text-xs mt-0.5" :class="ajusteModal > 0 ? 'text-red-500' : 'text-green-600'">
+              Calculado {{ format(data?.cartao.gasto_mes ?? 0) }}
+              {{ ajusteModal > 0 ? '+' : '' }}{{ format(ajusteModal) }} de ajuste
+            </p>
+          </div>
 
           <UFormField label="Conta debitada" required>
             <USelect
@@ -185,6 +195,16 @@
 
           <UFormField label="Data do pagamento" required>
             <UInput v-model="pagamento.data" type="date" class="w-full" />
+          </UFormField>
+
+          <UFormField label="Ajuste (opcional)" hint="Use para corrigir diferenças de arredondamento. Pode ser negativo.">
+            <UInput
+              v-model="pagamento.ajuste"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              class="w-full"
+            />
           </UFormField>
 
           <div class="flex justify-end gap-3 pt-2">
@@ -219,6 +239,7 @@ interface Fatura {
   conta_id: number | null
   conta_nome: string | null
   data_pagamento: string | null
+  valor_ajuste: number | null
 }
 
 interface CartaoDetalhe {
@@ -250,6 +271,15 @@ const cardStyle = computed(() => {
   const color = bank?.color ?? '#6366f1'
   return { background: `linear-gradient(135deg, ${color}dd 0%, ${color}88 100%)` }
 })
+
+const valorFaturaPago = computed(() => {
+  const base = data.value?.cartao.gasto_mes ?? 0
+  const ajuste = data.value?.fatura?.valor_ajuste ?? 0
+  return base + ajuste
+})
+
+const ajusteModal = computed(() => Number(pagamento.ajuste) || 0)
+const valorModalFatura = computed(() => (data.value?.cartao.gasto_mes ?? 0) + ajusteModal.value)
 
 const disponivel = computed(() => (data.value?.cartao.limite ?? 0) - (data.value?.cartao.gasto_total ?? 0))
 const usoPct = computed(() => {
@@ -287,7 +317,8 @@ const salvandoPagamento = ref(false)
 const desfazendoPagamento = ref(false)
 const pagamento = reactive({
   conta_id: null as number | null,
-  data: new Date().toISOString().split('T')[0]
+  data: new Date().toISOString().split('T')[0],
+  ajuste: '' as string
 })
 
 async function salvarPagamento() {
@@ -300,11 +331,14 @@ async function salvarPagamento() {
         cartao_id: route.params.id,
         mes: currentMonth.value,
         conta_id: pagamento.conta_id,
-        data_pagamento: pagamento.data
+        data_pagamento: pagamento.data,
+        valor_ajuste: pagamento.ajuste !== '' ? Number(pagamento.ajuste) : 0
       }
     })
     await refresh()
     showPagarModal.value = false
+    pagamento.conta_id = null
+    pagamento.ajuste = ''
   } finally {
     salvandoPagamento.value = false
   }

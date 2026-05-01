@@ -30,6 +30,7 @@ interface FaturaPaga {
   mes: string
   conta_id: number
   data_pagamento: string
+  valor_ajuste: number
 }
 
 // Conta quantas ocorrências de uma receita fixa já foram recebidas até hoje
@@ -63,7 +64,7 @@ export default defineEventHandler(() => {
   `).all() as Transferencia[]
 
   const faturasPagas = db.prepare(`
-    SELECT cartao_id, mes, conta_id, data_pagamento FROM faturas WHERE pago = 1
+    SELECT cartao_id, mes, conta_id, data_pagamento, COALESCE(valor_ajuste, 0) AS valor_ajuste FROM faturas WHERE pago = 1
   `).all() as FaturaPaga[]
 
   return contas.map(conta => {
@@ -111,7 +112,7 @@ export default defineEventHandler(() => {
           AND ((fixa = 0 AND data >= ? AND data <= ?)
             OR (fixa = 1 AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)))
       `).get([f.cartao_id, startDate, endDate, endDate, startDate]) as { total: number }
-      movimentacao -= row.total
+      movimentacao -= row.total + f.valor_ajuste
     }
 
     return {

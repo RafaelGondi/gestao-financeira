@@ -1,20 +1,5 @@
 import db from '../../db/index'
 
-interface Recorrente {
-  valor: number
-  data_inicio: string
-  data_fim: string | null
-  parcelas: number
-}
-
-function countRemainingParcelas(dataInicio: string, parcelas: number, now: Date): number {
-  const [iy, im] = dataInicio.split('-').map(Number)
-  const cy = now.getFullYear()
-  const cm = now.getMonth() + 1
-  const currentIndex = (cy - iy) * 12 + (cm - im) // índice 0-based do mês atual
-  return Math.max(0, parcelas - currentIndex)
-}
-
 export default defineEventHandler(() => {
   const now = new Date()
   const year = now.getFullYear()
@@ -22,38 +7,50 @@ export default defineEventHandler(() => {
   const startDate = `${year}-${mon}-01`
   const lastDay = new Date(year, now.getMonth() + 1, 0).getDate()
   const endDate = `${year}-${mon}-${String(lastDay).padStart(2, '0')}`
+  const currentMonth = `${year}-${mon}`
 
   const cartoes = db.prepare(`
     SELECT id, nome, banco, banco_key, limite, melhor_data_compra, vencimento FROM cartoes ORDER BY nome ASC
   `).all() as any[]
 
   return cartoes.map(c => {
-    // Avulsas do mês atual em diante
-    const avulsas = db.prepare(`
-      SELECT COALESCE(SUM(valor), 0) AS total FROM transacoes
-      WHERE tipo = 'despesa' AND cartao_id = ? AND fixa = 0 AND data >= ?
-    `).get([c.id, startDate]) as { total: number }
+    const mesesPagos = new Set(
+      (db.prepare(`SELECT mes FROM faturas WHERE cartao_id = ? AND pago = 1`).all([c.id]) as any[]).map(r => r.mes)
+    )
 
-    // Fixas e parceladas ativas no mês atual ou no futuro
+    // Avulsas do mês atual em diante, excluindo meses com fatura já paga
+    const avulsas = db.prepare(`
+      SELECT valor, data FROM transacoes
+      WHERE tipo = 'despesa' AND cartao_id = ? AND fixa = 0 AND data >= ?
+    `).all([c.id, startDate]) as { valor: number; data: string }[]
+
+    let gastoTotal = 0
+    for (const t of avulsas) {
+      const mes = t.data.slice(0, 7)
+      if (!mesesPagos.has(mes)) gastoTotal += t.valor
+    }
+
+    // Fixas e parceladas ativas, excluindo meses pagos
     const recorrentes = db.prepare(`
       SELECT valor, data_inicio, data_fim, parcelas FROM transacoes
       WHERE tipo = 'despesa' AND cartao_id = ? AND fixa = 1
         AND (data_fim IS NULL OR data_fim >= ?)
-    `).all([c.id, startDate]) as Recorrente[]
+    `).all([c.id, startDate]) as { valor: number; data_inicio: string; data_fim: string | null; parcelas: number }[]
 
-    let totalRecorrente = 0
     for (const t of recorrentes) {
       if (t.parcelas > 0) {
-        // Parcelada: multiplica valor pelas parcelas restantes
-        const restantes = countRemainingParcelas(t.data_inicio, t.parcelas, now)
-        totalRecorrente += t.valor * restantes
+        const [iy, im] = t.data_inicio.split('-').map(Number)
+        const currentIndex = (year - iy) * 12 + (now.getMonth() + 1 - im)
+        for (let i = Math.max(0, currentIndex); i < t.parcelas; i++) {
+          const parcelaMes = `${iy + Math.floor((im - 1 + i) / 12)}-${String(((im - 1 + i) % 12) + 1).padStart(2, '0')}`
+          if (!mesesPagos.has(parcelaMes)) gastoTotal += t.valor
+        }
       } else {
-        // Fixa: conta só o mês atual (limite é liberado após pagamento a cada mês)
-        totalRecorrente += t.valor
+        if (!mesesPagos.has(currentMonth)) gastoTotal += t.valor
       }
     }
 
-    // Fatura só do mês atual (para exibir separado da barra de limite total)
+    // Fatura do mês atual (para exibir no card)
     const faturaRow = db.prepare(`
       SELECT COALESCE(SUM(valor), 0) AS total FROM transacoes
       WHERE tipo = 'despesa' AND cartao_id = ?
@@ -65,8 +62,8 @@ export default defineEventHandler(() => {
 
     return {
       ...c,
-      gasto_mes: faturaRow.total,          // fatura do mês (para exibir no card)
-      gasto_total: avulsas.total + totalRecorrente  // saldo comprometido total (para a barra)
+      gasto_mes: faturaRow.total,
+      gasto_total: gastoTotal
     }
   })
 })

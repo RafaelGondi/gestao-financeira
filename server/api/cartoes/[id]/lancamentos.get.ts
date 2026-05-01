@@ -67,7 +67,7 @@ export default defineEventHandler((event) => {
 
   // Fatura do mês
   const fatura = db.prepare(`
-    SELECT f.id, f.pago, f.conta_id, f.data_pagamento, c.nome AS conta_nome
+    SELECT f.id, f.pago, f.conta_id, f.data_pagamento, f.valor_ajuste, c.nome AS conta_nome
     FROM faturas f LEFT JOIN contas c ON c.id = f.conta_id
     WHERE f.cartao_id = ? AND f.mes = ?
   `).get([cartaoId, month]) as any || null

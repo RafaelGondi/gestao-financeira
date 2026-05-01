@@ -73,64 +73,150 @@
       </UButton>
     </div>
 
-    <!-- Lista -->
-    <div v-else class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+    <template v-else>
+      <!-- Grupos de fatura (cartão) -->
       <div
-        v-for="(despesa, i) in despesas"
-        :key="`${despesa.id}-${despesa.fixa}`"
-        class="flex items-center gap-4 px-5 py-4"
-        :class="i < despesas.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
+        v-for="grupo in gruposCartao"
+        :key="grupo.cartao_id"
+        class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden"
       >
-        <!-- Ícone -->
-        <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" :class="iconBg(despesa)">
-          <UIcon :name="iconName(despesa)" class="w-5 h-5" :class="iconColor(despesa)" />
-        </div>
-
-        <!-- Info -->
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <p class="font-medium text-gray-900 dark:text-white truncate">{{ despesa.descricao }}</p>
-            <UBadge v-if="despesa.parcelas > 0" :label="`${despesa.parcela_atual}/${despesa.parcelas}`" color="purple" variant="soft" size="xs"
-              icon="i-heroicons-queue-list" />
-            <UBadge v-else-if="despesa.fixa" label="Fixa" color="info" variant="soft" size="xs"
-              icon="i-heroicons-arrow-path" />
+        <!-- Header do grupo -->
+        <div
+          class="flex items-center gap-4 px-5 py-4 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+          @click="toggleGrupo(grupo.cartao_id)"
+        >
+          <div class="flex-shrink-0 w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+            <UIcon name="i-heroicons-credit-card" class="w-5 h-5 text-violet-600 dark:text-violet-400" />
           </div>
-          <div class="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span class="text-xs text-gray-400">{{ descricaoData(despesa) }}</span>
-            <span v-if="despesa.conta_nome"
-              class="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-              <UIcon name="i-heroicons-building-library" class="w-3 h-3" />
-              {{ despesa.conta_nome }}
-            </span>
-            <span v-if="despesa.cartao_nome"
-              class="text-xs bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-              <UIcon name="i-heroicons-credit-card" class="w-3 h-3" />
-              {{ despesa.cartao_nome }}
-            </span>
-            <span v-if="despesa.categoria"
-              class="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full">
-              {{ despesa.categoria }}
-            </span>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <NuxtLink
+                :to="`/cartoes/${grupo.cartao_id}`"
+                class="font-semibold text-gray-900 dark:text-white hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+                @click.stop
+              >
+                Fatura {{ grupo.cartao_nome }}
+              </NuxtLink>
+              <UBadge
+                :label="grupo.fatura?.pago ? 'Paga' : 'Em aberto'"
+                :color="grupo.fatura?.pago ? 'success' : 'warning'"
+                variant="soft"
+                size="xs"
+              />
+            </div>
+            <p v-if="grupo.fatura?.pago" class="text-xs text-gray-400 mt-0.5">
+              Paga em {{ fmtDate(grupo.fatura.data_pagamento) }} · {{ grupo.fatura.conta_nome }}
+            </p>
+            <p v-else class="text-xs text-gray-400 mt-0.5">
+              {{ grupo.despesas.length }} lançamento(s)
+            </p>
+          </div>
+          <div class="flex items-center gap-3 flex-shrink-0">
+            <p class="text-base font-semibold text-red-600 dark:text-red-400">- {{ format(grupo.total) }}</p>
+            <UIcon
+              :name="expandedGrupos.has(grupo.cartao_id) ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+              class="w-4 h-4 text-gray-400"
+            />
           </div>
         </div>
 
-        <!-- Valor e status -->
-        <div class="flex items-center gap-3 flex-shrink-0">
-          <p class="text-base font-semibold text-red-600 dark:text-red-400">
-            - {{ format(despesa.valor) }}
-          </p>
-          <UBadge :label="badgeLabel(despesa)" :color="badgeColor(despesa)" variant="soft" size="sm" />
-        </div>
-
-        <!-- Ações -->
-        <div class="flex items-center gap-1 flex-shrink-0">
-          <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
-            @click="openEditModal(despesa)" />
-          <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
-            @click="confirmDelete(despesa)" />
+        <!-- Lançamentos expandidos -->
+        <div v-if="expandedGrupos.has(grupo.cartao_id)" class="border-t border-gray-100 dark:border-gray-800">
+          <div
+            v-for="(despesa, i) in grupo.despesas"
+            :key="`${despesa.id}-${despesa.fixa}`"
+            class="flex items-center gap-4 px-5 py-3 pl-16"
+            :class="i < grupo.despesas.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
+          >
+            <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+              :class="despesa.fixa ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-gray-100 dark:bg-gray-800'">
+              <UIcon
+                :name="despesa.parcelas > 0 ? 'i-heroicons-queue-list' : despesa.fixa ? 'i-heroicons-arrow-path' : 'i-heroicons-credit-card'"
+                class="w-4 h-4"
+                :class="despesa.fixa ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'"
+              />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ despesa.descricao }}</p>
+                <UBadge v-if="despesa.parcelas > 0" :label="`${despesa.parcela_atual}/${despesa.parcelas}`"
+                  color="purple" variant="soft" size="xs" icon="i-heroicons-queue-list" />
+                <UBadge v-else-if="despesa.fixa" label="Fixa" color="info" variant="soft" size="xs"
+                  icon="i-heroicons-arrow-path" />
+              </div>
+              <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+                <span class="text-xs text-gray-400">{{ descricaoData(despesa) }}</span>
+                <span v-if="despesa.categoria"
+                  class="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full">
+                  {{ despesa.categoria }}
+                </span>
+              </div>
+            </div>
+            <p class="text-sm font-semibold text-red-600 dark:text-red-400 flex-shrink-0">- {{ format(despesa.valor) }}</p>
+            <div class="flex items-center gap-1 flex-shrink-0">
+              <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
+                @click="openEditModal(despesa)" />
+              <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
+                @click="confirmDelete(despesa)" />
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+
+      <!-- Despesas normais (sem cartão) -->
+      <div v-if="despesasNormais.length" class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+        <div
+          v-for="(despesa, i) in despesasNormais"
+          :key="`${despesa.id}-${despesa.fixa}`"
+          class="flex items-center gap-4 px-5 py-4"
+          :class="i < despesasNormais.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
+        >
+          <!-- Ícone -->
+          <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" :class="iconBg(despesa)">
+            <UIcon :name="iconName(despesa)" class="w-5 h-5" :class="iconColor(despesa)" />
+          </div>
+
+          <!-- Info -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <p class="font-medium text-gray-900 dark:text-white truncate">{{ despesa.descricao }}</p>
+              <UBadge v-if="despesa.parcelas > 0" :label="`${despesa.parcela_atual}/${despesa.parcelas}`" color="purple" variant="soft" size="xs"
+                icon="i-heroicons-queue-list" />
+              <UBadge v-else-if="despesa.fixa" label="Fixa" color="info" variant="soft" size="xs"
+                icon="i-heroicons-arrow-path" />
+            </div>
+            <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+              <span class="text-xs text-gray-400">{{ descricaoData(despesa) }}</span>
+              <span v-if="despesa.conta_nome"
+                class="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <UIcon name="i-heroicons-building-library" class="w-3 h-3" />
+                {{ despesa.conta_nome }}
+              </span>
+              <span v-if="despesa.categoria"
+                class="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full">
+                {{ despesa.categoria }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Valor e status -->
+          <div class="flex items-center gap-3 flex-shrink-0">
+            <p class="text-base font-semibold text-red-600 dark:text-red-400">
+              - {{ format(despesa.valor) }}
+            </p>
+            <UBadge :label="badgeLabel(despesa)" :color="badgeColor(despesa)" variant="soft" size="sm" />
+          </div>
+
+          <!-- Ações -->
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
+              @click="openEditModal(despesa)" />
+            <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
+              @click="confirmDelete(despesa)" />
+          </div>
+        </div>
+      </div>
+    </template>
 
     <!-- Modal Add/Edit -->
     <UModal v-model:open="showModal" :title="editingDespesa ? 'Editar Despesa' : 'Nova Despesa'" :dismissible="false">
@@ -208,6 +294,24 @@ interface Despesa {
   cartao_nome: string | null
 }
 
+interface Fatura {
+  id: number
+  cartao_id: number
+  mes: string
+  pago: number
+  conta_id: number | null
+  conta_nome: string | null
+  data_pagamento: string | null
+}
+
+interface GrupoCartao {
+  cartao_id: number
+  cartao_nome: string
+  total: number
+  fatura: Fatura | null
+  despesas: Despesa[]
+}
+
 const { format } = useCurrency()
 
 const now = new Date()
@@ -218,9 +322,52 @@ const { data: despesas, pending, error, refresh } = await useFetch<Despesa[]>('/
   watch: [currentMonth]
 })
 
-const totalGeral = computed(() => despesas.value?.reduce((s, d) => s + d.valor, 0) ?? 0)
-const totalPago = computed(() => despesas.value?.filter(d => d.pago === 1).reduce((s, d) => s + d.valor, 0) ?? 0)
-const totalAPagar = computed(() => despesas.value?.filter(d => d.pago !== 1).reduce((s, d) => s + d.valor, 0) ?? 0)
+const { data: faturas, refresh: refreshFaturas } = await useFetch<Fatura[]>('/api/faturas', {
+  query: computed(() => ({ mes: currentMonth.value })),
+  watch: [currentMonth]
+})
+
+const expandedGrupos = reactive(new Set<number>())
+
+function toggleGrupo(cartaoId: number) {
+  if (expandedGrupos.has(cartaoId)) expandedGrupos.delete(cartaoId)
+  else expandedGrupos.add(cartaoId)
+}
+
+const despesasNormais = computed(() =>
+  (despesas.value ?? []).filter(d => !d.cartao_id)
+)
+
+const gruposCartao = computed<GrupoCartao[]>(() => {
+  const map = new Map<number, GrupoCartao>()
+  for (const d of despesas.value ?? []) {
+    if (!d.cartao_id) continue
+    if (!map.has(d.cartao_id)) {
+      const fatura = (faturas.value ?? []).find(f => f.cartao_id === d.cartao_id) ?? null
+      map.set(d.cartao_id, {
+        cartao_id: d.cartao_id,
+        cartao_nome: d.cartao_nome ?? `Cartão ${d.cartao_id}`,
+        total: 0,
+        fatura,
+        despesas: []
+      })
+    }
+    const grupo = map.get(d.cartao_id)!
+    grupo.total += d.valor
+    grupo.despesas.push(d)
+  }
+  return [...map.values()]
+})
+
+const totalGeral = computed(() => (despesas.value ?? []).reduce((s, d) => s + d.valor, 0))
+
+const totalPago = computed(() => {
+  const normalPago = despesasNormais.value.filter(d => d.pago === 1).reduce((s, d) => s + d.valor, 0)
+  const faturasPago = gruposCartao.value.filter(g => g.fatura?.pago).reduce((s, g) => s + g.total, 0)
+  return normalPago + faturasPago
+})
+
+const totalAPagar = computed(() => totalGeral.value - totalPago.value)
 
 function fmtDate(d: string | null) {
   if (!d) return ''
@@ -285,6 +432,7 @@ async function handleSubmit(data: any) {
     else
       await $fetch('/api/despesas', { method: 'POST', body: data })
     await refresh()
+    await refreshFaturas()
     closeModal()
   } finally {
     saving.value = false
@@ -299,6 +447,7 @@ async function handleDelete(scope: 'one' | 'all') {
     if (scope === 'one') params.month = currentMonth.value
     await $fetch(`/api/despesas/${deletingDespesa.value.id}`, { method: 'DELETE', query: params })
     await refresh()
+    await refreshFaturas()
     showDeleteModal.value = false
     deletingDespesa.value = null
   } finally {

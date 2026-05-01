@@ -87,6 +87,10 @@ if (!g.__db) {
   const cartaoColNames = cartaoCols.map(c => c.name)
   if (!cartaoColNames.includes('banco_key')) db.exec(`ALTER TABLE cartoes ADD COLUMN banco_key TEXT NOT NULL DEFAULT ''`)
 
+  const faturaCols = db.prepare(`PRAGMA table_info(faturas)`).all() as { name: string }[]
+  const faturaColNames = faturaCols.map(c => c.name)
+  if (!faturaColNames.includes('valor_ajuste')) db.exec(`ALTER TABLE faturas ADD COLUMN valor_ajuste REAL DEFAULT 0`)
+
   g.__db = db
 }
 
