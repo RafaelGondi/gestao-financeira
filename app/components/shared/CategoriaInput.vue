@@ -6,8 +6,11 @@
       class="flex items-center gap-2 min-h-9 px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 cursor-pointer hover:border-gray-400 dark:hover:border-gray-600 transition-colors"
       @click="startEdit"
     >
-      <span class="inline-flex items-center gap-1 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 text-xs font-medium px-2 py-0.5 rounded-full">
-        <UIcon name="i-heroicons-tag" class="w-3 h-3" />
+      <span
+        class="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full text-white"
+        :style="selectedCat ? { background: selectedCat.cor } : { background: '#6366f1' }"
+      >
+        <UIcon :name="selectedCat?.icone ?? 'i-heroicons-tag'" class="w-3 h-3" />
         {{ modelValue }}
       </span>
       <button
@@ -25,7 +28,7 @@
       ref="inputRef"
       v-model="query"
       class="w-full min-h-9 px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-primary-500 dark:focus:border-primary-400 focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-400 transition-colors"
-      :placeholder="placeholder ?? 'Buscar ou criar categoria...'"
+      :placeholder="placeholder ?? 'Buscar categoria...'"
       @focus="open = true"
       @blur="onBlur"
       @keydown.enter.prevent="selectFirst"
@@ -35,49 +38,53 @@
 
     <!-- Dropdown -->
     <div
-      v-if="open && (filteredItems.length > 0 || query.trim().length > 0)"
+      v-if="open && filteredItems.length > 0"
       class="absolute z-50 w-full mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg overflow-hidden"
     >
       <div class="max-h-48 overflow-y-auto">
         <button
           v-for="item in filteredItems"
-          :key="item"
+          :key="item.id"
           type="button"
           class="w-full text-left px-3 py-2 text-sm text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
           @mousedown.prevent="select(item)"
         >
-          <UIcon name="i-heroicons-tag" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-          {{ item }}
+          <span
+            class="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
+            :style="{ background: item.cor }"
+          >
+            <UIcon :name="item.icone" class="w-3 h-3 text-white" />
+          </span>
+          {{ item.nome }}
         </button>
-        <div v-if="filteredItems.length === 0 && !showCreate" class="px-3 py-2 text-sm text-gray-400 italic">
+        <div v-if="filteredItems.length === 0" class="px-3 py-2 text-sm text-gray-400 italic">
           Nenhuma categoria encontrada
         </div>
       </div>
-      <button
-        v-if="showCreate"
-        type="button"
-        class="w-full text-left px-3 py-2 text-sm text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 flex items-center gap-2 transition-colors"
-        :class="filteredItems.length > 0 ? 'border-t border-gray-100 dark:border-gray-800' : ''"
-        @mousedown.prevent="create"
-      >
-        <UIcon name="i-heroicons-plus-circle" class="w-4 h-4 flex-shrink-0" />
-        Criar "{{ query.trim() }}"
-      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+interface Categoria {
+  id: number
+  nome: string
+  tipo: string
+  cor: string
+  icone: string
+}
+
 const props = defineProps<{
   modelValue: string
   placeholder?: string
+  tipo?: 'despesa' | 'receita' | 'transferencia'
 }>()
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const { data: todasCategorias, refresh: refreshCategorias } = await useFetch<string[]>('/api/categorias')
+const { data: todasCategorias } = await useFetch<Categoria[]>('/api/categorias')
 
 const query = ref('')
 const open = ref(false)
@@ -90,30 +97,19 @@ watch(() => props.modelValue, (val) => {
   if (!val) query.value = ''
 }, { immediate: false })
 
-const filteredItems = computed(() => {
-  const cats = todasCategorias.value ?? []
-  if (!query.value.trim()) return cats
-  return cats.filter(c => c.toLowerCase().includes(query.value.toLowerCase().trim()))
-})
-
-const exactMatch = computed(() =>
-  (todasCategorias.value ?? []).some(c => c.toLowerCase() === query.value.toLowerCase().trim())
+const selectedCat = computed(() =>
+  (todasCategorias.value ?? []).find(c => c.nome === props.modelValue) ?? null
 )
 
-const showCreate = computed(() => !!query.value.trim() && !exactMatch.value)
+const filteredItems = computed(() => {
+  let cats = todasCategorias.value ?? []
+  if (props.tipo) cats = cats.filter(c => c.tipo === props.tipo)
+  if (!query.value.trim()) return cats
+  return cats.filter(c => c.nome.toLowerCase().includes(query.value.toLowerCase().trim()))
+})
 
-function select(item: string) {
-  emit('update:modelValue', item)
-  query.value = ''
-  open.value = false
-  editing.value = false
-}
-
-function create() {
-  const val = query.value.trim()
-  if (!val) return
-  emit('update:modelValue', val)
-  refreshCategorias()
+function select(item: Categoria) {
+  emit('update:modelValue', item.nome)
   query.value = ''
   open.value = false
   editing.value = false
@@ -135,11 +131,7 @@ function startEdit() {
 }
 
 function selectFirst() {
-  if (filteredItems.value.length > 0) {
-    select(filteredItems.value[0])
-  } else if (query.value.trim()) {
-    create()
-  }
+  if (filteredItems.value.length > 0) select(filteredItems.value[0])
 }
 
 function onBlur() {

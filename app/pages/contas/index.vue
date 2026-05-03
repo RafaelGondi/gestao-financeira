@@ -12,7 +12,7 @@
 
     <!-- Loading -->
     <div v-if="pending" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <USkeleton v-for="i in 3" :key="i" class="h-36 rounded-2xl" />
+      <USkeleton v-for="i in 3" :key="i" class="h-36 rounded-lg" />
     </div>
 
     <!-- Error -->
@@ -33,7 +33,7 @@
 
     <!-- Cards -->
     <div v-else>
-      <div class="bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl p-5 mb-4 text-white">
+      <div class="bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg p-5 mb-4 text-white">
         <p class="text-sm font-medium text-primary-100">Saldo total em contas</p>
         <p class="text-3xl font-bold mt-1">{{ format(saldoTotal) }}</p>
         <p class="text-xs text-primary-200 mt-1">{{ contas.length }} conta{{ contas.length !== 1 ? 's' : '' }} cadastrada{{ contas.length !== 1 ? 's' : '' }}</p>
@@ -43,14 +43,14 @@
         <div
           v-for="conta in contas"
           :key="conta.id"
-          class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden"
+          class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden"
         >
           <!-- Header clicável -->
           <NuxtLink
             :to="`/contas/${conta.id}`"
             class="flex items-center gap-3 p-5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
           >
-            <SharedBankLogo :bank="findBank(conta.banco_key)" :size="44" class="rounded-xl shadow-sm flex-shrink-0" />
+            <SharedBankLogo :bank="findBank(conta.banco_key)" :size="44" class="rounded-lg flex-shrink-0" />
             <div class="flex-1 min-w-0">
               <p class="font-semibold text-gray-900 dark:text-white truncate">{{ conta.nome }}</p>
               <p class="text-xs text-gray-400">{{ conta.banco }}</p>
@@ -84,7 +84,7 @@
     </div>
 
     <!-- Modal Add/Edit -->
-    <UModal v-model:open="showModal" :title="editingConta ? 'Editar Conta' : 'Nova Conta'" :ui="{ width: 'sm:max-w-xl' }">
+    <USlideover v-model:open="showModal" :title="editingConta ? 'Editar Conta' : 'Nova Conta'" :ui="{ width: 'sm:max-w-xl' }">
       <template #body>
         <ContasContaForm
           :initial="editingConta"
@@ -93,10 +93,10 @@
           @cancel="closeModal"
         />
       </template>
-    </UModal>
+    </USlideover>
 
     <!-- Modal Delete -->
-    <UModal v-model:open="showDeleteModal" title="Excluir Conta">
+    <USlideover v-model:open="showDeleteModal" title="Excluir Conta">
       <template #body>
         <div class="space-y-4">
           <p class="text-gray-600 dark:text-gray-400">
@@ -109,7 +109,7 @@
           </div>
         </div>
       </template>
-    </UModal>
+    </USlideover>
   </div>
 </template>
 

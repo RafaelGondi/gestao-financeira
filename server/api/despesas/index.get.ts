@@ -16,6 +16,7 @@ export default defineEventHandler((event) => {
     return db.prepare(`
       SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data, t.data_inicio, t.data_fim, t.conta_id, t.cartao_id,
         c.nome AS conta_nome, c.banco_key, cr.nome AS cartao_nome,
+        cat.cor AS categoria_cor, cat.icone AS categoria_icone,
         CASE
           WHEN t.fixa = 1 THEN
             CASE WHEN t.data_fim IS NOT NULL AND t.data_fim < date('now') THEN 2 ELSE 1 END
@@ -24,6 +25,7 @@ export default defineEventHandler((event) => {
       FROM transacoes t
       LEFT JOIN contas c ON c.id = t.conta_id
       LEFT JOIN cartoes cr ON cr.id = t.cartao_id
+      LEFT JOIN categorias cat ON cat.nome = t.categoria
       WHERE t.tipo = 'despesa'
       ORDER BY t.fixa DESC, t.data DESC
     `).all()
@@ -38,9 +40,11 @@ export default defineEventHandler((event) => {
   const avulsasNormais = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas, t.data, NULL AS data_inicio, NULL AS data_fim,
       t.conta_id, t.cartao_id, c.nome AS conta_nome, c.banco_key, NULL AS cartao_nome,
+      cat.cor AS categoria_cor, cat.icone AS categoria_icone,
       CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS pago
     FROM transacoes t
     LEFT JOIN contas c ON c.id = t.conta_id
+    LEFT JOIN categorias cat ON cat.nome = t.categoria
     WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id IS NULL
       AND t.data >= ? AND t.data <= ?
     ORDER BY t.data DESC
@@ -55,10 +59,12 @@ export default defineEventHandler((event) => {
   const avulsasCartaoRaw = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas, t.data, NULL AS data_inicio, NULL AS data_fim,
       t.conta_id, t.cartao_id, NULL AS conta_nome, NULL AS banco_key, cr.nome AS cartao_nome,
-      cr.melhor_data_compra,
+      cr.banco_key AS cartao_banco_key, cr.cor AS cartao_cor, cr.melhor_data_compra,
+      cat.cor AS categoria_cor, cat.icone AS categoria_icone,
       CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS pago
     FROM transacoes t
     JOIN cartoes cr ON cr.id = t.cartao_id
+    LEFT JOIN categorias cat ON cat.nome = t.categoria
     WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id IS NOT NULL
       AND t.data >= ? AND t.data <= ?
     ORDER BY t.data DESC
@@ -76,10 +82,12 @@ export default defineEventHandler((event) => {
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,
       t.data_inicio, t.data_fim, t.conta_id, t.cartao_id,
       c.nome AS conta_nome, c.banco_key, cr.nome AS cartao_nome,
-      cr.melhor_data_compra
+      cr.banco_key AS cartao_banco_key, cr.cor AS cartao_cor, cr.melhor_data_compra,
+      cat.cor AS categoria_cor, cat.icone AS categoria_icone
     FROM transacoes t
     LEFT JOIN contas c ON c.id = t.conta_id
     LEFT JOIN cartoes cr ON cr.id = t.cartao_id
+    LEFT JOIN categorias cat ON cat.nome = t.categoria
     WHERE t.tipo = 'despesa' AND t.fixa = 1
       AND t.data_inicio <= ?
       AND (t.data_fim IS NULL OR t.data_fim >= ?)

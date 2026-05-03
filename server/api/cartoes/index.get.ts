@@ -8,7 +8,7 @@ export default defineEventHandler(() => {
   const currentMonth = `${year}-${String(month).padStart(2, '0')}`
 
   const cartoes = db.prepare(`
-    SELECT id, nome, banco, banco_key, limite, melhor_data_compra, vencimento FROM cartoes ORDER BY nome ASC
+    SELECT id, nome, banco, banco_key, limite, melhor_data_compra, vencimento, cor FROM cartoes ORDER BY nome ASC
   `).all() as any[]
 
   return cartoes.map(c => {

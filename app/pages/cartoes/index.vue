@@ -16,8 +16,13 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="pending" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <USkeleton v-for="i in 3" :key="i" class="h-48 rounded-2xl" />
+    <div v-if="pending" class="space-y-4">
+      <USkeleton class="h-28 rounded-lg" />
+      <USkeleton class="h-16 rounded-lg" />
+      <USkeleton class="h-64 rounded-lg" />
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <USkeleton v-for="i in 3" :key="i" class="h-48 rounded-lg" />
+      </div>
     </div>
 
     <!-- Error State -->
@@ -45,12 +50,90 @@
       </UButton>
     </div>
 
+    <template v-else>
+    <!-- Resumo consolidado -->
+    <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-5">
+      <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <div class="flex flex-wrap gap-6">
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Limite total</p>
+            <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(limiteTotal) }}</p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Utilizado</p>
+            <p class="text-xl font-bold" :class="pctTotal >= 90 ? 'text-red-500' : pctTotal >= 70 ? 'text-yellow-500' : 'text-gray-900 dark:text-white'">
+              {{ format(utilizadoTotal) }}
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400 mb-0.5">Disponível</p>
+            <p class="text-xl font-bold text-green-600 dark:text-green-400">{{ format(disponivelTotal) }}</p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-bold" :class="pctTotal >= 90 ? 'text-red-500' : pctTotal >= 70 ? 'text-yellow-500' : 'text-gray-500'">
+            {{ pctTotal.toFixed(0) }}%
+          </p>
+          <p class="text-xs text-gray-400">utilizado</p>
+        </div>
+      </div>
+      <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-2 overflow-hidden">
+        <div
+          class="h-2 rounded-full transition-all"
+          :class="pctTotal >= 90 ? 'bg-red-500' : pctTotal >= 70 ? 'bg-yellow-400' : 'bg-green-500'"
+          :style="{ width: Math.min(pctTotal, 100) + '%' }"
+        />
+      </div>
+    </div>
+
+    <!-- Quitação + Residuais -->
+    <div v-if="projecao" class="grid grid-cols-2 gap-3">
+      <div class="rounded-lg border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+        <p class="text-xs text-gray-400 mb-1">Quitação estimada</p>
+        <p v-if="projecao.mes_quitacao" class="text-base font-semibold text-gray-900 dark:text-white">
+          {{ fmtMonth(projecao.mes_quitacao) }}
+        </p>
+        <p v-else class="text-base font-semibold text-gray-400">Sem previsão</p>
+        <p class="text-xs text-gray-400 mt-0.5">Mês da última fatura</p>
+      </div>
+      <div class="rounded-lg border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+        <p class="text-xs text-gray-400 mb-1">Faturas residuais a partir de</p>
+        <p v-if="projecao.mes_inicio_residual" class="text-base font-semibold text-gray-900 dark:text-white">
+          {{ fmtMonth(projecao.mes_inicio_residual) }}
+        </p>
+        <p v-else class="text-base font-semibold text-gray-400">—</p>
+        <p class="text-xs text-gray-400 mt-0.5">≤ 15% da média ou &lt; R$ 150</p>
+      </div>
+    </div>
+
+    <!-- Gráfico de projeção 12 meses -->
+    <div v-if="projecao?.projecao12?.length" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Projeção consolidada de faturas</p>
+          <p class="text-xs text-gray-400 mt-0.5">Próximos 12 meses · todos os cartões · barras claras = residuais</p>
+        </div>
+        <p class="text-xs text-gray-400">
+          Total: <span class="font-medium text-gray-700 dark:text-gray-300">
+            {{ format(projecao.projecao12.reduce((s, p) => s + p.valor, 0)) }}
+          </span>
+        </p>
+      </div>
+      <div class="h-52">
+        <CartoesFaturaChart
+          :dados="projecao.projecao12"
+          :mes-residual="projecao.mes_inicio_residual"
+          card-color="#6366f1"
+        />
+      </div>
+    </div>
+
     <!-- Cards Grid -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <div
         v-for="cartao in cartoes"
         :key="cartao.id"
-        class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden"
+        class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden"
       >
         <!-- Card visual header -->
         <NuxtLink :to="`/cartoes/${cartao.id}`" class="block h-28 p-4 relative" :style="cardStyle(cartao)">
@@ -121,9 +204,10 @@
         </div>
       </div>
     </div>
+    </template>
 
     <!-- Add/Edit Modal -->
-    <UModal v-model:open="showModal" :title="editingCartao ? 'Editar Cartão' : 'Novo Cartão'">
+    <USlideover v-model:open="showModal" :title="editingCartao ? 'Editar Cartão' : 'Novo Cartão'">
       <template #body>
         <CartoesCartaoForm
           :initial="editingCartao"
@@ -132,10 +216,10 @@
           @cancel="closeModal"
         />
       </template>
-    </UModal>
+    </USlideover>
 
     <!-- Delete Confirm Modal -->
-    <UModal v-model:open="showDeleteModal" title="Excluir Cartão">
+    <USlideover v-model:open="showDeleteModal" title="Excluir Cartão">
       <template #body>
         <div class="space-y-4">
           <p class="text-gray-600 dark:text-gray-400">
@@ -153,7 +237,7 @@
           </div>
         </div>
       </template>
-    </UModal>
+    </USlideover>
   </div>
 </template>
 
@@ -168,10 +252,17 @@ interface Cartao {
   vencimento: number
   gasto_mes: number
   gasto_total: number
+  cor: string | null
 }
 
 const { format } = useCurrency()
 const { findBank } = useBanks()
+
+const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+function fmtMonth(mes: string) {
+  const [y, m] = mes.split('-')
+  return `${MESES[Number(m) - 1]} ${y}`
+}
 
 function usoPct(cartao: Cartao) {
   if (!cartao.limite) return 0
@@ -179,14 +270,20 @@ function usoPct(cartao: Cartao) {
 }
 
 function cardStyle(cartao: Cartao) {
-  const bank = findBank(cartao.banco_key)
-  const color = bank?.color ?? '#6366f1'
-  return {
-    background: `linear-gradient(135deg, ${color}dd 0%, ${color}88 100%)`
-  }
+  const color = cartao.cor ?? findBank(cartao.banco_key)?.color ?? '#6366f1'
+  return { background: `linear-gradient(135deg, ${color}dd 0%, ${color}88 100%)` }
 }
 
 const { data: cartoes, pending, error, refresh } = await useFetch<Cartao[]>('/api/cartoes')
+
+interface ProjecaoMes { mes: string; valor: number }
+interface Projecao { mes_quitacao: string | null; mes_inicio_residual: string | null; projecao12: ProjecaoMes[] }
+const { data: projecao, refresh: refreshProjecao } = await useFetch<Projecao>('/api/cartoes/projecao')
+
+const limiteTotal = computed(() => cartoes.value?.reduce((s, c) => s + c.limite, 0) ?? 0)
+const utilizadoTotal = computed(() => cartoes.value?.reduce((s, c) => s + c.gasto_total, 0) ?? 0)
+const disponivelTotal = computed(() => limiteTotal.value - utilizadoTotal.value)
+const pctTotal = computed(() => limiteTotal.value > 0 ? (utilizadoTotal.value / limiteTotal.value) * 100 : 0)
 
 const showModal = ref(false)
 const editingCartao = ref<Cartao | null>(null)
@@ -224,7 +321,7 @@ async function handleSubmit(data: Omit<Cartao, 'id'>) {
     } else {
       await $fetch('/api/cartoes', { method: 'POST', body: data })
     }
-    await refresh()
+    await Promise.all([refresh(), refreshProjecao()])
     closeModal()
   } catch (err) {
     console.error('Erro ao salvar cartão:', err)
@@ -238,7 +335,7 @@ async function handleDelete() {
   deleting.value = true
   try {
     await $fetch(`/api/cartoes/${deletingCartao.value.id}`, { method: 'DELETE' })
-    await refresh()
+    await Promise.all([refresh(), refreshProjecao()])
     showDeleteModal.value = false
     deletingCartao.value = null
   } catch (err) {

@@ -9,13 +9,13 @@
     </div>
 
     <!-- Month Navigator -->
-    <div class="bg-white dark:bg-gray-900 rounded-2xl px-6 py-4 shadow-sm border border-gray-100 dark:border-gray-800">
+    <div class="bg-white dark:bg-gray-900 rounded-lg px-6 py-4 border border-gray-100 dark:border-gray-800">
       <DashboardMonthNavigator v-model="currentMonth" />
     </div>
 
     <!-- Loading State -->
-    <div v-if="pending" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <USkeleton v-for="i in 6" :key="i" class="h-40 rounded-2xl" />
+    <div v-if="pending" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <USkeleton v-for="i in 4" :key="i" class="h-52 rounded-lg" />
     </div>
 
     <!-- Error State -->
@@ -30,76 +30,108 @@
 
     <!-- Dashboard Content -->
     <template v-else-if="data">
-      <!-- Top Summary Row -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <DashboardSaldoGeral :saldo="data.saldo" />
-
-        <UCard class="border-0 shadow-sm">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Contas a Pagar</p>
-              <p class="text-2xl font-bold mt-1 text-red-600 dark:text-red-400">
-                {{ format(data.contasPagar.total) }}
-              </p>
-              <p class="text-xs text-gray-400 mt-1">{{ data.contasPagar.items.length }} pendente(s)</p>
-            </div>
-            <div class="w-14 h-14 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-              <UIcon name="i-heroicons-arrow-up-circle" class="w-7 h-7 text-red-600 dark:text-red-400" />
-            </div>
-          </div>
-        </UCard>
-
-        <UCard class="border-0 shadow-sm">
-          <div class="flex items-center justify-between">
-            <div>
-              <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Contas a Receber</p>
-              <p class="text-2xl font-bold mt-1 text-green-600 dark:text-green-400">
-                {{ format(data.contasReceber.total) }}
-              </p>
-              <p class="text-xs text-gray-400 mt-1">{{ data.contasReceber.items.length }} pendente(s)</p>
-            </div>
-            <div class="w-14 h-14 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <UIcon name="i-heroicons-arrow-down-circle" class="w-7 h-7 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-        </UCard>
+      <!-- 4 Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <DashboardResumoCard
+          title="Saldo do Período Anterior"
+          :value="data.saldoAnterior"
+          value-color="blue"
+          icon="i-heroicons-arrow-trending-up"
+          :period="prevMonthEndLabel"
+          subtitle2="(Receita - Despesa + Saldo)"
+          :sub1="{ label: 'Pendências', value: 0, color: 'orange' }"
+          :sub2="{ label: 'Disponível', value: data.saldoAnterior, color: 'green' }"
+        />
+        <DashboardResumoCard
+          title="Receitas"
+          :value="data.receitas.total"
+          value-color="green"
+          icon="i-heroicons-arrow-trending-up"
+          :period="periodLabel"
+          show-eye
+          :sub1="{ label: 'Recebido', value: data.receitas.recebido, color: 'green' }"
+          :sub2="{ label: 'A receber', value: data.receitas.aReceber, color: 'orange' }"
+        />
+        <DashboardResumoCard
+          title="Despesas"
+          :value="data.despesas.pago"
+          value-color="red"
+          icon="i-heroicons-arrow-trending-down"
+          :period="periodLabel"
+          show-eye
+          :sub1="{ label: 'Pago', value: data.despesas.pago, color: 'green' }"
+          :sub2="{ label: 'A pagar', value: data.despesas.aPagar, color: 'red' }"
+        />
+        <DashboardResumoCard
+          title="Saldo Previsto"
+          :value="data.saldoPrevisto"
+          value-color="blue"
+          icon="i-heroicons-arrow-trending-up"
+          :period="currentMonthEndLabel"
+          subtitle2="(Receita - Despesa + Saldo)"
+          :sub1="{ label: 'Disponível', value: data.saldoDisponivel, color: 'blue' }"
+          :sub2="{ label: 'Previsto', value: data.saldoPrevisto, color: 'blue' }"
+        />
       </div>
 
-      <!-- Meus Cartões + Details Row -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="lg:col-span-1">
-          <DashboardMeusCartoes :cartoes="data.cartoes" />
-        </div>
-        <div class="lg:col-span-2 grid grid-cols-1 gap-4">
-          <DashboardContasPagar :total="data.contasPagar.total" :items="data.contasPagar.items" />
-          <DashboardContasReceber :total="data.contasReceber.total" :items="data.contasReceber.items" />
-        </div>
-      </div>
-
-      <!-- Receitas e Despesas -->
+      <!-- Contas a Pagar / Entradas -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <DashboardReceitasMes :total="data.receitas.total" :items="data.receitas.items" />
-        <DashboardDespesasMes :total="data.despesas.total" :items="data.despesas.items" />
+        <DashboardContasPagar :total="data.contasPagar.total" :items="data.contasPagar.items" :cartoes="data.cartoes" :month="currentMonth" />
+        <DashboardEntradas :total="data.receitas.recebido + data.receitas.aReceber" :items="data.receitas.items" />
       </div>
+
+      <!-- Gastos por Categoria + Limite de Gastos -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <DashboardGastosCategorias :dados="data.gastosPorCategoria" :period="periodLabel" />
+        <DashboardLimiteGastos
+          :itens="limitesData?.itens ?? []"
+          :total-limitado="limitesData?.totalLimitado ?? 0"
+          :total-gasto-limitado="limitesData?.totalGastoLimitado ?? 0"
+        />
+      </div>
+
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-const { format } = useCurrency()
-
-// Current month as YYYY-MM
 const now = new Date()
 const currentMonth = ref(
   `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 )
 
-const { data, pending, error, refresh } = await useFetch('/api/dashboard', {
+const { data, pending, error } = await useFetch('/api/dashboard', {
   query: computed(() => ({ month: currentMonth.value })),
   watch: [currentMonth]
 })
 
-useHead({
-  title: 'Dashboard — Gestão Financeira'
+const { data: limitesData } = await useFetch('/api/limites', {
+  query: computed(() => ({ month: currentMonth.value, modo: 'categoria' })),
+  watch: [currentMonth]
 })
+
+const mesesPt = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
+const periodLabel = computed(() => {
+  const [y, m] = currentMonth.value.split('-').map(Number)
+  const lastDay = new Date(y, m, 0).getDate()
+  const nome = mesesPt[m - 1]
+  return `1 de ${nome} - ${lastDay} de ${nome}`
+})
+
+const prevMonthEndLabel = computed(() => {
+  const [y, m] = currentMonth.value.split('-').map(Number)
+  const prevY = m === 1 ? y - 1 : y
+  const prevM = m === 1 ? 12 : m - 1
+  const lastDay = new Date(prevY, prevM, 0).getDate()
+  return `Até ${lastDay} de ${mesesPt[prevM - 1]}`
+})
+
+const currentMonthEndLabel = computed(() => {
+  const [y, m] = currentMonth.value.split('-').map(Number)
+  const lastDay = new Date(y, m, 0).getDate()
+  return `Até ${lastDay} de ${mesesPt[m - 1]}`
+})
+
+useHead({ title: 'Dashboard — Gestão Financeira' })
 </script>

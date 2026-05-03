@@ -8,6 +8,7 @@ interface CartaoBody {
   limite: number
   melhor_data_compra: number
   vencimento: number
+  cor?: string | null
 }
 
 export default defineEventHandler(async (event) => {
@@ -49,9 +50,9 @@ export default defineEventHandler(async (event) => {
 
   db.prepare(
     `UPDATE cartoes
-     SET nome = ?, banco = ?, banco_key = ?, limite = ?, melhor_data_compra = ?, vencimento = ?
+     SET nome = ?, banco = ?, banco_key = ?, limite = ?, melhor_data_compra = ?, vencimento = ?, cor = ?
      WHERE id = ?`
-  ).run([body.nome.trim(), body.banco.trim(), body.banco_key?.trim() ?? '', body.limite, body.melhor_data_compra, body.vencimento, id])
+  ).run([body.nome.trim(), body.banco.trim(), body.banco_key?.trim() ?? '', body.limite, body.melhor_data_compra, body.vencimento, body.cor ?? null, id])
 
   const cartao = db.prepare('SELECT * FROM cartoes WHERE id = ?').get([id])
   return cartao

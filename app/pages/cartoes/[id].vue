@@ -10,7 +10,7 @@
     </div>
 
     <!-- Card visual -->
-    <div v-if="data" class="h-32 rounded-2xl p-5 relative" :style="cardStyle">
+    <div v-if="data" class="h-32 rounded-lg p-5 relative" :style="cardStyle">
       <div class="flex items-start justify-between">
         <div>
           <p class="text-white/70 text-xs font-medium">{{ data.cartao.banco }}</p>
@@ -30,13 +30,55 @@
       </div>
     </div>
 
+    <!-- Projeção de quitação e faturas residuais -->
+    <div v-if="projecao" class="grid grid-cols-2 gap-3">
+      <div class="rounded-lg border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+        <p class="text-xs text-gray-400 mb-1">Quitação estimada</p>
+        <p v-if="projecao.mes_quitacao" class="text-base font-semibold text-gray-900 dark:text-white">
+          {{ fmtMonth(projecao.mes_quitacao) }}
+        </p>
+        <p v-else class="text-base font-semibold text-gray-400">Sem previsão</p>
+        <p class="text-xs text-gray-400 mt-0.5">Mês da última fatura</p>
+      </div>
+      <div class="rounded-lg border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
+        <p class="text-xs text-gray-400 mb-1">Faturas residuais a partir de</p>
+        <p v-if="projecao.mes_inicio_residual" class="text-base font-semibold text-gray-900 dark:text-white">
+          {{ fmtMonth(projecao.mes_inicio_residual) }}
+        </p>
+        <p v-else class="text-base font-semibold text-gray-400">—</p>
+        <p class="text-xs text-gray-400 mt-0.5">≤ 15% da média ou &lt; R$ 150</p>
+      </div>
+    </div>
+
+    <!-- Gráfico de projeção 12 meses -->
+    <div v-if="projecao?.projecao12?.length" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Projeção de faturas</p>
+          <p class="text-xs text-gray-400 mt-0.5">Próximos 12 meses · barras claras = residuais</p>
+        </div>
+        <p class="text-xs text-gray-400">
+          Total: <span class="font-medium text-gray-700 dark:text-gray-300">
+            {{ format(projecao.projecao12.reduce((s, p) => s + p.valor, 0)) }}
+          </span>
+        </p>
+      </div>
+      <div class="h-52">
+        <CartoesFaturaChart
+          :dados="projecao.projecao12"
+          :mes-residual="projecao.mes_inicio_residual"
+          :card-color="data?.cartao.cor ?? findBank(data?.cartao.banco_key ?? '')?.color ?? '#6366f1'"
+        />
+      </div>
+    </div>
+
     <!-- Month navigator -->
-    <div class="bg-white dark:bg-gray-900 rounded-2xl px-6 py-4 shadow-sm border border-gray-100 dark:border-gray-800">
+    <div class="bg-white dark:bg-gray-900 rounded-lg px-6 py-4 border border-gray-100 dark:border-gray-800">
       <DashboardMonthNavigator v-model="currentMonth" />
     </div>
 
     <!-- Fatura do mês -->
-    <div v-if="data" class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 p-5">
+    <div v-if="data" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-5">
       <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
           <p class="text-xs text-gray-500 mb-1">Fatura de {{ fmtMonth(currentMonth) }}</p>
@@ -108,7 +150,7 @@
 
     <!-- Loading -->
     <div v-if="pending" class="space-y-3">
-      <USkeleton v-for="i in 4" :key="i" class="h-16 rounded-xl" />
+      <USkeleton v-for="i in 4" :key="i" class="h-16 rounded-lg" />
     </div>
 
     <!-- Error -->
@@ -125,7 +167,7 @@
     </div>
 
     <!-- Lista de lançamentos -->
-    <div v-else class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+    <div v-else class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
       <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Lançamentos</p>
         <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ data?.lancamentos.length }} item(s)</p>
@@ -137,43 +179,50 @@
         :class="i < data.lancamentos.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
       >
         <!-- Ícone -->
-        <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
-          :class="lanc.fixa ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-gray-100 dark:bg-gray-800'">
-          <UIcon :name="lanc.parcelas > 0 ? 'i-heroicons-queue-list' : lanc.fixa ? 'i-heroicons-arrow-path' : 'i-heroicons-credit-card'"
-            class="w-5 h-5"
-            :class="lanc.fixa ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'" />
+        <div
+          class="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
+          :style="lanc.categoria_icone ? { background: lanc.categoria_cor } : {}"
+          :class="lanc.categoria_icone ? '' : 'bg-gray-100 dark:bg-gray-800'"
+        >
+          <UIcon
+            :name="lanc.categoria_icone ?? (lanc.parcelas > 0 ? 'i-heroicons-queue-list' : lanc.fixa ? 'i-heroicons-arrow-path' : 'i-heroicons-credit-card')"
+            class="w-4 h-4"
+            :class="lanc.categoria_icone ? 'text-white' : 'text-gray-400'"
+          />
         </div>
 
         <!-- Info -->
         <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <p class="font-medium text-gray-900 dark:text-white truncate">{{ lanc.descricao }}</p>
-            <UBadge v-if="lanc.parcelas > 0" :label="`${lanc.parcela_atual}/${lanc.parcelas}`"
-              color="purple" variant="soft" size="xs" icon="i-heroicons-queue-list" />
-            <UBadge v-else-if="lanc.fixa" label="Fixa" color="info" variant="soft" size="xs"
-              icon="i-heroicons-arrow-path" />
-          </div>
-          <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+          <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{{ lanc.descricao }}</p>
+          <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
             <span class="text-xs text-gray-400">{{ descricaoData(lanc) }}</span>
-            <span v-if="lanc.categoria"
-              class="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full">
-              {{ lanc.categoria }}
-            </span>
+            <template v-if="lanc.categoria">
+              <span class="text-gray-300 dark:text-gray-700">·</span>
+              <span class="text-xs text-gray-400">{{ lanc.categoria }}</span>
+            </template>
+            <template v-if="lanc.parcelas > 0">
+              <span class="text-gray-300 dark:text-gray-700">·</span>
+              <span class="text-xs text-gray-400">{{ lanc.parcela_atual }}/{{ lanc.parcelas }}</span>
+            </template>
+            <template v-else-if="lanc.fixa">
+              <span class="text-gray-300 dark:text-gray-700">·</span>
+              <span class="text-xs text-gray-400">Fixa</span>
+            </template>
           </div>
         </div>
 
         <!-- Valor -->
-        <p class="text-base font-semibold text-red-600 dark:text-red-400 flex-shrink-0">
+        <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 flex-shrink-0">
           - {{ format(lanc.valor) }}
         </p>
       </div>
     </div>
 
     <!-- Modal pagar fatura -->
-    <UModal v-model:open="showPagarModal" title="Pagar fatura" :dismissible="false">
+    <USlideover v-model:open="showPagarModal" title="Pagar fatura" :dismissible="false">
       <template #body>
         <div class="space-y-4">
-          <div class="bg-gray-50 dark:bg-gray-800 rounded-xl px-4 py-3">
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg px-4 py-3">
             <p class="text-xs text-gray-500 mb-0.5">Fatura de {{ fmtMonth(currentMonth) }}</p>
             <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ format(valorModalFatura) }}</p>
             <p v-if="ajusteModal !== 0" class="text-xs mt-0.5" :class="ajusteModal > 0 ? 'text-red-500' : 'text-green-600'">
@@ -215,7 +264,7 @@
           </div>
         </div>
       </template>
-    </UModal>
+    </USlideover>
   </div>
 </template>
 
@@ -228,6 +277,8 @@ interface Lancamento {
   data_inicio: string | null
   data_fim: string | null
   categoria: string | null
+  categoria_cor: string | null
+  categoria_icone: string | null
   fixa: number
   parcelas: number
   parcela_atual: number | null
@@ -252,6 +303,7 @@ interface CartaoDetalhe {
   vencimento: number
   gasto_mes: number
   gasto_total: number
+  cor: string | null
 }
 
 const route = useRoute()
@@ -267,8 +319,8 @@ const { data, pending, error, refresh } = await useFetch<{ cartao: CartaoDetalhe
 )
 
 const cardStyle = computed(() => {
-  const bank = findBank(data.value?.cartao.banco_key ?? '')
-  const color = bank?.color ?? '#6366f1'
+  const cartao = data.value?.cartao
+  const color = cartao?.cor ?? findBank(cartao?.banco_key ?? '')?.color ?? '#6366f1'
   return { background: `linear-gradient(135deg, ${color}dd 0%, ${color}88 100%)` }
 })
 
@@ -307,6 +359,14 @@ function descricaoData(l: Lancamento) {
   }
   return fmtDate(l.data)
 }
+
+const { data: projecao } = await useFetch<{
+  mes_quitacao: string | null
+  mes_inicio_residual: string | null
+  projecao12: { mes: string; valor: number }[]
+}>(
+  `/api/cartoes/${route.params.id}/projecao`
+)
 
 // Pagamento
 const { data: contas } = await useFetch<{ id: number; nome: string; banco: string }[]>('/api/contas')

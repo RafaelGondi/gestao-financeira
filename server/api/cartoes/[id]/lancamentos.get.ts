@@ -32,20 +32,21 @@ export default defineEventHandler((event) => {
 
   const avulsas = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas,
-      t.data, NULL AS data_inicio, NULL AS data_fim
+      t.data, NULL AS data_inicio, NULL AS data_fim,
+      cat.icone AS categoria_icone, cat.cor AS categoria_cor
     FROM transacoes t
+    LEFT JOIN categorias cat ON cat.nome = t.categoria
     WHERE t.tipo = 'despesa' AND t.cartao_id = ? AND t.fixa = 0
       AND t.data >= ? AND t.data <= ?
     ORDER BY t.data DESC
   `).all([cartaoId, startDate, endDate])
 
-  // For fixas/parceladas: the installment day comes from data_inicio.
-  // If day >= cutoff, the installment shown in fatura month YYYY-MM is the one
-  // from the PREVIOUS calendar month (e.g. cutoff=3, day=3 → show March's installment in April fatura).
   const fixasRaw = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,
-      t.data_inicio, t.data_fim
+      t.data_inicio, t.data_fim,
+      cat.icone AS categoria_icone, cat.cor AS categoria_cor
     FROM transacoes t
+    LEFT JOIN categorias cat ON cat.nome = t.categoria
     WHERE t.tipo = 'despesa' AND t.cartao_id = ? AND t.fixa = 1
       AND t.data_inicio <= ?
       AND (t.data_fim IS NULL OR t.data_fim >= ?)
@@ -62,7 +63,9 @@ export default defineEventHandler((event) => {
     return [{
       ...t,
       data: effectiveDate,
-      parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, calcMonth) : null
+      parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, calcMonth) : null,
+      categoria_icone: t.categoria_icone ?? null,
+      categoria_cor: t.categoria_cor ?? null,
     }]
   })
 

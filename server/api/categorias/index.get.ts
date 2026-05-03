@@ -1,10 +1,11 @@
 import db from '../../db/index'
 
 export default defineEventHandler(() => {
-  const rows = db.prepare(`
-    SELECT DISTINCT categoria FROM transacoes
-    WHERE categoria IS NOT NULL AND categoria != ''
-    ORDER BY categoria ASC
-  `).all() as { categoria: string }[]
-  return rows.map(r => r.categoria)
+  return db.prepare(`
+    SELECT c.id, c.nome, c.tipo, c.cor, c.icone, c.supercategoria_id,
+           s.nome AS supercategoria_nome, s.cor AS supercategoria_cor, s.icone AS supercategoria_icone
+    FROM categorias c
+    LEFT JOIN supercategorias s ON s.id = c.supercategoria_id
+    ORDER BY c.nome ASC
+  `).all()
 })

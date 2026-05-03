@@ -10,7 +10,7 @@
     </div>
 
     <!-- Card visual -->
-    <div v-if="data" class="h-32 rounded-2xl p-5 relative" :style="cardStyle">
+    <div v-if="data" class="h-32 rounded-lg p-5 relative" :style="cardStyle">
       <div class="flex items-start justify-between">
         <div>
           <p class="text-white/70 text-xs font-medium">{{ data.conta.banco }}</p>
@@ -25,25 +25,25 @@
     </div>
 
     <!-- Month navigator -->
-    <div class="bg-white dark:bg-gray-900 rounded-2xl px-6 py-4 shadow-sm border border-gray-100 dark:border-gray-800">
+    <div class="bg-white dark:bg-gray-900 rounded-lg px-6 py-4 border border-gray-100 dark:border-gray-800">
       <DashboardMonthNavigator v-model="currentMonth" />
     </div>
 
     <!-- Resumo do mês -->
     <div v-if="data" class="grid grid-cols-3 gap-3">
-      <UCard class="border-0 shadow-sm">
+      <UCard class="border-0">
         <div>
           <p class="text-xs text-gray-500 mb-1">Entradas</p>
           <p class="text-lg font-bold text-green-600 dark:text-green-400">{{ format(data.resumo.entradas) }}</p>
         </div>
       </UCard>
-      <UCard class="border-0 shadow-sm">
+      <UCard class="border-0">
         <div>
           <p class="text-xs text-gray-500 mb-1">Saídas</p>
           <p class="text-lg font-bold text-red-600 dark:text-red-400">{{ format(data.resumo.saidas) }}</p>
         </div>
       </UCard>
-      <UCard class="border-0 shadow-sm">
+      <UCard class="border-0">
         <div>
           <p class="text-xs text-gray-500 mb-1">Saldo do mês</p>
           <p class="text-lg font-bold" :class="data.resumo.saldo_mes >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
@@ -55,7 +55,7 @@
 
     <!-- Loading -->
     <div v-if="pending" class="space-y-3">
-      <USkeleton v-for="i in 4" :key="i" class="h-16 rounded-xl" />
+      <USkeleton v-for="i in 4" :key="i" class="h-16 rounded-lg" />
     </div>
 
     <!-- Error -->
@@ -72,7 +72,7 @@
     </div>
 
     <!-- Lista de lançamentos -->
-    <div v-else class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+    <div v-else class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
       <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
         <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Lançamentos</p>
         <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ data?.lancamentos.length }} item(s)</p>

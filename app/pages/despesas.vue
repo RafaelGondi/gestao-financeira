@@ -11,50 +11,29 @@
     </div>
 
     <!-- Navegador de mês -->
-    <div class="bg-white dark:bg-gray-900 rounded-2xl px-6 py-4 shadow-sm border border-gray-100 dark:border-gray-800">
+    <div class="bg-white dark:bg-gray-900 rounded-lg px-6 py-4 border border-gray-100 dark:border-gray-800">
       <DashboardMonthNavigator v-model="currentMonth" />
     </div>
 
     <!-- Resumo do mês -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <UCard class="border-0 shadow-sm">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-            <UIcon name="i-heroicons-arrow-trending-down" class="w-5 h-5 text-red-600 dark:text-red-400" />
-          </div>
-          <div>
-            <p class="text-xs text-gray-500">Total do mês</p>
-            <p class="text-lg font-bold text-gray-900 dark:text-white">{{ format(totalGeral) }}</p>
-          </div>
-        </div>
-      </UCard>
-      <UCard class="border-0 shadow-sm">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-            <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-green-600 dark:text-green-400" />
-          </div>
-          <div>
-            <p class="text-xs text-gray-500">Já pago</p>
-            <p class="text-lg font-bold text-green-600 dark:text-green-400">{{ format(totalPago) }}</p>
-          </div>
-        </div>
-      </UCard>
-      <UCard class="border-0 shadow-sm">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center">
-            <UIcon name="i-heroicons-clock" class="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-          </div>
-          <div>
-            <p class="text-xs text-gray-500">A pagar</p>
-            <p class="text-lg font-bold text-yellow-600 dark:text-yellow-400">{{ format(totalAPagar) }}</p>
-          </div>
-        </div>
-      </UCard>
+    <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 px-6 py-4 grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800">
+      <div class="pr-6">
+        <p class="text-xs text-gray-400 mb-1">Total do mês</p>
+        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(totalGeral) }}</p>
+      </div>
+      <div class="px-6">
+        <p class="text-xs text-gray-400 mb-1">Já pago</p>
+        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(totalPago) }}</p>
+      </div>
+      <div class="pl-6">
+        <p class="text-xs text-gray-400 mb-1">A pagar</p>
+        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(totalAPagar) }}</p>
+      </div>
     </div>
 
     <!-- Loading -->
     <div v-if="pending" class="space-y-3">
-      <USkeleton v-for="i in 4" :key="i" class="h-16 rounded-xl" />
+      <USkeleton v-for="i in 4" :key="i" class="h-16 rounded-lg" />
     </div>
 
     <!-- Error -->
@@ -74,35 +53,102 @@
     </div>
 
     <template v-else>
+      <div class="space-y-2">
+      <!-- Despesas normais (sem cartão) -->
+      <div v-if="despesasNormais.length" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
+        <div
+          v-for="(despesa, i) in despesasNormais"
+          :key="`${despesa.id}-${despesa.fixa}`"
+          class="flex items-center gap-4 px-5 py-4"
+          :class="i < despesasNormais.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
+        >
+          <!-- Ícone -->
+          <div
+            class="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
+            :style="despesa.categoria_icone ? { background: despesa.categoria_cor } : {}"
+            :class="despesa.categoria_icone ? '' : 'bg-gray-100 dark:bg-gray-800'"
+          >
+            <UIcon
+              :name="despesa.categoria_icone ?? iconName(despesa)"
+              class="w-4 h-4"
+              :class="despesa.categoria_icone ? 'text-white' : 'text-gray-400'"
+            />
+          </div>
+
+          <!-- Info -->
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{{ despesa.descricao }}</p>
+            <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+              <span class="text-xs text-gray-400">{{ descricaoData(despesa) }}</span>
+              <template v-if="despesa.conta_nome">
+                <span class="text-gray-300 dark:text-gray-700">·</span>
+                <span class="text-xs text-gray-400">{{ despesa.conta_nome }}</span>
+              </template>
+              <template v-if="despesa.parcelas > 0">
+                <span class="text-gray-300 dark:text-gray-700">·</span>
+                <span class="text-xs text-gray-400">{{ despesa.parcela_atual }}/{{ despesa.parcelas }}</span>
+              </template>
+              <template v-else-if="despesa.fixa">
+                <span class="text-gray-300 dark:text-gray-700">·</span>
+                <span class="text-xs text-gray-400">Fixa</span>
+              </template>
+            </div>
+          </div>
+
+          <!-- Valor e status -->
+          <div class="flex items-center gap-3 flex-shrink-0">
+            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ format(despesa.valor) }}</p>
+            <span
+              class="text-xs px-2 py-0.5 rounded-full"
+              :class="despesa.pago === 1
+                ? 'bg-gray-100 dark:bg-gray-800 text-gray-500'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-500'"
+            >
+              {{ despesa.pago === 1 ? 'Pago' : 'A pagar' }}
+            </span>
+          </div>
+
+          <!-- Ações -->
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
+              @click="openEditModal(despesa)" />
+            <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
+              @click="confirmDelete(despesa)" />
+          </div>
+        </div>
+      </div>
+
       <!-- Grupos de fatura (cartão) -->
       <div
         v-for="grupo in gruposCartao"
         :key="grupo.cartao_id"
-        class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden"
+        class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden"
       >
         <!-- Header do grupo -->
         <div
-          class="flex items-center gap-4 px-5 py-4 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+          class="flex items-center gap-4 px-5 py-4 cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
           @click="toggleGrupo(grupo.cartao_id)"
         >
-          <div class="flex-shrink-0 w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-            <UIcon name="i-heroicons-credit-card" class="w-5 h-5 text-violet-600 dark:text-violet-400" />
+          <div class="flex-shrink-0 w-10 h-7 rounded-lg flex items-center justify-center" :style="cartaoStyle(grupo)">
+            <SharedBankLogo :bank="findBank(grupo.cartao_banco_key ?? '')" :size="22" />
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
               <NuxtLink
                 :to="`/cartoes/${grupo.cartao_id}`"
-                class="font-semibold text-gray-900 dark:text-white hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+                class="font-medium text-gray-800 dark:text-gray-100 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 @click.stop
               >
                 Fatura {{ grupo.cartao_nome }}
               </NuxtLink>
-              <UBadge
-                :label="grupo.fatura?.pago ? 'Paga' : 'Em aberto'"
-                :color="grupo.fatura?.pago ? 'success' : 'warning'"
-                variant="soft"
-                size="xs"
-              />
+              <span
+                class="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                :class="grupo.fatura?.pago
+                  ? 'bg-gray-100 dark:bg-gray-800 text-gray-500'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-500'"
+              >
+                {{ grupo.fatura?.pago ? 'Paga' : 'Em aberto' }}
+              </span>
             </div>
             <p v-if="grupo.fatura?.pago" class="text-xs text-gray-400 mt-0.5">
               Paga em {{ fmtDate(grupo.fatura.data_pagamento) }} · {{ grupo.fatura.conta_nome }}
@@ -112,7 +158,7 @@
             </p>
           </div>
           <div class="flex items-center gap-3 flex-shrink-0">
-            <p class="text-base font-semibold text-red-600 dark:text-red-400">- {{ format(grupo.total) }}</p>
+            <p class="text-base font-medium text-gray-800 dark:text-gray-100">{{ format(grupo.total) }}</p>
             <UIcon
               :name="expandedGrupos.has(grupo.cartao_id) ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
               class="w-4 h-4 text-gray-400"
@@ -128,31 +174,32 @@
             class="flex items-center gap-4 px-5 py-3 pl-16"
             :class="i < grupo.despesas.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
           >
-            <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
-              :class="despesa.fixa ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-gray-100 dark:bg-gray-800'">
+            <div
+              class="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
+              :style="despesa.categoria_icone ? { background: despesa.categoria_cor } : {}"
+              :class="despesa.categoria_icone ? '' : 'bg-gray-100 dark:bg-gray-800'"
+            >
               <UIcon
-                :name="despesa.parcelas > 0 ? 'i-heroicons-queue-list' : despesa.fixa ? 'i-heroicons-arrow-path' : 'i-heroicons-credit-card'"
-                class="w-4 h-4"
-                :class="despesa.fixa ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500'"
+                :name="despesa.categoria_icone ?? (despesa.parcelas > 0 ? 'i-heroicons-queue-list' : despesa.fixa ? 'i-heroicons-arrow-path' : 'i-heroicons-credit-card')"
+                class="w-3.5 h-3.5"
+                :class="despesa.categoria_icone ? 'text-white' : 'text-gray-400'"
               />
             </div>
             <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2 flex-wrap">
-                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ despesa.descricao }}</p>
-                <UBadge v-if="despesa.parcelas > 0" :label="`${despesa.parcela_atual}/${despesa.parcelas}`"
-                  color="purple" variant="soft" size="xs" icon="i-heroicons-queue-list" />
-                <UBadge v-else-if="despesa.fixa" label="Fixa" color="info" variant="soft" size="xs"
-                  icon="i-heroicons-arrow-path" />
-              </div>
-              <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+              <p class="text-sm text-gray-800 dark:text-gray-100 truncate">{{ despesa.descricao }}</p>
+              <div class="flex items-center gap-1.5 mt-0.5">
                 <span class="text-xs text-gray-400">{{ descricaoData(despesa) }}</span>
-                <span v-if="despesa.categoria"
-                  class="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full">
-                  {{ despesa.categoria }}
-                </span>
+                <template v-if="despesa.parcelas > 0">
+                  <span class="text-gray-300 dark:text-gray-700">·</span>
+                  <span class="text-xs text-gray-400">{{ despesa.parcela_atual }}/{{ despesa.parcelas }}</span>
+                </template>
+                <template v-else-if="despesa.fixa">
+                  <span class="text-gray-300 dark:text-gray-700">·</span>
+                  <span class="text-xs text-gray-400">Fixa</span>
+                </template>
               </div>
             </div>
-            <p class="text-sm font-semibold text-red-600 dark:text-red-400 flex-shrink-0">- {{ format(despesa.valor) }}</p>
+            <p class="text-sm font-medium text-gray-800 dark:text-gray-100 flex-shrink-0">{{ format(despesa.valor) }}</p>
             <div class="flex items-center gap-1 flex-shrink-0">
               <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
                 @click="openEditModal(despesa)" />
@@ -163,63 +210,11 @@
         </div>
       </div>
 
-      <!-- Despesas normais (sem cartão) -->
-      <div v-if="despesasNormais.length" class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
-        <div
-          v-for="(despesa, i) in despesasNormais"
-          :key="`${despesa.id}-${despesa.fixa}`"
-          class="flex items-center gap-4 px-5 py-4"
-          :class="i < despesasNormais.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
-        >
-          <!-- Ícone -->
-          <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" :class="iconBg(despesa)">
-            <UIcon :name="iconName(despesa)" class="w-5 h-5" :class="iconColor(despesa)" />
-          </div>
-
-          <!-- Info -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              <p class="font-medium text-gray-900 dark:text-white truncate">{{ despesa.descricao }}</p>
-              <UBadge v-if="despesa.parcelas > 0" :label="`${despesa.parcela_atual}/${despesa.parcelas}`" color="purple" variant="soft" size="xs"
-                icon="i-heroicons-queue-list" />
-              <UBadge v-else-if="despesa.fixa" label="Fixa" color="info" variant="soft" size="xs"
-                icon="i-heroicons-arrow-path" />
-            </div>
-            <div class="flex items-center gap-2 mt-0.5 flex-wrap">
-              <span class="text-xs text-gray-400">{{ descricaoData(despesa) }}</span>
-              <span v-if="despesa.conta_nome"
-                class="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-                <UIcon name="i-heroicons-building-library" class="w-3 h-3" />
-                {{ despesa.conta_nome }}
-              </span>
-              <span v-if="despesa.categoria"
-                class="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full">
-                {{ despesa.categoria }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Valor e status -->
-          <div class="flex items-center gap-3 flex-shrink-0">
-            <p class="text-base font-semibold text-red-600 dark:text-red-400">
-              - {{ format(despesa.valor) }}
-            </p>
-            <UBadge :label="badgeLabel(despesa)" :color="badgeColor(despesa)" variant="soft" size="sm" />
-          </div>
-
-          <!-- Ações -->
-          <div class="flex items-center gap-1 flex-shrink-0">
-            <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
-              @click="openEditModal(despesa)" />
-            <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
-              @click="confirmDelete(despesa)" />
-          </div>
-        </div>
       </div>
     </template>
 
     <!-- Modal Add/Edit -->
-    <UModal v-model:open="showModal" :title="editingDespesa ? 'Editar Despesa' : 'Nova Despesa'" :dismissible="false">
+    <USlideover v-model:open="showModal" :title="editingDespesa ? 'Editar Despesa' : 'Nova Despesa'" :dismissible="false">
       <template #body>
         <DespesasDespesaForm
           :initial="editingDespesa"
@@ -228,7 +223,7 @@
           @cancel="closeModal"
         />
       </template>
-    </UModal>
+    </USlideover>
 
     <!-- Modal Delete -->
     <UModal v-model:open="showDeleteModal" title="Excluir Despesa">
@@ -283,6 +278,8 @@ interface Despesa {
   data_inicio: string | null
   data_fim: string | null
   categoria: string | null
+  categoria_cor: string | null
+  categoria_icone: string | null
   fixa: number
   parcelas: number
   parcela_atual: number | null
@@ -292,6 +289,8 @@ interface Despesa {
   banco_key: string | null
   cartao_id: number | null
   cartao_nome: string | null
+  cartao_banco_key: string | null
+  cartao_cor: string | null
 }
 
 interface Fatura {
@@ -307,12 +306,20 @@ interface Fatura {
 interface GrupoCartao {
   cartao_id: number
   cartao_nome: string
+  cartao_banco_key: string | null
+  cartao_cor: string | null
   total: number
   fatura: Fatura | null
   despesas: Despesa[]
 }
 
 const { format } = useCurrency()
+const { findBank } = useBanks()
+
+function cartaoStyle(grupo: GrupoCartao) {
+  const color = grupo.cartao_cor ?? findBank(grupo.cartao_banco_key ?? '')?.color ?? '#6366f1'
+  return { background: `linear-gradient(135deg, ${color}ee 0%, ${color}99 100%)` }
+}
 
 const now = new Date()
 const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
@@ -347,6 +354,8 @@ const gruposCartao = computed<GrupoCartao[]>(() => {
       map.set(d.cartao_id, {
         cartao_id: d.cartao_id,
         cartao_nome: d.cartao_nome ?? `Cartão ${d.cartao_id}`,
+        cartao_banco_key: d.cartao_banco_key,
+        cartao_cor: d.cartao_cor,
         total: 0,
         fatura,
         despesas: []
@@ -356,7 +365,10 @@ const gruposCartao = computed<GrupoCartao[]>(() => {
     grupo.total += d.valor
     grupo.despesas.push(d)
   }
-  return [...map.values()]
+  return [...map.values()].map(g => ({
+    ...g,
+    despesas: [...g.despesas].sort((a, b) => b.data.localeCompare(a.data))
+  }))
 })
 
 const totalGeral = computed(() => (despesas.value ?? []).reduce((s, d) => s + d.valor, 0))
@@ -367,7 +379,7 @@ const totalPago = computed(() => {
   return normalPago + faturasPago
 })
 
-const totalAPagar = computed(() => totalGeral.value - totalPago.value)
+const totalAPagar = computed(() => Math.round((totalGeral.value - totalPago.value) * 100) / 100)
 
 function fmtDate(d: string | null) {
   if (!d) return ''

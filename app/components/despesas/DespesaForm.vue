@@ -72,7 +72,7 @@
     </UFormField>
 
     <UFormField label="Categoria">
-      <SharedCategoriaInput v-model="form.categoria" placeholder="Ex: Moradia, Alimentação..." />
+      <SharedCategoriaInput v-model="form.categoria" tipo="despesa" placeholder="Ex: Moradia, Alimentação..." />
     </UFormField>
 
     <!-- Tipo -->

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex items-center justify-center rounded-xl overflow-hidden flex-shrink-0"
+    class="flex items-center justify-center rounded-lg overflow-hidden flex-shrink-0"
     :style="{ width: sizePx, height: sizePx }"
   >
     <img

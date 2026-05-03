@@ -64,7 +64,10 @@ const navLinks = [
   { to: '/receitas', label: 'Receitas', icon: 'i-heroicons-banknotes' },
   { to: '/despesas', label: 'Despesas', icon: 'i-heroicons-arrow-trending-down' },
   { to: '/cartoes', label: 'Cartões', icon: 'i-heroicons-credit-card' },
-  { to: '/transferencias', label: 'Transferências', icon: 'i-heroicons-arrows-right-left' }
+  { to: '/transferencias', label: 'Transferências', icon: 'i-heroicons-arrows-right-left' },
+  { to: '/categorias', label: 'Categorias', icon: 'i-heroicons-tag' },
+  { to: '/relatorios', label: 'Relatórios', icon: 'i-heroicons-chart-pie' },
+  { to: '/limites', label: 'Limites', icon: 'i-heroicons-chart-bar' }
 ]
 
 function isActive(path: string) {

@@ -11,13 +11,13 @@
     </div>
 
     <!-- Navegador de mês -->
-    <div class="bg-white dark:bg-gray-900 rounded-2xl px-6 py-4 shadow-sm border border-gray-100 dark:border-gray-800">
+    <div class="bg-white dark:bg-gray-900 rounded-lg px-6 py-4 border border-gray-100 dark:border-gray-800">
       <DashboardMonthNavigator v-model="currentMonth" />
     </div>
 
     <!-- Resumo -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <UCard class="border-0 shadow-sm">
+      <UCard class="border-0">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
             <UIcon name="i-heroicons-arrows-right-left" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -28,7 +28,7 @@
           </div>
         </div>
       </UCard>
-      <UCard class="border-0 shadow-sm">
+      <UCard class="border-0">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
             <UIcon name="i-heroicons-queue-list" class="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -43,7 +43,7 @@
 
     <!-- Loading -->
     <div v-if="pending" class="space-y-3">
-      <USkeleton v-for="i in 3" :key="i" class="h-16 rounded-xl" />
+      <USkeleton v-for="i in 3" :key="i" class="h-16 rounded-lg" />
     </div>
 
     <!-- Error -->
@@ -63,7 +63,7 @@
     </div>
 
     <!-- Lista -->
-    <div v-else class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden">
+    <div v-else class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
       <div
         v-for="(tr, i) in transferencias"
         :key="tr.id"
@@ -108,7 +108,7 @@
     </div>
 
     <!-- Modal Add/Edit -->
-    <UModal v-model:open="showModal" :title="editingTransferencia ? 'Editar Transferência' : 'Nova Transferência'">
+    <USlideover v-model:open="showModal" :title="editingTransferencia ? 'Editar Transferência' : 'Nova Transferência'">
       <template #body>
         <TransferenciasTransferenciaForm
           :initial="editingTransferencia"
@@ -117,10 +117,10 @@
           @cancel="closeModal"
         />
       </template>
-    </UModal>
+    </USlideover>
 
     <!-- Modal Delete -->
-    <UModal v-model:open="showDeleteModal" title="Excluir Transferência">
+    <USlideover v-model:open="showDeleteModal" title="Excluir Transferência">
       <template #body>
         <div class="space-y-4">
           <p class="text-gray-600 dark:text-gray-400">
@@ -135,7 +135,7 @@
           </div>
         </div>
       </template>
-    </UModal>
+    </USlideover>
   </div>
 </template>
 

@@ -86,10 +86,54 @@ if (!g.__db) {
   const cartaoCols = db.prepare(`PRAGMA table_info(cartoes)`).all() as { name: string }[]
   const cartaoColNames = cartaoCols.map(c => c.name)
   if (!cartaoColNames.includes('banco_key')) db.exec(`ALTER TABLE cartoes ADD COLUMN banco_key TEXT NOT NULL DEFAULT ''`)
+  if (!cartaoColNames.includes('cor')) db.exec(`ALTER TABLE cartoes ADD COLUMN cor TEXT`)
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS supercategorias (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL UNIQUE,
+      cor TEXT NOT NULL DEFAULT '#6366f1',
+      icone TEXT NOT NULL DEFAULT 'i-heroicons-tag',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS categorias (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL UNIQUE,
+      tipo TEXT NOT NULL DEFAULT 'despesa',
+      cor TEXT NOT NULL DEFAULT '#6366f1',
+      icone TEXT NOT NULL DEFAULT 'i-heroicons-tag',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
+  // Seed categorias from existing transacoes.categoria strings (runs once; IGNORE skips duplicates)
+  db.exec(`
+    INSERT OR IGNORE INTO categorias (nome, tipo)
+    SELECT categoria, tipo FROM transacoes
+    WHERE categoria IS NOT NULL AND categoria != ''
+    GROUP BY categoria
+  `)
+
+  const categoriaCols = db.prepare(`PRAGMA table_info(categorias)`).all() as { name: string }[]
+  if (!categoriaCols.map(c => c.name).includes('supercategoria_id'))
+    db.exec(`ALTER TABLE categorias ADD COLUMN supercategoria_id INTEGER REFERENCES supercategorias(id) ON DELETE SET NULL`)
 
   const faturaCols = db.prepare(`PRAGMA table_info(faturas)`).all() as { name: string }[]
   const faturaColNames = faturaCols.map(c => c.name)
   if (!faturaColNames.includes('valor_ajuste')) db.exec(`ALTER TABLE faturas ADD COLUMN valor_ajuste REAL DEFAULT 0`)
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS limites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tipo TEXT NOT NULL CHECK(tipo IN ('categoria', 'supercategoria')),
+      referencia TEXT NOT NULL,
+      mes TEXT NOT NULL,
+      valor REAL NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(tipo, referencia, mes)
+    )
+  `)
 
   g.__db = db
 }
