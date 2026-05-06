@@ -180,7 +180,7 @@
   </UModal>
 
   <!-- Slideover: Novo Lançamento -->
-  <USlideover v-model:open="showLancamentoModal" :title="lancamentoTipoLabel" :ui="{ width: 'sm:max-w-xl' }">
+  <USlideover v-model:open="showLancamentoModal" title="Novo Lançamento" :ui="{ width: 'sm:max-w-lg' }">
     <template #body>
       <div class="space-y-5 p-1">
         <!-- Seletor de tipo -->
@@ -200,29 +200,15 @@
           </button>
         </div>
 
-        <!-- Forms reutilizados com conta pré-selecionada -->
-        <ReceitasReceitaForm
-          v-if="lancamentoTipo === 'receita'"
-          :key="`receita-${showLancamentoModal}`"
-          :initial="receitaInitial"
+        <ContasNovoLancamentoForm
+          :key="lancamentoTipo"
+          :conta-id="contaIdNum"
+          :conta-nome="data?.conta.nome ?? ''"
+          :conta-banco="data?.conta.banco ?? ''"
+          :conta-banco-key="data?.conta.banco_key ?? ''"
+          :tipo="lancamentoTipo"
           :loading="salvandoLancamento"
-          @submit="handleReceitaSubmit"
-          @cancel="showLancamentoModal = false"
-        />
-        <DespesasDespesaForm
-          v-else-if="lancamentoTipo === 'despesa'"
-          :key="`despesa-${showLancamentoModal}`"
-          :initial="despesaInitial"
-          :loading="salvandoLancamento"
-          @submit="handleDespesaSubmit"
-          @cancel="showLancamentoModal = false"
-        />
-        <TransferenciasTransferenciaForm
-          v-else
-          :key="`transferencia-${showLancamentoModal}`"
-          :initial="transferenciaInitial"
-          :loading="salvandoLancamento"
-          @submit="handleTransferenciaSubmit"
+          @submit="handleLancamentoSubmit"
           @cancel="showLancamentoModal = false"
         />
       </div>
@@ -329,6 +315,7 @@ function iconColor(l: Lancamento) {
 const showLancamentoModal = ref(false)
 const lancamentoTipo = ref<'receita' | 'despesa' | 'transferencia'>('despesa')
 const salvandoLancamento = ref(false)
+const contaIdNum = computed(() => Number(route.params.id))
 
 const lancamentoTabs = [
   { value: 'receita',       label: 'Receita',       icon: 'i-heroicons-arrow-down-circle' },
@@ -336,55 +323,21 @@ const lancamentoTabs = [
   { value: 'transferencia', label: 'Transferência',  icon: 'i-heroicons-arrows-right-left' },
 ] as const
 
-const lancamentoTipoLabel = computed(() =>
-  lancamentoTabs.find(t => t.value === lancamentoTipo.value)?.label ?? 'Novo Lançamento'
-)
-
-const contaIdNum = computed(() => Number(route.params.id))
-const receitaInitial      = computed(() => ({ conta_id: contaIdNum.value }))
-const despesaInitial      = computed(() => ({ conta_id: contaIdNum.value }))
-const transferenciaInitial = computed(() => ({ conta_origem_id: contaIdNum.value }))
-
 function abrirLancamentoModal() {
   lancamentoTipo.value = 'despesa'
   showLancamentoModal.value = true
 }
 
-async function handleReceitaSubmit(formData: any) {
-  salvandoLancamento.value = true
-  try {
-    await $fetch('/api/receitas', { method: 'POST', body: formData })
-    showLancamentoModal.value = false
-    await refresh()
-    toast.add({ title: 'Receita adicionada', color: 'success', icon: 'i-heroicons-check-circle' })
-  } catch (e: any) {
-    toast.add({ title: 'Erro ao salvar', description: e?.data?.message ?? e?.message, color: 'error' })
-  } finally {
-    salvandoLancamento.value = false
-  }
-}
+const apiMap = { receita: '/api/receitas', despesa: '/api/despesas', transferencia: '/api/transferencias' }
+const toastMap = { receita: 'Receita adicionada', despesa: 'Despesa adicionada', transferencia: 'Transferência registrada' }
 
-async function handleDespesaSubmit(formData: any) {
+async function handleLancamentoSubmit(formData: any) {
   salvandoLancamento.value = true
   try {
-    await $fetch('/api/despesas', { method: 'POST', body: formData })
+    await $fetch(apiMap[lancamentoTipo.value], { method: 'POST', body: formData })
     showLancamentoModal.value = false
     await refresh()
-    toast.add({ title: 'Despesa adicionada', color: 'success', icon: 'i-heroicons-check-circle' })
-  } catch (e: any) {
-    toast.add({ title: 'Erro ao salvar', description: e?.data?.message ?? e?.message, color: 'error' })
-  } finally {
-    salvandoLancamento.value = false
-  }
-}
-
-async function handleTransferenciaSubmit(formData: any) {
-  salvandoLancamento.value = true
-  try {
-    await $fetch('/api/transferencias', { method: 'POST', body: formData })
-    showLancamentoModal.value = false
-    await refresh()
-    toast.add({ title: 'Transferência registrada', color: 'success', icon: 'i-heroicons-check-circle' })
+    toast.add({ title: toastMap[lancamentoTipo.value], color: 'success', icon: 'i-heroicons-check-circle' })
   } catch (e: any) {
     toast.add({ title: 'Erro ao salvar', description: e?.data?.message ?? e?.message, color: 'error' })
   } finally {
