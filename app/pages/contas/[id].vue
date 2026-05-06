@@ -120,13 +120,58 @@
           </div>
         </div>
 
-        <!-- Valor -->
-        <p class="text-sm font-medium flex-shrink-0" :class="isPositivo(lanc) ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-          {{ isPositivo(lanc) ? '+' : '-' }} {{ format(lanc.valor) }}
-        </p>
+        <!-- Valor + pagar -->
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <p class="text-sm font-medium" :class="isPositivo(lanc) ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+            {{ isPositivo(lanc) ? '+' : '-' }} {{ format(lanc.valor) }}
+          </p>
+          <UButton
+            v-if="lanc.tipo === 'despesa' && !lanc.fixa && !lanc.pago"
+            icon="i-heroicons-check-circle"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            class="text-gray-400 hover:text-green-600"
+            title="Marcar como pago"
+            @click="abrirPagarModal(lanc)"
+          />
+          <UIcon
+            v-else-if="lanc.tipo === 'despesa' && !lanc.fixa && lanc.pago"
+            name="i-heroicons-check-circle-solid"
+            class="w-4 h-4 text-green-500 flex-shrink-0"
+          />
+        </div>
       </div>
     </div>
   </div>
+
+  <!-- Modal: Marcar como pago -->
+  <UModal v-model:open="showPagarModal">
+    <template #content>
+      <div class="p-6 space-y-5">
+        <div>
+          <h3 class="text-base font-semibold text-gray-900 dark:text-white">Marcar como pago</h3>
+          <p class="text-sm text-gray-500 mt-1">{{ pagarLanc?.descricao }}</p>
+        </div>
+
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg px-4 py-3 flex items-center justify-between">
+          <span class="text-sm text-gray-600 dark:text-gray-400">Valor</span>
+          <span class="text-sm font-semibold text-red-600 dark:text-red-400">- {{ format(pagarLanc?.valor ?? 0) }}</span>
+        </div>
+
+        <UFormField label="Data do pagamento">
+          <UInput v-model="pagarData" type="date" class="w-full" />
+        </UFormField>
+
+        <div class="flex justify-end gap-2">
+          <UButton variant="ghost" color="neutral" @click="showPagarModal = false">Cancelar</UButton>
+          <UButton color="primary" :loading="salvandoPagamento" @click="confirmarPagamento">
+            Confirmar pagamento
+          </UButton>
+        </div>
+      </div>
+    </template>
+  </UModal>
 </template>
 
 <script setup lang="ts">
@@ -139,6 +184,7 @@ interface Lancamento {
   data: string
   data_inicio: string | null
   data_fim: string | null
+  data_pagamento?: string | null
   mes?: string
   categoria: string | null
   categoria_cor: string | null
@@ -162,7 +208,7 @@ const { findBank } = useBanks()
 const now = new Date()
 const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 
-const { data, pending, error } = await useFetch<{ conta: ContaDetalhe; lancamentos: Lancamento[]; resumo: Resumo }>(
+const { data, pending, error, refresh } = await useFetch<{ conta: ContaDetalhe; lancamentos: Lancamento[]; resumo: Resumo }>(
   `/api/contas/${route.params.id}/lancamentos`,
   { query: computed(() => ({ month: currentMonth.value })), watch: [currentMonth] }
 )
@@ -219,6 +265,37 @@ function iconColor(l: Lancamento) {
   if (l.tipo === 'transferencia') return l.direcao === 'entrada' ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'
   if (l.tipo === 'fatura') return 'text-violet-600 dark:text-violet-400'
   return 'text-red-600 dark:text-red-400'
+}
+
+// --- Marcar como pago ---
+const showPagarModal = ref(false)
+const pagarLanc = ref<Lancamento | null>(null)
+const pagarData = ref('')
+const salvandoPagamento = ref(false)
+const toast = useToast()
+
+function abrirPagarModal(lanc: Lancamento) {
+  pagarLanc.value = lanc
+  pagarData.value = new Date().toISOString().split('T')[0]
+  showPagarModal.value = true
+}
+
+async function confirmarPagamento() {
+  if (!pagarLanc.value) return
+  salvandoPagamento.value = true
+  try {
+    await $fetch(`/api/transacoes/${pagarLanc.value.id}/pagar`, {
+      method: 'PATCH',
+      body: { data_pagamento: pagarData.value },
+    })
+    showPagarModal.value = false
+    await refresh()
+    toast.add({ title: 'Pagamento registrado', color: 'success', icon: 'i-heroicons-check-circle' })
+  } catch (e: any) {
+    toast.add({ title: 'Erro ao registrar pagamento', description: e?.data?.message ?? e?.message, color: 'error' })
+  } finally {
+    salvandoPagamento.value = false
+  }
 }
 
 useHead({ title: computed(() => `${data.value?.conta.nome ?? 'Conta'} — Gestão Financeira`) })
