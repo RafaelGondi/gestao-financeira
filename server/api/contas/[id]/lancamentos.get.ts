@@ -7,6 +7,97 @@ function parcelaAtual(dataInicio: string, month: string): number {
   return (y - iy) * 12 + (m - im) + 1
 }
 
+function faturaDateRange(mes: string, melhorDataCompra: number) {
+  const [fy, fm] = mes.split('-').map(Number)
+  if (melhorDataCompra <= 1) {
+    const ld = new Date(fy, fm, 0).getDate()
+    return {
+      fStart: `${fy}-${String(fm).padStart(2,'0')}-01`,
+      fEnd: `${fy}-${String(fm).padStart(2,'0')}-${String(ld).padStart(2,'0')}`,
+    }
+  }
+  const py = fm === 1 ? fy - 1 : fy, pm = fm === 1 ? 12 : fm - 1
+  return {
+    fStart: `${py}-${String(pm).padStart(2,'0')}-${String(melhorDataCompra).padStart(2,'0')}`,
+    fEnd:   `${fy}-${String(fm).padStart(2,'0')}-${String(melhorDataCompra - 1).padStart(2,'0')}`,
+  }
+}
+
+function computeSaldoAtual(contaId: number, today: string, saldoInicial: number): number {
+  let saldo = saldoInicial
+
+  // Receitas avulsas: consideradas recebidas quando a data passa
+  saldo += (db.prepare(`
+    SELECT COALESCE(SUM(valor), 0) AS t FROM transacoes
+    WHERE tipo='receita' AND conta_id=? AND fixa=0 AND data<=?
+  `).get([contaId, today]) as any).t
+
+  // Despesas avulsas: apenas pago=1
+  saldo -= (db.prepare(`
+    SELECT COALESCE(SUM(valor), 0) AS t FROM transacoes
+    WHERE tipo='despesa' AND conta_id=? AND cartao_id IS NULL AND fixa=0 AND pago=1
+  `).get([contaId]) as any).t
+
+  // Transferências
+  saldo += (db.prepare(`SELECT COALESCE(SUM(valor),0) AS t FROM transferencias WHERE conta_destino_id=? AND data<=?`).get([contaId, today]) as any).t
+  saldo -= (db.prepare(`SELECT COALESCE(SUM(valor),0) AS t FROM transferencias WHERE conta_origem_id=? AND data<=?`).get([contaId, today]) as any).t
+
+  // Faturas pagas debitadas desta conta
+  for (const f of db.prepare(`
+    SELECT f.cartao_id, f.mes, COALESCE(f.valor_ajuste,0) AS valor_ajuste, cr.melhor_data_compra
+    FROM faturas f JOIN cartoes cr ON cr.id=f.cartao_id
+    WHERE f.conta_id=? AND f.pago=1 AND f.data_pagamento<=?
+  `).all([contaId, today]) as any[]) {
+    const { fStart, fEnd } = faturaDateRange(f.mes, f.melhor_data_compra)
+    const total = (db.prepare(`
+      SELECT COALESCE(SUM(valor),0) AS t FROM transacoes
+      WHERE tipo='despesa' AND cartao_id=?
+        AND ((fixa=0 AND data>=? AND data<=?) OR (fixa=1 AND data_inicio<=? AND (data_fim IS NULL OR data_fim>=?)))
+    `).get([f.cartao_id, fStart, fEnd, fEnd, fStart]) as any).t
+    saldo -= total + f.valor_ajuste
+  }
+
+  // Fixas (receita e despesa, não cartão)
+  for (const t of db.prepare(`
+    SELECT id, tipo, valor, data_inicio, data_fim, parcelas FROM transacoes
+    WHERE conta_id=? AND fixa=1 AND cartao_id IS NULL
+  `).all([contaId]) as any[]) {
+    const [iy, im] = t.data_inicio.split('-').map(Number)
+    const day = t.data_inicio.slice(8, 10)
+    const todayMes = today.slice(0, 7)
+
+    // Pagamentos antecipados de meses futuros
+    const earlyFuture = new Set(
+      (db.prepare(`SELECT mes FROM pagamentos_fixas WHERE transacao_id=? AND mes>?`).all([t.id, todayMes]) as any[])
+        .map((r: any) => r.mes)
+    )
+
+    let count = 0
+    let y = iy, m = im, idx = 0
+    while (true) {
+      if (t.parcelas > 0 && idx >= t.parcelas) break
+      const mes = `${y}-${String(m).padStart(2,'0')}`
+      const occDate = `${mes}-${day}`
+      if (t.data_fim && occDate > t.data_fim) break
+
+      if (occDate <= today) {
+        count++ // ocorrência passada, sempre paga
+      } else if (earlyFuture.has(mes)) {
+        count++ // pago antecipadamente
+      } else {
+        break   // futuro não pago — encerra (improvável ter gaps)
+      }
+
+      idx++; m++; if (m > 12) { m = 1; y++ }
+    }
+
+    if (t.tipo === 'receita') saldo += count * t.valor
+    else saldo -= count * t.valor
+  }
+
+  return saldo
+}
+
 export default defineEventHandler((event) => {
   const contaId = Number(getRouterParam(event, 'id'))
   if (!contaId || isNaN(contaId))
@@ -176,5 +267,7 @@ export default defineEventHandler((event) => {
     } else if (l.tipo === 'fatura') saidas += l.valor
   }
 
-  return { conta, lancamentos, resumo: { entradas, saidas, saldo_mes: entradas - saidas } }
+  const saldo_atual = computeSaldoAtual(contaId, today, conta.saldo_inicial)
+
+  return { conta, lancamentos, resumo: { entradas, saidas, saldo_mes: entradas - saidas }, saldo_atual }
 })

@@ -10,17 +10,20 @@
     </div>
 
     <!-- Card visual -->
-    <div v-if="data" class="h-32 rounded-lg p-5 relative" :style="cardStyle">
+    <div v-if="data" class="rounded-lg p-5 relative" :style="cardStyle">
       <div class="flex items-start justify-between">
         <div>
           <p class="text-white/70 text-xs font-medium">{{ data.conta.banco }}</p>
-          <p class="text-white text-xl font-bold mt-0.5">{{ data.conta.nome }}</p>
+          <p class="text-white text-lg font-bold mt-0.5">{{ data.conta.nome }}</p>
         </div>
         <SharedBankLogo :bank="findBank(data.conta.banco_key)" :size="40" class="rounded-lg opacity-90" />
       </div>
-      <div class="absolute bottom-5 left-5">
-        <p class="text-white/60 text-xs">Saldo inicial</p>
-        <p class="text-white text-sm font-semibold">{{ format(data.conta.saldo_inicial) }}</p>
+      <div class="mt-4">
+        <p class="text-white/60 text-xs">Saldo atual</p>
+        <p class="text-white text-3xl font-bold mt-0.5">{{ format(data.saldo_atual) }}</p>
+      </div>
+      <div class="mt-3">
+        <p class="text-white/50 text-xs">Saldo inicial: {{ format(data.conta.saldo_inicial) }}</p>
       </div>
     </div>
 
@@ -203,6 +206,7 @@ interface Lancamento {
 }
 
 interface Resumo { entradas: number; saidas: number; saldo_mes: number }
+
 interface ContaDetalhe { id: number; nome: string; banco: string; banco_key: string; saldo_inicial: number }
 
 const route = useRoute()
@@ -212,7 +216,7 @@ const { findBank } = useBanks()
 const now = new Date()
 const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 
-const { data, pending, error, refresh } = await useFetch<{ conta: ContaDetalhe; lancamentos: Lancamento[]; resumo: Resumo }>(
+const { data, pending, error, refresh } = await useFetch<{ conta: ContaDetalhe; lancamentos: Lancamento[]; resumo: Resumo; saldo_atual: number }>(
   `/api/contas/${route.params.id}/lancamentos`,
   { query: computed(() => ({ month: currentMonth.value })), watch: [currentMonth] }
 )
