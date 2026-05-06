@@ -22,9 +22,6 @@
         <p class="text-white/60 text-xs">Saldo atual</p>
         <p class="text-white text-3xl font-bold mt-0.5">{{ format(data.saldo_atual) }}</p>
       </div>
-      <div class="mt-3">
-        <p class="text-white/50 text-xs">Saldo inicial: {{ format(data.conta.saldo_inicial) }}</p>
-      </div>
     </div>
 
     <!-- Month navigator -->

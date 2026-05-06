@@ -66,11 +66,7 @@
                 {{ format(conta.saldo_atual) }}
               </p>
             </div>
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-xs text-gray-400">Saldo inicial</p>
-                <p class="text-sm text-gray-500 dark:text-gray-400">{{ format(conta.saldo_inicial) }}</p>
-              </div>
+            <div class="flex items-center justify-end">
               <div class="flex gap-1">
                 <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
                   @click.prevent="openEditModal(conta)" />
