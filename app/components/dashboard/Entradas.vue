@@ -50,7 +50,10 @@
         <div class="flex items-center gap-2.5 flex-shrink-0">
           <span class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ format(item.valor) }}</span>
           <span
-            class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500"
+            class="text-xs px-2 py-0.5 rounded-full"
+            :class="item.pago
+              ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-500'"
           >
             {{ item.pago ? 'Recebido' : 'A receber' }}
           </span>

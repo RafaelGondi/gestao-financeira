@@ -11,12 +11,26 @@
       <DashboardMonthNavigator v-model="currentMonth" />
     </div>
 
+    <!-- Abas -->
+    <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 w-fit">
+      <button
+        v-for="aba in abas"
+        :key="aba.key"
+        class="px-4 py-1.5 text-sm font-medium rounded-md transition-all"
+        :class="abaAtiva === aba.key
+          ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm'
+          : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+        @click="abaAtiva = aba.key"
+      >{{ aba.label }}</button>
+    </div>
+
     <!-- Loading -->
-    <div v-if="pending" class="space-y-3">
+    <div v-if="pending || pendingComposicao" class="space-y-3">
       <USkeleton class="h-64 rounded-lg" />
     </div>
 
-    <template v-else-if="data">
+    <!-- Aba: Por Categoria / Supercategoria -->
+    <template v-else-if="abaAtiva === 'categoria' && data">
       <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
         <!-- Card header -->
         <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
@@ -30,7 +44,6 @@
             </div>
           </div>
           <div class="flex items-center gap-4">
-            <!-- Toggle -->
             <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
               <button
                 class="px-3 py-1 text-xs font-medium rounded-md transition-all"
@@ -71,7 +84,6 @@
 
         <!-- Accordion -->
         <div v-for="item in dadosAtivos" :key="item.nome">
-          <!-- Linha da categoria -->
           <button
             class="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-t border-gray-100 dark:border-gray-800 first:border-t-0"
             @click="toggle(item.nome)"
@@ -90,8 +102,6 @@
               class="w-4 h-4 text-gray-400 flex-shrink-0"
             />
           </button>
-
-          <!-- Transações inline -->
           <div v-if="expanded === item.nome" class="bg-gray-50 dark:bg-gray-800/40 border-t border-gray-100 dark:border-gray-800">
             <div
               v-for="lanc in item.itens"
@@ -108,6 +118,20 @@
         </div>
       </div>
     </template>
+
+    <!-- Aba: Composição -->
+    <template v-else-if="abaAtiva === 'composicao' && composicaoData">
+      <DashboardComposicaoDespesas
+        :conta-avulso="composicaoData.contaAvulso"
+        :cartao-avulso="composicaoData.cartaoAvulso"
+        :conta-parcelado="composicaoData.contaParcelado"
+        :cartao-parcelado="composicaoData.cartaoParcelado"
+        :conta-recorrente="composicaoData.contaRecorrente"
+        :cartao-recorrente="composicaoData.cartaoRecorrente"
+        :total="composicaoData.total"
+        :period="periodLabel"
+      />
+    </template>
   </div>
 </template>
 
@@ -122,7 +146,21 @@ const { format } = useCurrency()
 const now = new Date()
 const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 
+const abas = [
+  { key: 'categoria',  label: 'Por Categoria' },
+  { key: 'composicao', label: 'Composição' },
+]
+const route = useRoute()
+const abaAtiva = ref<'categoria' | 'composicao'>(
+  route.query.aba === 'composicao' ? 'composicao' : 'categoria'
+)
+
 const { data, pending } = await useFetch('/api/relatorios', {
+  query: computed(() => ({ month: currentMonth.value })),
+  watch: [currentMonth],
+})
+
+const { data: composicaoData, pending: pendingComposicao } = await useFetch('/api/dashboard/composicao', {
   query: computed(() => ({ month: currentMonth.value })),
   watch: [currentMonth],
 })

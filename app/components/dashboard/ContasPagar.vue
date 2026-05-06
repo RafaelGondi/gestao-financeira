@@ -8,7 +8,7 @@
         </div>
         <h3 class="font-semibold text-gray-800 dark:text-gray-100">Contas a Pagar</h3>
       </div>
-      <span class="text-xs font-medium text-gray-400">{{ linhas.length }}</span>
+      <span class="text-xs font-medium text-gray-400">{{ linhas.length }} item{{ linhas.length !== 1 ? 's' : '' }}</span>
     </div>
 
     <!-- Items -->

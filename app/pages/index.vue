@@ -80,6 +80,20 @@
         <DashboardEntradas :total="data.receitas.recebido + data.receitas.aReceber" :items="data.receitas.items" />
       </div>
 
+      <!-- Composição das despesas -->
+      <DashboardComposicaoDespesas
+        v-if="composicaoData"
+        :conta-avulso="composicaoData.contaAvulso"
+        :cartao-avulso="composicaoData.cartaoAvulso"
+        :conta-parcelado="composicaoData.contaParcelado"
+        :cartao-parcelado="composicaoData.cartaoParcelado"
+        :conta-recorrente="composicaoData.contaRecorrente"
+        :cartao-recorrente="composicaoData.cartaoRecorrente"
+        :total="composicaoData.total"
+        :period="periodLabel"
+        compact
+      />
+
       <!-- Gastos por Categoria + Limite de Gastos -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DashboardGastosCategorias :dados="data.gastosPorCategoria" :period="periodLabel" />
@@ -101,6 +115,11 @@ const currentMonth = ref(
 )
 
 const { data, pending, error } = await useFetch('/api/dashboard', {
+  query: computed(() => ({ month: currentMonth.value })),
+  watch: [currentMonth]
+})
+
+const { data: composicaoData } = await useFetch('/api/dashboard/composicao', {
   query: computed(() => ({ month: currentMonth.value })),
   watch: [currentMonth]
 })
