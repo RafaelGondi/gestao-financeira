@@ -3,10 +3,13 @@
     <!-- Header -->
     <div class="flex items-center gap-4">
       <UButton icon="i-heroicons-arrow-left" variant="ghost" color="neutral" to="/contas" />
-      <div>
+      <div class="flex-1">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ data?.conta.nome }}</h1>
         <p class="text-sm text-gray-500 mt-0.5">{{ data?.conta.banco }}</p>
       </div>
+      <UButton icon="i-heroicons-plus" color="primary" @click="abrirLancamentoModal">
+        Novo Lançamento
+      </UButton>
     </div>
 
     <!-- Card visual -->
@@ -175,6 +178,56 @@
       </div>
     </template>
   </UModal>
+
+  <!-- Slideover: Novo Lançamento -->
+  <USlideover v-model:open="showLancamentoModal" :title="lancamentoTipoLabel" :ui="{ width: 'sm:max-w-xl' }">
+    <template #body>
+      <div class="space-y-5 p-1">
+        <!-- Seletor de tipo -->
+        <div class="flex gap-2">
+          <button
+            v-for="tab in lancamentoTabs"
+            :key="tab.value"
+            type="button"
+            class="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border-2 text-sm font-medium transition-colors"
+            :class="lancamentoTipo === tab.value
+              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400'
+              : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'"
+            @click="lancamentoTipo = tab.value"
+          >
+            <UIcon :name="tab.icon" class="w-4 h-4" />
+            {{ tab.label }}
+          </button>
+        </div>
+
+        <!-- Forms reutilizados com conta pré-selecionada -->
+        <ReceitasReceitaForm
+          v-if="lancamentoTipo === 'receita'"
+          :key="`receita-${showLancamentoModal}`"
+          :initial="receitaInitial"
+          :loading="salvandoLancamento"
+          @submit="handleReceitaSubmit"
+          @cancel="showLancamentoModal = false"
+        />
+        <DespesasDespesaForm
+          v-else-if="lancamentoTipo === 'despesa'"
+          :key="`despesa-${showLancamentoModal}`"
+          :initial="despesaInitial"
+          :loading="salvandoLancamento"
+          @submit="handleDespesaSubmit"
+          @cancel="showLancamentoModal = false"
+        />
+        <TransferenciasTransferenciaForm
+          v-else
+          :key="`transferencia-${showLancamentoModal}`"
+          :initial="transferenciaInitial"
+          :loading="salvandoLancamento"
+          @submit="handleTransferenciaSubmit"
+          @cancel="showLancamentoModal = false"
+        />
+      </div>
+    </template>
+  </USlideover>
 </template>
 
 <script setup lang="ts">
@@ -270,6 +323,73 @@ function iconColor(l: Lancamento) {
   if (l.tipo === 'transferencia') return l.direcao === 'entrada' ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'
   if (l.tipo === 'fatura') return 'text-violet-600 dark:text-violet-400'
   return 'text-red-600 dark:text-red-400'
+}
+
+// --- Novo Lançamento ---
+const showLancamentoModal = ref(false)
+const lancamentoTipo = ref<'receita' | 'despesa' | 'transferencia'>('despesa')
+const salvandoLancamento = ref(false)
+
+const lancamentoTabs = [
+  { value: 'receita',       label: 'Receita',       icon: 'i-heroicons-arrow-down-circle' },
+  { value: 'despesa',       label: 'Despesa',        icon: 'i-heroicons-arrow-up-circle' },
+  { value: 'transferencia', label: 'Transferência',  icon: 'i-heroicons-arrows-right-left' },
+] as const
+
+const lancamentoTipoLabel = computed(() =>
+  lancamentoTabs.find(t => t.value === lancamentoTipo.value)?.label ?? 'Novo Lançamento'
+)
+
+const contaIdNum = computed(() => Number(route.params.id))
+const receitaInitial      = computed(() => ({ conta_id: contaIdNum.value }))
+const despesaInitial      = computed(() => ({ conta_id: contaIdNum.value }))
+const transferenciaInitial = computed(() => ({ conta_origem_id: contaIdNum.value }))
+
+function abrirLancamentoModal() {
+  lancamentoTipo.value = 'despesa'
+  showLancamentoModal.value = true
+}
+
+async function handleReceitaSubmit(formData: any) {
+  salvandoLancamento.value = true
+  try {
+    await $fetch('/api/receitas', { method: 'POST', body: formData })
+    showLancamentoModal.value = false
+    await refresh()
+    toast.add({ title: 'Receita adicionada', color: 'success', icon: 'i-heroicons-check-circle' })
+  } catch (e: any) {
+    toast.add({ title: 'Erro ao salvar', description: e?.data?.message ?? e?.message, color: 'error' })
+  } finally {
+    salvandoLancamento.value = false
+  }
+}
+
+async function handleDespesaSubmit(formData: any) {
+  salvandoLancamento.value = true
+  try {
+    await $fetch('/api/despesas', { method: 'POST', body: formData })
+    showLancamentoModal.value = false
+    await refresh()
+    toast.add({ title: 'Despesa adicionada', color: 'success', icon: 'i-heroicons-check-circle' })
+  } catch (e: any) {
+    toast.add({ title: 'Erro ao salvar', description: e?.data?.message ?? e?.message, color: 'error' })
+  } finally {
+    salvandoLancamento.value = false
+  }
+}
+
+async function handleTransferenciaSubmit(formData: any) {
+  salvandoLancamento.value = true
+  try {
+    await $fetch('/api/transferencias', { method: 'POST', body: formData })
+    showLancamentoModal.value = false
+    await refresh()
+    toast.add({ title: 'Transferência registrada', color: 'success', icon: 'i-heroicons-check-circle' })
+  } catch (e: any) {
+    toast.add({ title: 'Erro ao salvar', description: e?.data?.message ?? e?.message, color: 'error' })
+  } finally {
+    salvandoLancamento.value = false
+  }
 }
 
 // --- Marcar como pago ---
