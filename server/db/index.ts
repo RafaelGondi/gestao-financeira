@@ -84,6 +84,17 @@ if (!g.__db) {
   if (!colNames.includes('parcelas'))        db.exec(`ALTER TABLE transacoes ADD COLUMN parcelas INTEGER DEFAULT 0`)
   if (!colNames.includes('data_pagamento'))  db.exec(`ALTER TABLE transacoes ADD COLUMN data_pagamento DATE`)
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pagamentos_fixas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      transacao_id INTEGER NOT NULL REFERENCES transacoes(id) ON DELETE CASCADE,
+      mes TEXT NOT NULL,
+      data_pagamento DATE NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(transacao_id, mes)
+    )
+  `)
+
   const cartaoCols = db.prepare(`PRAGMA table_info(cartoes)`).all() as { name: string }[]
   const cartaoColNames = cartaoCols.map(c => c.name)
   if (!cartaoColNames.includes('banco_key')) db.exec(`ALTER TABLE cartoes ADD COLUMN banco_key TEXT NOT NULL DEFAULT ''`)

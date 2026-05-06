@@ -126,7 +126,7 @@
             {{ isPositivo(lanc) ? '+' : '-' }} {{ format(lanc.valor) }}
           </p>
           <UButton
-            v-if="lanc.tipo === 'despesa' && !lanc.fixa && !lanc.pago"
+            v-if="lanc.tipo === 'despesa' && !lanc.pago"
             icon="i-heroicons-check-circle"
             size="xs"
             variant="ghost"
@@ -136,7 +136,7 @@
             @click="abrirPagarModal(lanc)"
           />
           <UIcon
-            v-else-if="lanc.tipo === 'despesa' && !lanc.fixa && lanc.pago"
+            v-else-if="lanc.tipo === 'despesa' && lanc.pago"
             name="i-heroicons-check-circle-solid"
             class="w-4 h-4 text-green-500 flex-shrink-0"
           />
@@ -151,7 +151,10 @@
       <div class="p-6 space-y-5">
         <div>
           <h3 class="text-base font-semibold text-gray-900 dark:text-white">Marcar como pago</h3>
-          <p class="text-sm text-gray-500 mt-1">{{ pagarLanc?.descricao }}</p>
+          <p class="text-sm text-gray-500 mt-1">
+            {{ pagarLanc?.descricao }}
+            <span v-if="pagarLanc?.fixa" class="text-gray-400"> · {{ fmtMonth(currentMonth) }}</span>
+          </p>
         </div>
 
         <div class="bg-gray-50 dark:bg-gray-800 rounded-lg px-4 py-3 flex items-center justify-between">
@@ -185,6 +188,7 @@ interface Lancamento {
   data_inicio: string | null
   data_fim: string | null
   data_pagamento?: string | null
+  pago_antecipado?: boolean
   mes?: string
   categoria: string | null
   categoria_cor: string | null
@@ -284,9 +288,11 @@ async function confirmarPagamento() {
   if (!pagarLanc.value) return
   salvandoPagamento.value = true
   try {
+    const body: Record<string, string> = { data_pagamento: pagarData.value }
+    if (pagarLanc.value.fixa) body.mes = currentMonth.value
     await $fetch(`/api/transacoes/${pagarLanc.value.id}/pagar`, {
       method: 'PATCH',
-      body: { data_pagamento: pagarData.value },
+      body,
     })
     showPagarModal.value = false
     await refresh()

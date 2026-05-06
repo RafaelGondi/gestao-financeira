@@ -9,16 +9,29 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const today = new Date().toISOString().split('T')[0]
   const dataPagamento = body?.data_pagamento ?? today
+  const mes = body?.mes as string | undefined
 
   const transacao = db.prepare(`SELECT id, tipo, fixa FROM transacoes WHERE id = ?`).get([id]) as any
   if (!transacao)
     throw createError({ statusCode: 404, message: 'Transação não encontrada' })
   if (transacao.tipo !== 'despesa')
     throw createError({ statusCode: 400, message: 'Apenas despesas podem ser marcadas como pagas' })
-  if (transacao.fixa)
-    throw createError({ statusCode: 400, message: 'Despesas fixas são gerenciadas automaticamente' })
 
-  db.prepare(`UPDATE transacoes SET pago = 1, data_pagamento = ? WHERE id = ?`).run([dataPagamento, id])
+  if (transacao.fixa) {
+    // Fixas: registra pagamento antecipado por mês na tabela pagamentos_fixas
+    if (!mes || !/^\d{4}-\d{2}$/.test(mes))
+      throw createError({ statusCode: 400, message: 'Parâmetro "mes" é obrigatório para despesas fixas (YYYY-MM)' })
 
-  return db.prepare(`SELECT * FROM transacoes WHERE id = ?`).get([id])
+    db.prepare(`
+      INSERT INTO pagamentos_fixas (transacao_id, mes, data_pagamento)
+      VALUES (?, ?, ?)
+      ON CONFLICT(transacao_id, mes) DO UPDATE SET data_pagamento = ?
+    `).run([id, mes, dataPagamento, dataPagamento])
+
+    return { transacao_id: id, mes, data_pagamento: dataPagamento }
+  } else {
+    // Avulsas: marca diretamente na transação
+    db.prepare(`UPDATE transacoes SET pago = 1, data_pagamento = ? WHERE id = ?`).run([dataPagamento, id])
+    return db.prepare(`SELECT * FROM transacoes WHERE id = ?`).get([id])
+  }
 })

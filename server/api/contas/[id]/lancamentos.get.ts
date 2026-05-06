@@ -43,16 +43,20 @@ export default defineEventHandler((event) => {
   // Receitas fixas
   for (const t of db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, t.data_inicio, t.data_fim, 1 AS fixa, t.parcelas,
-      c.cor AS categoria_cor, c.icone AS categoria_icone
+      c.cor AS categoria_cor, c.icone AS categoria_icone,
+      pf.data_pagamento AS pago_data
     FROM transacoes t
     LEFT JOIN categorias c ON c.nome = t.categoria
+    LEFT JOIN pagamentos_fixas pf ON pf.transacao_id = t.id AND pf.mes = ?
     WHERE t.tipo = 'receita' AND t.conta_id = ? AND t.fixa = 1
       AND t.data_inicio <= ? AND (t.data_fim IS NULL OR t.data_fim >= ?)
-  `).all([contaId, endDate, startDate]) as any[]) {
+  `).all([month, contaId, endDate, startDate]) as any[]) {
     const data = month + '-' + t.data_inicio.slice(8, 10)
+    const pagoAntecipado = t.pago_data != null
     lancamentos.push({
       ...t, tipo: 'receita', data,
-      pago: data <= today ? 1 : 0,
+      pago: pagoAntecipado ? 1 : (data <= today ? 1 : 0),
+      pago_antecipado: pagoAntecipado,
       parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null
     })
   }
@@ -73,16 +77,20 @@ export default defineEventHandler((event) => {
   // Despesas fixas (não cartão)
   for (const t of db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, t.data_inicio, t.data_fim, 1 AS fixa, t.parcelas,
-      c.cor AS categoria_cor, c.icone AS categoria_icone
+      c.cor AS categoria_cor, c.icone AS categoria_icone,
+      pf.data_pagamento AS pago_data
     FROM transacoes t
     LEFT JOIN categorias c ON c.nome = t.categoria
+    LEFT JOIN pagamentos_fixas pf ON pf.transacao_id = t.id AND pf.mes = ?
     WHERE t.tipo = 'despesa' AND t.conta_id = ? AND t.cartao_id IS NULL AND t.fixa = 1
       AND t.data_inicio <= ? AND (t.data_fim IS NULL OR t.data_fim >= ?)
-  `).all([contaId, endDate, startDate]) as any[]) {
+  `).all([month, contaId, endDate, startDate]) as any[]) {
     const data = month + '-' + t.data_inicio.slice(8, 10)
+    const pagoAntecipado = t.pago_data != null
     lancamentos.push({
       ...t, tipo: 'despesa', data,
-      pago: data <= today ? 1 : 0,
+      pago: pagoAntecipado ? 1 : (data <= today ? 1 : 0),
+      pago_antecipado: pagoAntecipado,
       parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null
     })
   }
