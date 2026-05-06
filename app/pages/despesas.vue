@@ -54,6 +54,43 @@
 
     <template v-else>
       <div class="space-y-2">
+      <!-- Parcelas terminando este mês -->
+      <div v-if="parcelasTerminando.length" class="bg-white dark:bg-gray-900 rounded-lg border border-amber-200/70 dark:border-amber-900/40 overflow-hidden">
+        <button
+          class="w-full flex items-center gap-2 px-5 py-3 bg-amber-50/30 dark:bg-amber-900/10 hover:bg-amber-50/60 dark:hover:bg-amber-900/20 transition-colors cursor-pointer"
+          :class="parcelasExpandido ? 'border-b border-amber-200/70 dark:border-amber-900/40' : ''"
+          @click="parcelasExpandido = !parcelasExpandido"
+        >
+          <UIcon name="i-heroicons-flag" class="w-4 h-4 text-amber-400 dark:text-amber-500 flex-shrink-0" />
+          <p class="text-sm font-medium text-gray-700 dark:text-gray-200 flex-1 text-left">
+            {{ parcelasTerminando.length === 1 ? '1 compra parcelada termina' : `${parcelasTerminando.length} compras parceladas terminam` }} neste mês
+          </p>
+          <span class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ format(totalParcelasTerminando) }}</span>
+          <UIcon :name="parcelasExpandido ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'" class="w-4 h-4 text-gray-400 flex-shrink-0" />
+        </button>
+        <template v-if="parcelasExpandido">
+          <div
+            v-for="(d, i) in parcelasTerminando"
+            :key="d.id"
+            class="flex items-center gap-3 px-5 py-3"
+            :class="i < parcelasTerminando.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
+          >
+            <div
+              class="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+              :style="d.categoria_icone ? { background: d.categoria_cor } : {}"
+              :class="d.categoria_icone ? '' : 'bg-gray-100 dark:bg-gray-800'"
+            >
+              <UIcon :name="d.categoria_icone ?? 'i-heroicons-queue-list'" class="w-4 h-4" :class="d.categoria_icone ? 'text-white' : 'text-gray-400'" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{{ d.descricao }}</p>
+              <p class="text-xs text-gray-400 mt-0.5">Parcela {{ d.parcela_atual }} de {{ d.parcelas }} · última<template v-if="d.cartao_nome"> · {{ d.cartao_nome }}</template></p>
+            </div>
+            <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 flex-shrink-0">{{ format(d.valor) }}</p>
+          </div>
+        </template>
+      </div>
+
       <!-- Despesas normais (sem cartão) -->
       <div v-if="despesasNormais.length" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
         <div
@@ -370,6 +407,12 @@ const gruposCartao = computed<GrupoCartao[]>(() => {
     despesas: [...g.despesas].sort((a, b) => b.data.localeCompare(a.data))
   }))
 })
+
+const parcelasTerminando = computed(() =>
+  (despesas.value ?? []).filter(d => d.parcelas > 0 && d.parcela_atual === d.parcelas)
+)
+const totalParcelasTerminando = computed(() => parcelasTerminando.value.reduce((s, d) => s + d.valor, 0))
+const parcelasExpandido = ref(false)
 
 const totalGeral = computed(() => (despesas.value ?? []).reduce((s, d) => s + d.valor, 0))
 

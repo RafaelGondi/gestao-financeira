@@ -90,35 +90,37 @@
 
             <!-- Inline editing -->
             <template v-if="editingReferencia === item.referencia">
-              <input
-                v-model="editingValor"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0,00"
-                class="text-sm bg-gray-100 dark:bg-gray-800 border-0 rounded-lg px-3 py-1.5 w-32 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                @keydown.enter="saveLimit(item)"
-                @keydown.escape="cancelEdit"
-              />
-              <UButton
-                size="xs"
-                color="primary"
-                variant="soft"
-                icon="i-heroicons-check"
-                :loading="saving"
-                @click="saveLimit(item)"
-              />
-              <UButton
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                icon="i-heroicons-x-mark"
-                @click="cancelEdit"
-              />
+              <div class="flex items-center gap-2 flex-wrap justify-end">
+                <input
+                  v-model="editingValor"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0,00"
+                  class="text-sm bg-gray-100 dark:bg-gray-800 border-0 rounded-lg px-3 py-1.5 w-28 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  @keydown.enter="saveLimit(item)"
+                  @keydown.escape="cancelEdit"
+                />
+                <label class="flex items-center gap-1.5 cursor-pointer select-none flex-shrink-0">
+                  <input type="checkbox" v-model="editingRecorrente" class="rounded accent-primary-500" />
+                  <span class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">Repetir todo mês</span>
+                </label>
+                <UButton size="xs" color="primary" variant="soft" icon="i-heroicons-check" :loading="saving" @click="saveLimit(item)" />
+                <UButton size="xs" color="neutral" variant="ghost" icon="i-heroicons-x-mark" @click="cancelEdit" />
+              </div>
             </template>
 
             <!-- Normal view -->
             <template v-else>
+              <!-- Badge recorrente -->
+              <span
+                v-if="item.limite !== null && item.recorrente"
+                class="hidden sm:inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex-shrink-0"
+              >
+                <UIcon name="i-heroicons-arrow-path" class="w-3 h-3" />
+                Todo mês
+              </span>
+
               <!-- Progress bar (hidden on small screens) -->
               <div v-if="item.limite !== null" class="hidden sm:flex items-center gap-2 w-40">
                 <div class="flex-1 h-1.5 rounded-full" :class="item.gasto > item.limite ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-800'">
@@ -190,6 +192,7 @@ const modo = ref<'categoria' | 'supercategoria'>('categoria')
 
 const editingReferencia = ref<string | null>(null)
 const editingValor = ref<string>('')
+const editingRecorrente = ref(false)
 const saving = ref(false)
 const deletingId = ref<number | null>(null)
 
@@ -213,28 +216,30 @@ function setModo(m: 'categoria' | 'supercategoria') {
   cancelEdit()
 }
 
-function startEdit(item: { referencia: string; limite: number | null }) {
+function startEdit(item: { referencia: string; limite: number | null; recorrente?: boolean }) {
   editingReferencia.value = item.referencia
   editingValor.value = item.limite !== null ? String(item.limite) : ''
+  editingRecorrente.value = item.recorrente ?? false
 }
 
 function cancelEdit() {
   editingReferencia.value = null
   editingValor.value = ''
+  editingRecorrente.value = false
 }
 
-async function saveLimit(item: { referencia: string; limite: number | null; limiteId: number | null }) {
+async function saveLimit(item: { referencia: string; limite: number | null; limiteId: number | null; recorrente?: boolean }) {
   const valor = parseFloat(editingValor.value)
   if (isNaN(valor) || valor <= 0) return
 
   saving.value = true
   try {
     if (item.limiteId !== null) {
-      await $fetch(`/api/limites/${item.limiteId}`, { method: 'PUT', body: { valor } })
+      await $fetch(`/api/limites/${item.limiteId}`, { method: 'PUT', body: { valor, recorrente: editingRecorrente.value } })
     } else {
       await $fetch('/api/limites', {
         method: 'POST',
-        body: { tipo: modo.value, referencia: item.referencia, mes: currentMonth.value, valor },
+        body: { tipo: modo.value, referencia: item.referencia, mes: currentMonth.value, valor, recorrente: editingRecorrente.value },
       })
     }
     cancelEdit()

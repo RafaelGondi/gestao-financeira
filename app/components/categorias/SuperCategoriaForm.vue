@@ -146,6 +146,11 @@ const icones = [
   { value: 'i-lucide-banknote-arrow-down',   label: 'Entrada de dinheiro' },
   { value: 'i-lucide-banknote-arrow-up',     label: 'Saída de dinheiro' },
   { value: 'i-lucide-hand-coins',            label: 'Gorjeta / Pagamento' },
+  { value: 'i-lucide-pizza',                label: 'Pizza' },
+  { value: 'i-lucide-chef-hat',             label: 'Chef / Cozinha' },
+  { value: 'i-lucide-popcorn',              label: 'Pipoca / Cinema' },
+  { value: 'i-lucide-hand-platter',         label: 'Restaurante' },
+  { value: 'i-lucide-coffee',               label: 'Café' },
 ]
 
 const form = reactive({

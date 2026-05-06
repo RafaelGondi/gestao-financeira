@@ -67,6 +67,7 @@ const navLinks = [
   { to: '/transferencias', label: 'Transferências', icon: 'i-heroicons-arrows-right-left' },
   { to: '/categorias', label: 'Categorias', icon: 'i-heroicons-tag' },
   { to: '/relatorios', label: 'Relatórios', icon: 'i-heroicons-chart-pie' },
+  { to: '/calendario', label: 'Calendário', icon: 'i-heroicons-calendar-days' },
   { to: '/limites', label: 'Limites', icon: 'i-heroicons-chart-bar' }
 ]
 

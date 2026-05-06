@@ -30,20 +30,24 @@ export default defineEventHandler((event) => {
 
   // Receitas avulsas
   for (const t of db.prepare(`
-    SELECT id, descricao, valor, categoria, data, 0 AS fixa, 0 AS parcelas
-    FROM transacoes
-    WHERE tipo = 'receita' AND conta_id = ? AND fixa = 0 AND data >= ? AND data <= ?
-    ORDER BY data DESC
+    SELECT t.id, t.descricao, t.valor, t.categoria, t.data, 0 AS fixa, 0 AS parcelas,
+      c.cor AS categoria_cor, c.icone AS categoria_icone
+    FROM transacoes t
+    LEFT JOIN categorias c ON c.nome = t.categoria
+    WHERE t.tipo = 'receita' AND t.conta_id = ? AND t.fixa = 0 AND t.data >= ? AND t.data <= ?
+    ORDER BY t.data DESC
   `).all([contaId, startDate, endDate]) as any[]) {
     lancamentos.push({ ...t, tipo: 'receita', pago: t.data <= today ? 1 : 0, data_inicio: null, data_fim: null })
   }
 
   // Receitas fixas
   for (const t of db.prepare(`
-    SELECT id, descricao, valor, categoria, data_inicio, data_fim, 1 AS fixa, parcelas
-    FROM transacoes
-    WHERE tipo = 'receita' AND conta_id = ? AND fixa = 1
-      AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)
+    SELECT t.id, t.descricao, t.valor, t.categoria, t.data_inicio, t.data_fim, 1 AS fixa, t.parcelas,
+      c.cor AS categoria_cor, c.icone AS categoria_icone
+    FROM transacoes t
+    LEFT JOIN categorias c ON c.nome = t.categoria
+    WHERE t.tipo = 'receita' AND t.conta_id = ? AND t.fixa = 1
+      AND t.data_inicio <= ? AND (t.data_fim IS NULL OR t.data_fim >= ?)
   `).all([contaId, endDate, startDate]) as any[]) {
     const data = month + '-' + t.data_inicio.slice(8, 10)
     lancamentos.push({
@@ -55,21 +59,25 @@ export default defineEventHandler((event) => {
 
   // Despesas avulsas (não cartão)
   for (const t of db.prepare(`
-    SELECT id, descricao, valor, categoria, data, pago, 0 AS fixa, 0 AS parcelas
-    FROM transacoes
-    WHERE tipo = 'despesa' AND conta_id = ? AND cartao_id IS NULL AND fixa = 0
-      AND data >= ? AND data <= ?
-    ORDER BY data DESC
+    SELECT t.id, t.descricao, t.valor, t.categoria, t.data, t.pago, 0 AS fixa, 0 AS parcelas,
+      c.cor AS categoria_cor, c.icone AS categoria_icone
+    FROM transacoes t
+    LEFT JOIN categorias c ON c.nome = t.categoria
+    WHERE t.tipo = 'despesa' AND t.conta_id = ? AND t.cartao_id IS NULL AND t.fixa = 0
+      AND t.data >= ? AND t.data <= ?
+    ORDER BY t.data DESC
   `).all([contaId, startDate, endDate]) as any[]) {
     lancamentos.push({ ...t, tipo: 'despesa', data_inicio: null, data_fim: null })
   }
 
   // Despesas fixas (não cartão)
   for (const t of db.prepare(`
-    SELECT id, descricao, valor, categoria, data_inicio, data_fim, 1 AS fixa, parcelas
-    FROM transacoes
-    WHERE tipo = 'despesa' AND conta_id = ? AND cartao_id IS NULL AND fixa = 1
-      AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)
+    SELECT t.id, t.descricao, t.valor, t.categoria, t.data_inicio, t.data_fim, 1 AS fixa, t.parcelas,
+      c.cor AS categoria_cor, c.icone AS categoria_icone
+    FROM transacoes t
+    LEFT JOIN categorias c ON c.nome = t.categoria
+    WHERE t.tipo = 'despesa' AND t.conta_id = ? AND t.cartao_id IS NULL AND t.fixa = 1
+      AND t.data_inicio <= ? AND (t.data_fim IS NULL OR t.data_fim >= ?)
   `).all([contaId, endDate, startDate]) as any[]) {
     const data = month + '-' + t.data_inicio.slice(8, 10)
     lancamentos.push({

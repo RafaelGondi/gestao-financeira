@@ -27,16 +27,18 @@ export default defineEventHandler((event) => {
     descricao: string
     valor: number
     data: string
+    data_inicio: string | null
     categoria: string | null
     origem: string // nome da conta, cartão ou "Fixo"
+    parcelas: number
   }
 
   const itens: Item[] = []
 
   // Avulsas sem cartão
   const avulsas = db.prepare(`
-    SELECT t.id, t.descricao, t.valor, t.data, t.categoria,
-      COALESCE(c.nome, 'Sem conta') AS origem
+    SELECT t.id, t.descricao, t.valor, t.data, NULL AS data_inicio, t.categoria,
+      COALESCE(c.nome, 'Sem conta') AS origem, 0 AS parcelas
     FROM transacoes t
     LEFT JOIN contas c ON c.id = t.conta_id
     WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id IS NULL AND t.data >= ? AND t.data <= ?
@@ -48,8 +50,8 @@ export default defineEventHandler((event) => {
   const fixas = db.prepare(`
     SELECT t.id, t.descricao, t.valor,
       ? || '-' || substr(t.data_inicio, 9, 2) AS data,
-      t.categoria,
-      COALESCE(c.nome, 'Fixo') AS origem
+      t.data_inicio, t.categoria,
+      COALESCE(c.nome, 'Fixo') AS origem, t.parcelas
     FROM transacoes t
     LEFT JOIN contas c ON c.id = t.conta_id
     WHERE t.tipo = 'despesa' AND t.fixa = 1 AND t.cartao_id IS NULL
@@ -61,7 +63,7 @@ export default defineEventHandler((event) => {
   for (const c of cartoes) {
     const { startDate: fStart, endDate: fEnd } = faturaDateRange(year, mon, c.melhor_data_compra)
     const rows = db.prepare(`
-      SELECT t.id, t.descricao, t.valor, t.data, t.categoria, ? AS origem
+      SELECT t.id, t.descricao, t.valor, t.data, NULL AS data_inicio, t.categoria, ? AS origem, 0 AS parcelas
       FROM transacoes t
       WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id = ? AND t.data >= ? AND t.data <= ?
       ORDER BY t.data DESC
@@ -73,7 +75,7 @@ export default defineEventHandler((event) => {
   for (const c of cartoes) {
     const cutoff = c.melhor_data_compra
     const rows = db.prepare(`
-      SELECT id, descricao, valor, categoria, data_inicio, data_fim
+      SELECT id, descricao, valor, categoria, data_inicio, data_fim, parcelas
       FROM transacoes
       WHERE tipo = 'despesa' AND fixa = 1 AND cartao_id = ?
         AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)
@@ -85,7 +87,7 @@ export default defineEventHandler((event) => {
       const effectiveDate = calcMonth + '-' + t.data_inicio.slice(8, 10)
       if (effectiveDate < t.data_inicio) continue
       if (t.data_fim && effectiveDate > t.data_fim) continue
-      itens.push({ id: t.id, descricao: t.descricao, valor: t.valor, data: effectiveDate, categoria: t.categoria, origem: c.nome })
+      itens.push({ id: t.id, descricao: t.descricao, valor: t.valor, data: effectiveDate, data_inicio: t.data_inicio, categoria: t.categoria, origem: c.nome, parcelas: t.parcelas ?? 0 })
     }
   }
 

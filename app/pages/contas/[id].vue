@@ -30,27 +30,21 @@
     </div>
 
     <!-- Resumo do mês -->
-    <div v-if="data" class="grid grid-cols-3 gap-3">
-      <UCard class="border-0">
-        <div>
-          <p class="text-xs text-gray-500 mb-1">Entradas</p>
-          <p class="text-lg font-bold text-green-600 dark:text-green-400">{{ format(data.resumo.entradas) }}</p>
-        </div>
-      </UCard>
-      <UCard class="border-0">
-        <div>
-          <p class="text-xs text-gray-500 mb-1">Saídas</p>
-          <p class="text-lg font-bold text-red-600 dark:text-red-400">{{ format(data.resumo.saidas) }}</p>
-        </div>
-      </UCard>
-      <UCard class="border-0">
-        <div>
-          <p class="text-xs text-gray-500 mb-1">Saldo do mês</p>
-          <p class="text-lg font-bold" :class="data.resumo.saldo_mes >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-            {{ format(data.resumo.saldo_mes) }}
-          </p>
-        </div>
-      </UCard>
+    <div v-if="data" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 px-6 py-4 grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800">
+      <div class="pr-6">
+        <p class="text-xs text-gray-400 mb-1">Entradas</p>
+        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(data.resumo.entradas) }}</p>
+      </div>
+      <div class="px-6">
+        <p class="text-xs text-gray-400 mb-1">Saídas</p>
+        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(data.resumo.saidas) }}</p>
+      </div>
+      <div class="pl-6">
+        <p class="text-xs text-gray-400 mb-1">Saldo do mês</p>
+        <p class="text-xl font-bold" :class="data.resumo.saldo_mes >= 0 ? 'text-gray-900 dark:text-white' : 'text-red-600 dark:text-red-400'">
+          {{ format(data.resumo.saldo_mes) }}
+        </p>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -84,38 +78,50 @@
         :class="i < data.lancamentos.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
       >
         <!-- Ícone -->
-        <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center" :class="iconBg(lanc)">
-          <UIcon :name="iconName(lanc)" class="w-5 h-5" :class="iconColor(lanc)" />
+        <div
+          class="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
+          :style="lanc.categoria_icone ? { background: lanc.categoria_cor } : {}"
+          :class="lanc.categoria_icone ? '' : iconBg(lanc)"
+        >
+          <UIcon
+            :name="lanc.categoria_icone ?? iconName(lanc)"
+            class="w-4 h-4"
+            :class="lanc.categoria_icone ? 'text-white' : iconColor(lanc)"
+          />
         </div>
 
         <!-- Info -->
         <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <p class="font-medium text-gray-900 dark:text-white truncate">{{ lanc.descricao }}</p>
-            <UBadge v-if="lanc.parcelas > 0" :label="`${lanc.parcela_atual}/${lanc.parcelas}`"
-              color="purple" variant="soft" size="xs" icon="i-heroicons-queue-list" />
-            <UBadge v-else-if="lanc.fixa" label="Fixa" color="info" variant="soft" size="xs"
-              icon="i-heroicons-arrow-path" />
-            <UBadge v-if="lanc.tipo === 'fatura'" :label="`Fatura ${fmtMonth(lanc.mes)}`"
-              color="violet" variant="soft" size="xs" icon="i-heroicons-credit-card" />
-          </div>
-          <div class="flex items-center gap-2 mt-0.5 flex-wrap">
+          <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{{ lanc.descricao }}</p>
+          <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
             <span class="text-xs text-gray-400">{{ descricaoData(lanc) }}</span>
-            <span v-if="lanc.tipo === 'transferencia'" class="text-xs px-2 py-0.5 rounded-full"
-              :class="lanc.direcao === 'entrada'
-                ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                : 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'">
-              {{ lanc.direcao === 'entrada' ? `De ${lanc.conta_origem_nome}` : `Para ${lanc.conta_destino_nome}` }}
-            </span>
-            <span v-if="lanc.categoria"
-              class="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full">
-              {{ lanc.categoria }}
-            </span>
+            <template v-if="lanc.tipo === 'fatura' && lanc.mes">
+              <span class="text-gray-300 dark:text-gray-700">·</span>
+              <span class="text-xs text-gray-400">Fatura {{ fmtMonth(lanc.mes) }}</span>
+            </template>
+            <template v-if="lanc.tipo === 'transferencia'">
+              <span class="text-gray-300 dark:text-gray-700">·</span>
+              <span class="text-xs text-gray-400">
+                {{ lanc.direcao === 'entrada' ? `De ${lanc.conta_origem_nome}` : `Para ${lanc.conta_destino_nome}` }}
+              </span>
+            </template>
+            <template v-if="lanc.parcelas > 0">
+              <span class="text-gray-300 dark:text-gray-700">·</span>
+              <span class="text-xs text-gray-400">{{ lanc.parcela_atual }}/{{ lanc.parcelas }}</span>
+            </template>
+            <template v-else-if="lanc.fixa && lanc.tipo !== 'fatura'">
+              <span class="text-gray-300 dark:text-gray-700">·</span>
+              <span class="text-xs text-gray-400">Fixa</span>
+            </template>
+            <template v-if="lanc.categoria">
+              <span class="text-gray-300 dark:text-gray-700">·</span>
+              <span class="text-xs text-gray-400">{{ lanc.categoria }}</span>
+            </template>
           </div>
         </div>
 
         <!-- Valor -->
-        <p class="text-base font-semibold flex-shrink-0" :class="isPositivo(lanc) ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+        <p class="text-sm font-medium flex-shrink-0" :class="isPositivo(lanc) ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
           {{ isPositivo(lanc) ? '+' : '-' }} {{ format(lanc.valor) }}
         </p>
       </div>
@@ -135,6 +141,8 @@ interface Lancamento {
   data_fim: string | null
   mes?: string
   categoria: string | null
+  categoria_cor: string | null
+  categoria_icone: string | null
   fixa: number
   parcelas: number
   parcela_atual: number | null

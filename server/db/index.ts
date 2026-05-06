@@ -123,6 +123,10 @@ if (!g.__db) {
   const faturaColNames = faturaCols.map(c => c.name)
   if (!faturaColNames.includes('valor_ajuste')) db.exec(`ALTER TABLE faturas ADD COLUMN valor_ajuste REAL DEFAULT 0`)
 
+  const limitesCols = db.prepare(`PRAGMA table_info(limites)`).all() as { name: string }[]
+  if (limitesCols.length && !limitesCols.map(c => c.name).includes('recorrente'))
+    db.exec(`ALTER TABLE limites ADD COLUMN recorrente INTEGER NOT NULL DEFAULT 0`)
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS limites (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

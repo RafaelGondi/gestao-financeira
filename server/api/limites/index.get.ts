@@ -85,8 +85,21 @@ export default defineEventHandler((event) => {
       .map(s => [s.id, s])
   )
 
-  const limitesRows = db.prepare(`SELECT id, referencia, valor FROM limites WHERE tipo = ? AND mes = ?`).all([modo, month]) as { id: number; referencia: string; valor: number }[]
-  const limitesMap = new Map(limitesRows.map(l => [l.referencia, { id: l.id, valor: l.valor }]))
+  // Limites específicos para o mês
+  const limitesEspecificos = db.prepare(
+    `SELECT id, referencia, valor FROM limites WHERE tipo = ? AND mes = ? AND recorrente = 0`
+  ).all([modo, month]) as { id: number; referencia: string; valor: number }[]
+
+  // Limites recorrentes mais recentes (mes <= month) como fallback
+  const limitesRecorrentes = db.prepare(`
+    SELECT id, referencia, valor FROM limites
+    WHERE tipo = ? AND recorrente = 1 AND mes <= ?
+    GROUP BY referencia HAVING mes = MAX(mes)
+  `).all([modo, month]) as { id: number; referencia: string; valor: number }[]
+
+  const limitesMap = new Map<string, { id: number; valor: number; recorrente: boolean }>()
+  for (const l of limitesRecorrentes) limitesMap.set(l.referencia, { id: l.id, valor: l.valor, recorrente: true })
+  for (const l of limitesEspecificos) limitesMap.set(l.referencia, { id: l.id, valor: l.valor, recorrente: false })
 
   const totalGasto = itens.reduce((s, t) => s + t.valor, 0)
 
@@ -100,19 +113,19 @@ export default defineEventHandler((event) => {
     }
 
     const seen = new Set<string>()
-    const itensList: { referencia: string; cor: string; icone: string; gasto: number; limite: number | null; limiteId: number | null }[] = []
+    const itensList: { referencia: string; cor: string; icone: string; gasto: number; limite: number | null; limiteId: number | null; recorrente: boolean }[] = []
 
     for (const cat of allCats) {
       seen.add(cat.nome)
       const gasto = gastoMap.get(cat.nome) ?? 0
       const lim = limitesMap.get(cat.nome) ?? null
-      itensList.push({ referencia: cat.nome, cor: cat.cor, icone: cat.icone, gasto, limite: lim?.valor ?? null, limiteId: lim?.id ?? null })
+      itensList.push({ referencia: cat.nome, cor: cat.cor, icone: cat.icone, gasto, limite: lim?.valor ?? null, limiteId: lim?.id ?? null, recorrente: lim?.recorrente ?? false })
     }
 
     for (const [nome, gasto] of gastoMap) {
       if (!seen.has(nome)) {
         const lim = limitesMap.get(nome) ?? null
-        itensList.push({ referencia: nome, cor: '#6b7280', icone: 'i-heroicons-tag', gasto, limite: lim?.valor ?? null, limiteId: lim?.id ?? null })
+        itensList.push({ referencia: nome, cor: '#6b7280', icone: 'i-heroicons-tag', gasto, limite: lim?.valor ?? null, limiteId: lim?.id ?? null, recorrente: lim?.recorrente ?? false })
       }
     }
 
@@ -141,19 +154,19 @@ export default defineEventHandler((event) => {
     }
 
     const seen = new Set<string>()
-    const itensList: { referencia: string; cor: string; icone: string; gasto: number; limite: number | null; limiteId: number | null }[] = []
+    const itensList: { referencia: string; cor: string; icone: string; gasto: number; limite: number | null; limiteId: number | null; recorrente: boolean }[] = []
 
     for (const s of allSupers) {
       seen.add(s.nome)
       const gasto = gastoMap.get(s.nome) ?? 0
       const lim = limitesMap.get(s.nome) ?? null
-      itensList.push({ referencia: s.nome, cor: s.cor, icone: s.icone, gasto, limite: lim?.valor ?? null, limiteId: lim?.id ?? null })
+      itensList.push({ referencia: s.nome, cor: s.cor, icone: s.icone, gasto, limite: lim?.valor ?? null, limiteId: lim?.id ?? null, recorrente: lim?.recorrente ?? false })
     }
 
     for (const [nome, gasto] of gastoMap) {
       if (!seen.has(nome)) {
         const lim = limitesMap.get(nome) ?? null
-        itensList.push({ referencia: nome, cor: '#6b7280', icone: 'i-heroicons-tag', gasto, limite: lim?.valor ?? null, limiteId: lim?.id ?? null })
+        itensList.push({ referencia: nome, cor: '#6b7280', icone: 'i-heroicons-tag', gasto, limite: lim?.valor ?? null, limiteId: lim?.id ?? null, recorrente: lim?.recorrente ?? false })
       }
     }
 
