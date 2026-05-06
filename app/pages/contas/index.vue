@@ -58,21 +58,19 @@
             <UIcon name="i-heroicons-chevron-right" class="w-4 h-4 text-gray-400 flex-shrink-0" />
           </NuxtLink>
 
-          <div class="px-5 pb-5 pt-0 space-y-3 border-t border-gray-100 dark:border-gray-800">
-            <div class="pt-3">
+          <div class="px-5 py-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+            <div>
               <p class="text-xs text-gray-400">Saldo atual</p>
               <p class="text-xl font-bold"
                 :class="conta.saldo_atual >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
                 {{ format(conta.saldo_atual) }}
               </p>
             </div>
-            <div class="flex items-center justify-end">
-              <div class="flex gap-1">
-                <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
-                  @click.prevent="openEditModal(conta)" />
-                <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
-                  @click.prevent="confirmDelete(conta)" />
-              </div>
+            <div class="flex gap-1">
+              <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
+                @click.prevent="openEditModal(conta)" />
+              <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
+                @click.prevent="confirmDelete(conta)" />
             </div>
           </div>
         </div>
