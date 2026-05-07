@@ -196,7 +196,8 @@ const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padS
 
 const { data: receitas, pending, error, refresh } = await useFetch<Receita[]>('/api/receitas', {
   query: computed(() => ({ month: currentMonth.value })),
-  watch: [currentMonth]
+  watch: [currentMonth],
+  getCachedData: () => null,
 })
 
 const totalGeral = computed(() => receitas.value?.reduce((s, r) => s + r.valor, 0) ?? 0)

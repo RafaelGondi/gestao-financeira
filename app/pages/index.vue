@@ -116,12 +116,14 @@ const currentMonth = ref(
 
 const { data, pending, error } = await useFetch('/api/dashboard', {
   query: computed(() => ({ month: currentMonth.value })),
-  watch: [currentMonth]
+  watch: [currentMonth],
+  getCachedData: () => null,
 })
 
 const { data: composicaoData } = await useFetch('/api/dashboard/composicao', {
   query: computed(() => ({ month: currentMonth.value })),
-  watch: [currentMonth]
+  watch: [currentMonth],
+  getCachedData: () => null,
 })
 
 const { data: limitesData } = await useFetch('/api/limites', {

@@ -344,6 +344,7 @@ async function handleLancamentoSubmit(formData: any) {
     await $fetch(apiMap[lancamentoTipo.value], { method: 'POST', body: formData })
     showLancamentoModal.value = false
     await refresh()
+    refreshNuxtData() // invalida cache de dashboard, receitas, despesas etc.
     toast.add({ title: toastMap[lancamentoTipo.value!], color: 'success', icon: 'i-heroicons-check-circle' })
   } catch (e: any) {
     toast.add({ title: 'Erro ao salvar', description: e?.data?.message ?? e?.message, color: 'error' })

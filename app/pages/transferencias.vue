@@ -158,7 +158,8 @@ const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padS
 
 const { data: transferencias, pending, error, refresh } = await useFetch<Transferencia[]>('/api/transferencias', {
   query: computed(() => ({ month: currentMonth.value })),
-  watch: [currentMonth]
+  watch: [currentMonth],
+  getCachedData: () => null,
 })
 
 const totalMes = computed(() => transferencias.value?.reduce((s, t) => s + t.valor, 0) ?? 0)

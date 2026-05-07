@@ -363,7 +363,8 @@ const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padS
 
 const { data: despesas, pending, error, refresh } = await useFetch<Despesa[]>('/api/despesas', {
   query: computed(() => ({ month: currentMonth.value })),
-  watch: [currentMonth]
+  watch: [currentMonth],
+  getCachedData: () => null,
 })
 
 const { data: faturas, refresh: refreshFaturas } = await useFetch<Fatura[]>('/api/faturas', {
