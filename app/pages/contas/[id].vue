@@ -200,7 +200,13 @@
           </button>
         </div>
 
+        <div v-if="!lancamentoTipo" class="flex flex-col items-center justify-center py-8 text-gray-400 text-sm gap-1">
+          <UIcon name="i-heroicons-cursor-arrow-rays" class="w-8 h-8 mb-2 text-gray-300" />
+          Selecione o tipo de lançamento acima
+        </div>
+
         <ContasNovoLancamentoForm
+          v-else
           :key="lancamentoTipo"
           :conta-id="contaIdNum"
           :conta-nome="data?.conta.nome ?? ''"
@@ -313,7 +319,7 @@ function iconColor(l: Lancamento) {
 
 // --- Novo Lançamento ---
 const showLancamentoModal = ref(false)
-const lancamentoTipo = ref<'receita' | 'despesa' | 'transferencia'>('despesa')
+const lancamentoTipo = ref<'receita' | 'despesa' | 'transferencia' | null>(null)
 const salvandoLancamento = ref(false)
 const contaIdNum = computed(() => Number(route.params.id))
 
@@ -324,20 +330,21 @@ const lancamentoTabs = [
 ] as const
 
 function abrirLancamentoModal() {
-  lancamentoTipo.value = 'despesa'
+  lancamentoTipo.value = null
   showLancamentoModal.value = true
 }
 
-const apiMap = { receita: '/api/receitas', despesa: '/api/despesas', transferencia: '/api/transferencias' }
-const toastMap = { receita: 'Receita adicionada', despesa: 'Despesa adicionada', transferencia: 'Transferência registrada' }
+const apiMap = { receita: '/api/receitas', despesa: '/api/despesas', transferencia: '/api/transferencias' } as const
+const toastMap = { receita: 'Receita adicionada', despesa: 'Despesa adicionada', transferencia: 'Transferência registrada' } as const
 
 async function handleLancamentoSubmit(formData: any) {
+  if (!lancamentoTipo.value) return
   salvandoLancamento.value = true
   try {
     await $fetch(apiMap[lancamentoTipo.value], { method: 'POST', body: formData })
     showLancamentoModal.value = false
     await refresh()
-    toast.add({ title: toastMap[lancamentoTipo.value], color: 'success', icon: 'i-heroicons-check-circle' })
+    toast.add({ title: toastMap[lancamentoTipo.value!], color: 'success', icon: 'i-heroicons-check-circle' })
   } catch (e: any) {
     toast.add({ title: 'Erro ao salvar', description: e?.data?.message ?? e?.message, color: 'error' })
   } finally {
