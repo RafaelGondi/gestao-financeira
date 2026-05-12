@@ -7,7 +7,7 @@
           v-for="t in tipos"
           :key="t.value"
           type="button"
-          class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border-2 text-sm font-medium transition-all"
+          class="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border-2 text-sm font-medium transition-all cursor-pointer"
           :class="form.tipo === t.value
             ? `border-transparent text-white`
             : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300'"
@@ -32,7 +32,7 @@
           v-for="cor in cores"
           :key="cor.value"
           type="button"
-          class="w-8 h-8 rounded-lg border-2 transition-all flex items-center justify-center"
+          class="w-8 h-8 rounded-lg border-2 transition-all flex items-center justify-center cursor-pointer"
           :class="form.cor === cor.value ? 'border-gray-900 dark:border-white scale-110' : 'border-transparent'"
           :style="{ background: cor.value }"
           :title="cor.label"
@@ -50,7 +50,7 @@
           v-for="ic in icones"
           :key="ic.value"
           type="button"
-          class="w-9 h-9 rounded-lg flex items-center justify-center border-2 transition-all"
+          class="w-9 h-9 rounded-lg flex items-center justify-center border-2 transition-all cursor-pointer"
           :class="form.icone === ic.value
             ? 'border-transparent text-white'
             : 'border-gray-100 dark:border-gray-700 text-gray-500 hover:border-gray-300 dark:hover:border-gray-500'"
@@ -68,7 +68,7 @@
       <div class="flex flex-wrap gap-2">
         <button
           type="button"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 text-sm transition-all"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 text-sm transition-all cursor-pointer"
           :class="form.supercategoria_id === null
             ? 'border-gray-400 dark:border-gray-500 text-gray-600 dark:text-gray-300'
             : 'border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-300'"
@@ -80,7 +80,7 @@
           v-for="sc in supercategorias"
           :key="sc.id"
           type="button"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all cursor-pointer"
           :class="form.supercategoria_id === sc.id
             ? 'border-transparent text-white'
             : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300'"
@@ -254,6 +254,7 @@ const icones = [
   { value: 'i-lucide-popcorn',              label: 'Pipoca / Cinema' },
   { value: 'i-lucide-hand-platter',         label: 'Restaurante' },
   { value: 'i-lucide-coffee',               label: 'Café' },
+  { value: 'i-lucide-coins',               label: 'Moedas' },
 ]
 
 const form = reactive({

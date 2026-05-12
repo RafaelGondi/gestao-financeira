@@ -31,11 +31,25 @@
                 <p class="text-xs text-gray-400 mt-0.5">Clique em um dia para ver os detalhes</p>
               </div>
             </div>
-            <div class="text-right">
-              <p class="text-xs text-gray-400">Dias com gasto</p>
-              <p class="text-lg font-bold text-gray-900 dark:text-white">
-                {{ diasComGasto }} <span class="text-sm font-normal text-gray-400">/ {{ totalDiasMes }}</span>
-              </p>
+            <div class="flex items-center gap-4">
+              <!-- Filtro de tipo -->
+              <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+                <button
+                  v-for="op in filtroOpcoes"
+                  :key="op.value"
+                  class="px-2.5 py-1 text-xs font-medium rounded-md transition-all cursor-pointer"
+                  :class="filtroTipo === op.value
+                    ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+                  @click="filtroTipo = op.value"
+                >{{ op.label }}</button>
+              </div>
+              <div class="text-right">
+                <p class="text-xs text-gray-400">Dias com gasto</p>
+                <p class="text-lg font-bold text-gray-900 dark:text-white">
+                  {{ diasComGasto }} <span class="text-sm font-normal text-gray-400">/ {{ totalDiasMes }}</span>
+                </p>
+              </div>
             </div>
           </div>
 
@@ -57,18 +71,36 @@
                 :key="day"
                 class="aspect-square rounded-lg flex flex-col items-start justify-start p-1.5 transition-transform hover:scale-105"
                 :class="[
-                  diasCalendario.has(day) ? 'cursor-pointer' : 'bg-gray-50 dark:bg-gray-800/30 border border-dashed border-gray-100 dark:border-gray-800 cursor-default',
-                  selectedDay === day ? 'ring-2 ring-offset-1 ring-gray-900 dark:ring-white' : '',
+                  diasCalendario.has(day)
+                    ? 'cursor-pointer'
+                    : isFuture(day)
+                      ? 'bg-gray-50/40 dark:bg-gray-800/10 border border-dashed border-gray-100 dark:border-gray-800/50 cursor-pointer opacity-40'
+                      : streakDays.has(day)
+                        ? 'bg-amber-50/60 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30 cursor-pointer'
+                        : 'bg-gray-50 dark:bg-gray-800/30 border border-gray-200 dark:border-gray-700/50 cursor-pointer',
+                  selectedDay === day ? 'ring-2 ring-offset-1 ring-gray-900 dark:ring-white' : isToday(day) ? 'ring-2 ring-offset-1 ring-primary-500' : '',
                 ]"
                 :style="cellStyle(day)"
                 @click="selectDay(day)"
                 @mouseenter="showCalTooltip(day, $event)"
                 @mouseleave="calTooltip.visible = false"
               >
-                <span
-                  class="text-xs leading-none font-medium"
-                  :class="diasCalendario.has(day) ? 'text-white' : 'text-gray-300 dark:text-gray-600'"
-                >{{ day }}</span>
+                <div class="flex items-center gap-1">
+                  <span
+                    class="text-xs leading-none font-bold"
+                    :class="diasCalendario.has(day) ? 'text-white' : isToday(day) ? 'text-primary-600 dark:text-primary-400' : isFuture(day) ? 'text-gray-300 dark:text-gray-600' : 'text-gray-400 dark:text-gray-500'"
+                  >{{ day }}</span>
+                  <span
+                    v-if="isToday(day)"
+                    class="text-[9px] leading-none font-medium"
+                    :class="diasCalendario.has(day) ? 'text-white/50' : 'text-gray-400 dark:text-gray-500'"
+                  >hoje</span>
+                  <UIcon
+                    v-if="streakDays.has(day) && !diasCalendario.has(day)"
+                    name="i-lucide-leaf"
+                    class="w-2.5 h-2.5 text-amber-400 dark:text-amber-500"
+                  />
+                </div>
               </div>
 
               <!-- Tooltip hover -->
@@ -93,8 +125,8 @@
             <!-- Stats -->
             <div class="grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800 mt-5 pt-4 border-t border-gray-100 dark:border-gray-800">
               <div class="pr-4 text-center">
-                <p class="text-xl font-bold text-gray-900 dark:text-white">{{ streakAtual }}</p>
-                <p class="text-xs text-gray-400 mt-0.5">dias sem compra (atual)</p>
+                <p class="text-xl font-bold" :class="streakAtual > 0 ? 'text-amber-500 dark:text-amber-400' : 'text-gray-900 dark:text-white'">{{ streakAtual }}</p>
+                <p class="text-xs mt-0.5" :class="streakAtual > 0 ? 'text-amber-400/80 dark:text-amber-600' : 'text-gray-400'">dias sem compra (atual)</p>
               </div>
               <div class="px-4 text-center">
                 <p class="text-xl font-bold text-gray-900 dark:text-white">{{ maiorStreak }}</p>
@@ -136,7 +168,7 @@
                 </div>
               </div>
               <button
-                class="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                class="w-6 h-6 rounded-md flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
                 @click="selectedDay = null"
               >
                 <UIcon name="i-heroicons-x-mark" class="w-3.5 h-3.5" />
@@ -179,7 +211,7 @@ const { format } = useCurrency()
 const now = new Date()
 const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 
-interface CalItem { descricao: string; valor: number; categoria: string; cor: string; icone: string; origem: string }
+interface CalItem { descricao: string; valor: number; categoria: string; cor: string; icone: string; origem: string; tipo: string }
 interface CalDay {
   day: number
   total: number
@@ -212,9 +244,40 @@ const calendarOffset = computed(() => {
   return dow === 0 ? 6 : dow - 1
 })
 
+type FiltroTipo = 'tudo' | 'avulsa' | 'parcelada' | 'fixa'
+const filtroTipo = ref<FiltroTipo>('tudo')
+watch(currentMonth, () => { filtroTipo.value = 'tudo' })
+
+const filtroOpcoes: { value: FiltroTipo; label: string }[] = [
+  { value: 'tudo',      label: 'Tudo' },
+  { value: 'avulsa',    label: 'Avulso' },
+  { value: 'parcelada', label: 'Parcelas' },
+  { value: 'fixa',      label: 'Fixo' },
+]
+
 const diasCalendario = computed(() => {
   const map = new Map<number, CalDay>()
-  for (const d of calData.value?.dias ?? []) map.set(d.day, d)
+  for (const d of calData.value?.dias ?? []) {
+    if (filtroTipo.value === 'tudo') {
+      map.set(d.day, d)
+      continue
+    }
+    const itensFiltrados = d.itens.filter(i => i.tipo === filtroTipo.value)
+    if (!itensFiltrados.length) continue
+
+    // Reconstrói totais e categorias com os itens filtrados
+    const totalFiltrado = itensFiltrados.reduce((s, i) => s + i.valor, 0)
+    const catMap = new Map<string, { total: number; cor: string }>()
+    for (const i of itensFiltrados) {
+      if (!catMap.has(i.categoria)) catMap.set(i.categoria, { total: 0, cor: i.cor })
+      catMap.get(i.categoria)!.total += i.valor
+    }
+    const categorias = [...catMap.entries()]
+      .map(([nome, { total, cor }]) => ({ nome, total, cor }))
+      .sort((a, b) => b.total - a.total)
+
+    map.set(d.day, { ...d, itens: itensFiltrados, total: totalFiltrado, categorias, cor: categorias[0].cor })
+  }
   return map
 })
 
@@ -254,6 +317,16 @@ function selectDay(day: number) {
 
 watch(currentMonth, () => { selectedDay.value = null })
 
+const todayStr = new Date().toISOString().split('T')[0]
+function isToday(day: number) {
+  const [y, m] = currentMonth.value.split('-')
+  return `${y}-${m}-${String(day).padStart(2, '0')}` === todayStr
+}
+function isFuture(day: number) {
+  const [y, m] = currentMonth.value.split('-')
+  return `${y}-${m}-${String(day).padStart(2, '0')}` > todayStr
+}
+
 // Stats
 const streakAtual = computed(() => {
   const [y, m] = currentMonth.value.split('-').map(Number)
@@ -266,6 +339,19 @@ const streakAtual = computed(() => {
     streak++
   }
   return streak
+})
+
+const streakDays = computed(() => {
+  const set = new Set<number>()
+  if (streakAtual.value === 0) return set
+  const [y, m] = currentMonth.value.split('-').map(Number)
+  const today = new Date()
+  const isCurrentMonth = today.getFullYear() === y && today.getMonth() + 1 === m
+  const endDay = isCurrentMonth ? today.getDate() : totalDiasMes.value
+  for (let d = endDay; d > endDay - streakAtual.value; d--) {
+    if (d >= 1) set.add(d)
+  }
+  return set
 })
 
 const maiorStreak = computed(() => {

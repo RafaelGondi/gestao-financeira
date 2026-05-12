@@ -2,6 +2,7 @@ import db from '../../db/index'
 import { getQuery } from 'h3'
 import { computeSaldoBancario } from '../../utils/saldo'
 import { faturaDateRange } from '../../utils/fatura'
+import { computeMonthTotals } from '../../utils/month-totals'
 
 interface Transacao {
   id: number
@@ -28,61 +29,6 @@ interface Cartao {
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100
-
-// Retorna totalReceitas e totalDespesas para um mês, usando a mesma lógica do handler.
-function computeMonthTotals(year: number, mon: number, cartoes: Cartao[]) {
-  const monthStr = `${year}-${String(mon).padStart(2, '0')}`
-  const startDate = `${monthStr}-01`
-  const lastDay = new Date(year, mon, 0).getDate()
-  const endDate = `${monthStr}-${String(lastDay).padStart(2, '0')}`
-  const prevY = mon === 1 ? year - 1 : year
-  const prevM = mon === 1 ? 12 : mon - 1
-  const prevMonStr = `${prevY}-${String(prevM).padStart(2, '0')}`
-
-  const avulsas = db.prepare(`
-    SELECT valor, tipo FROM transacoes
-    WHERE fixa = 0 AND cartao_id IS NULL AND data >= ? AND data <= ?
-  `).all([startDate, endDate]) as { valor: number; tipo: string }[]
-
-  const fixas = db.prepare(`
-    SELECT valor, tipo FROM transacoes
-    WHERE fixa = 1 AND cartao_id IS NULL
-      AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)
-  `).all([endDate, startDate]) as { valor: number; tipo: string }[]
-
-  let totalReceitas = 0
-  let totalDespesas = 0
-  for (const t of [...avulsas, ...fixas]) {
-    if (t.tipo === 'receita') totalReceitas += t.valor
-    else if (t.tipo === 'despesa') totalDespesas += t.valor
-  }
-
-  for (const c of cartoes) {
-    const { startDate: fStart, endDate: fEnd } = faturaDateRange(year, mon, c.melhor_data_compra)
-    const avulsasCartao = db.prepare(`
-      SELECT valor FROM transacoes
-      WHERE tipo = 'despesa' AND fixa = 0 AND cartao_id = ? AND data >= ? AND data <= ?
-    `).all([c.id, fStart, fEnd]) as { valor: number }[]
-    totalDespesas += avulsasCartao.reduce((s, r) => s + r.valor, 0)
-
-    const fixasCartao = db.prepare(`
-      SELECT valor, data_inicio, data_fim FROM transacoes
-      WHERE tipo = 'despesa' AND fixa = 1 AND cartao_id = ?
-        AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)
-    `).all([c.id, endDate, startDate]) as any[]
-
-    for (const t of fixasCartao) {
-      const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
-      const calcMonth = c.melhor_data_compra > 1 && dayP >= c.melhor_data_compra ? prevMonStr : monthStr
-      const effectiveDate = calcMonth + '-' + t.data_inicio.slice(8, 10)
-      if (effectiveDate < t.data_inicio) continue
-      if (t.data_fim && effectiveDate > t.data_fim) continue
-      totalDespesas += t.valor
-    }
-  }
-
-  return { totalReceitas: r2(totalReceitas), totalDespesas: r2(totalDespesas) }
-}
 
 // Saldo teórico acumulado ao início do mês (year, mon).
 // Itera mês a mês desde o primeiro mês com transações, garantindo que
@@ -238,7 +184,7 @@ export default defineEventHandler((event) => {
   const aPagar = r2(despesas.filter(t => !t.pago).reduce((sum, t) => sum + t.valor, 0))
 
   const saldo = r2(totalReceitas - totalDespesas)
-  const saldoDisponivel = r2(saldoAnterior + recebido - pago)
+  const saldoDisponivel = saldoBancario
   const saldoPrevisto = r2(saldoAnterior + totalReceitas - totalDespesas)
 
   const contasPagarItems = despesas

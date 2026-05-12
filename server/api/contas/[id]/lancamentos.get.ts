@@ -208,6 +208,8 @@ export default defineEventHandler((event) => {
       tipo: 'transferencia',
       direcao: isEntrada ? 'entrada' : 'saida',
       data: t.data,
+      conta_origem_id: t.conta_origem_id,
+      conta_destino_id: t.conta_destino_id,
       conta_origem_nome: t.conta_origem_nome,
       conta_destino_nome: t.conta_destino_nome,
       fixa: 0, parcelas: 0, categoria: null, pago: 1

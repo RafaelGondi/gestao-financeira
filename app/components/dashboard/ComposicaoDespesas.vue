@@ -66,7 +66,7 @@
       <template v-if="!compact">
         <div v-for="item in segmentos" :key="item.key">
           <button
-            class="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-t border-gray-100 dark:border-gray-800"
+            class="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-t border-gray-100 dark:border-gray-800 cursor-pointer"
             @click="toggle(item.key)"
           >
             <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" :style="{ background: item.cor }">

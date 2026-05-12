@@ -15,7 +15,7 @@
       </span>
       <button
         type="button"
-        class="ml-auto flex-shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+        class="ml-auto flex-shrink-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer"
         @click.stop="clear"
       >
         <UIcon name="i-heroicons-x-mark" class="w-4 h-4" />

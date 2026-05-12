@@ -12,7 +12,7 @@
           v-for="cor in cores"
           :key="cor.value"
           type="button"
-          class="w-8 h-8 rounded-lg border-2 transition-all flex items-center justify-center"
+          class="w-8 h-8 rounded-lg border-2 transition-all flex items-center justify-center cursor-pointer"
           :class="form.cor === cor.value ? 'border-gray-900 dark:border-white scale-110' : 'border-transparent'"
           :style="{ background: cor.value }"
           :title="cor.label"
@@ -30,7 +30,7 @@
           v-for="ic in icones"
           :key="ic.value"
           type="button"
-          class="w-9 h-9 rounded-lg flex items-center justify-center border-2 transition-all"
+          class="w-9 h-9 rounded-lg flex items-center justify-center border-2 transition-all cursor-pointer"
           :class="form.icone === ic.value
             ? 'border-transparent text-white'
             : 'border-gray-100 dark:border-gray-700 text-gray-500 hover:border-gray-300 dark:hover:border-gray-500'"

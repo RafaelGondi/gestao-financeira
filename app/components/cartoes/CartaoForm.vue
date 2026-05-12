@@ -7,7 +7,7 @@
           v-for="bank in BANKS"
           :key="bank.key"
           type="button"
-          class="flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 transition-all"
+          class="flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 transition-all cursor-pointer"
           :class="form.bancoKey === bank.key
             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'"
@@ -34,7 +34,7 @@
         <!-- Opção: usar cor do banco -->
         <button
           type="button"
-          class="flex flex-col items-center gap-1 group"
+          class="flex flex-col items-center gap-1 group cursor-pointer"
           @click="form.cor = null"
         >
           <div
@@ -54,7 +54,7 @@
           v-for="preset in colorPresets"
           :key="preset.value"
           type="button"
-          class="flex flex-col items-center gap-1 group"
+          class="flex flex-col items-center gap-1 group cursor-pointer"
           @click="form.cor = preset.value"
         >
           <div

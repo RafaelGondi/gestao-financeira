@@ -5,7 +5,7 @@
       <div class="flex gap-2">
         <button
           type="button"
-          class="flex-1 flex items-center gap-2 p-3 rounded-lg border-2 transition-colors"
+          class="flex-1 flex items-center gap-2 p-3 rounded-lg border-2 transition-colors cursor-pointer"
           :class="form.pagoCom === 'conta'
             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'"
@@ -19,7 +19,7 @@
         </button>
         <button
           type="button"
-          class="flex-1 flex items-center gap-2 p-3 rounded-lg border-2 transition-colors"
+          class="flex-1 flex items-center gap-2 p-3 rounded-lg border-2 transition-colors cursor-pointer"
           :class="form.pagoCom === 'cartao'
             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'"
@@ -82,7 +82,7 @@
           v-for="opt in tipoOpts"
           :key="opt.value"
           type="button"
-          class="flex-1 flex items-center gap-2 p-3 rounded-lg border-2 transition-colors"
+          class="flex-1 flex items-center gap-2 p-3 rounded-lg border-2 transition-colors cursor-pointer"
           :class="form.tipo === opt.value
             ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'"

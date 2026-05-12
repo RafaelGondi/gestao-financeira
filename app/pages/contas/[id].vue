@@ -70,15 +70,41 @@
 
     <!-- Lista de lançamentos -->
     <div v-else class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
-      <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Lançamentos</p>
-        <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ data?.lancamentos.length }} item(s)</p>
+      <div class="px-5 pt-3 pb-2.5 border-b border-gray-100 dark:border-gray-800 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Lançamentos</p>
+          <p class="text-sm font-semibold text-gray-900 dark:text-white">
+            {{ busca ? `${lancamentosFiltrados.length} de ${data?.lancamentos.length}` : `${data?.lancamentos.length}` }} item(s)
+          </p>
+        </div>
+        <UInput
+          v-model="busca"
+          placeholder="Buscar por descrição ou valor..."
+          icon="i-heroicons-magnifying-glass"
+          size="sm"
+          class="w-full"
+          :trailing="busca ? true : false"
+        >
+          <template v-if="busca" #trailing>
+            <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer" @click="busca = ''">
+              <UIcon name="i-heroicons-x-mark" class="w-4 h-4" />
+            </button>
+          </template>
+        </UInput>
       </div>
+
+      <!-- Sem resultados na busca -->
+      <div v-if="busca && !lancamentosFiltrados.length" class="flex flex-col items-center justify-center py-10 gap-2 text-gray-400">
+        <UIcon name="i-heroicons-magnifying-glass" class="w-8 h-8 text-gray-300" />
+        <p class="text-sm">Nenhum lançamento encontrado para <strong class="text-gray-600 dark:text-gray-300">"{{ busca }}"</strong></p>
+      </div>
+
       <div
-        v-for="(lanc, i) in data.lancamentos"
+        v-for="(lanc, i) in lancamentosFiltrados"
+        v-else
         :key="`${lanc.tipo}-${lanc.id}`"
         class="flex items-center gap-4 px-5 py-4"
-        :class="i < data.lancamentos.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
+        :class="i < lancamentosFiltrados.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
       >
         <!-- Ícone -->
         <div
@@ -144,6 +170,12 @@
             class="w-4 h-4 text-green-500 flex-shrink-0"
           />
         </div>
+
+        <!-- Ações: editar e excluir (não disponível para faturas) -->
+        <div v-if="lanc.tipo !== 'fatura'" class="flex items-center gap-1 flex-shrink-0">
+          <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs" @click="abrirEditModal(lanc)" />
+          <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs" @click="abrirDeleteModal(lanc)" />
+        </div>
       </div>
     </div>
   </div>
@@ -179,6 +211,76 @@
     </template>
   </UModal>
 
+  <!-- Slideover: Editar Lançamento -->
+  <USlideover v-model:open="showEditModal" :title="editTitle" :ui="{ width: 'sm:max-w-lg' }">
+    <template #body>
+      <div class="space-y-5 p-1">
+        <TransferenciasTransferenciaForm
+          v-if="editingLanc?.tipo === 'transferencia'"
+          :initial="editTransferenciaInitial"
+          :loading="salvandoEdit"
+          @submit="handleEditSubmit"
+          @cancel="showEditModal = false"
+        />
+        <ContasNovoLancamentoForm
+          v-else-if="editingLanc"
+          :key="`edit-${editingLanc.id}`"
+          :conta-id="contaIdNum"
+          :conta-nome="data?.conta.nome ?? ''"
+          :conta-banco="data?.conta.banco ?? ''"
+          :conta-banco-key="data?.conta.banco_key ?? ''"
+          :tipo="editingLanc.tipo as 'receita' | 'despesa'"
+          :initial="editingLanc"
+          :loading="salvandoEdit"
+          @submit="handleEditSubmit"
+          @cancel="showEditModal = false"
+        />
+      </div>
+    </template>
+  </USlideover>
+
+  <!-- Slideover: Excluir Lançamento -->
+  <USlideover v-model:open="showDeleteModal" title="Excluir lançamento">
+    <template #body>
+      <div class="space-y-4">
+        <p class="text-gray-600 dark:text-gray-400">
+          Tem certeza que deseja excluir
+          <strong class="text-gray-900 dark:text-white">{{ deletingLanc?.descricao }}</strong>?
+        </p>
+        <template v-if="deletingLanc?.fixa">
+          <div class="flex flex-col gap-2">
+            <UButton
+              variant="soft"
+              color="neutral"
+              :loading="deleting"
+              icon="i-heroicons-calendar-days"
+              class="w-full justify-start"
+              @click="handleDelete('one')"
+            >
+              Remover só {{ deletingLanc.parcelas > 0 ? 'esta parcela' : 'este mês' }}
+            </UButton>
+            <UButton
+              color="red"
+              :loading="deleting"
+              icon="i-heroicons-trash"
+              class="w-full justify-start"
+              @click="handleDelete('all')"
+            >
+              Remover {{ deletingLanc.parcelas > 0 ? 'todas as parcelas' : 'todos os meses' }}
+            </UButton>
+          </div>
+          <UButton variant="ghost" color="neutral" class="w-full" @click="showDeleteModal = false">Cancelar</UButton>
+        </template>
+        <template v-else>
+          <div class="flex justify-end gap-3">
+            <UButton variant="ghost" color="neutral" @click="showDeleteModal = false">Cancelar</UButton>
+            <UButton color="red" :loading="deleting" @click="handleDelete('all')">Excluir</UButton>
+          </div>
+        </template>
+      </div>
+    </template>
+  </USlideover>
+
   <!-- Slideover: Novo Lançamento -->
   <USlideover v-model:open="showLancamentoModal" title="Novo Lançamento" :ui="{ width: 'sm:max-w-lg' }">
     <template #body>
@@ -189,7 +291,7 @@
             v-for="tab in lancamentoTabs"
             :key="tab.value"
             type="button"
-            class="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border-2 text-sm font-medium transition-colors"
+            class="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border-2 text-sm font-medium transition-colors cursor-pointer"
             :class="lancamentoTipo === tab.value
               ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400'
               : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300'"
@@ -242,6 +344,8 @@ interface Lancamento {
   parcelas: number
   parcela_atual: number | null
   pago: number
+  conta_origem_id?: number
+  conta_destino_id?: number
   conta_origem_nome?: string
   conta_destino_nome?: string
   cartao_nome?: string
@@ -317,6 +421,24 @@ function iconColor(l: Lancamento) {
   return 'text-red-600 dark:text-red-400'
 }
 
+// --- Busca ---
+const busca = ref('')
+watch(currentMonth, () => { busca.value = '' })
+
+const lancamentosFiltrados = computed(() => {
+  const list = data.value?.lancamentos ?? []
+  const q = busca.value.trim().toLowerCase()
+  if (!q) return list
+  return list.filter(l => {
+    if (l.descricao.toLowerCase().includes(q)) return true
+    const valorBR = l.valor.toFixed(2).replace('.', ',')
+    if (valorBR.includes(q)) return true
+    const valorFormatado = format(l.valor).toLowerCase().replace(/\s/g, '')
+    if (valorFormatado.includes(q.replace(/\s/g, ''))) return true
+    return false
+  })
+})
+
 // --- Novo Lançamento ---
 const showLancamentoModal = ref(false)
 const lancamentoTipo = ref<'receita' | 'despesa' | 'transferencia' | null>(null)
@@ -350,6 +472,91 @@ async function handleLancamentoSubmit(formData: any) {
     toast.add({ title: 'Erro ao salvar', description: e?.data?.message ?? e?.message, color: 'error' })
   } finally {
     salvandoLancamento.value = false
+  }
+}
+
+// --- Editar Lançamento ---
+const showEditModal = ref(false)
+const editingLanc = ref<Lancamento | null>(null)
+const salvandoEdit = ref(false)
+
+const editTitle = computed(() => {
+  if (!editingLanc.value) return 'Editar'
+  if (editingLanc.value.tipo === 'receita') return 'Editar Receita'
+  if (editingLanc.value.tipo === 'despesa') return 'Editar Despesa'
+  return 'Editar Transferência'
+})
+
+const editTransferenciaInitial = computed(() => {
+  if (!editingLanc.value || editingLanc.value.tipo !== 'transferencia') return null
+  return {
+    id: editingLanc.value.id as number,
+    valor: editingLanc.value.valor,
+    data: editingLanc.value.data,
+    descricao: editingLanc.value.descricao,
+    conta_origem_id: editingLanc.value.conta_origem_id!,
+    conta_destino_id: editingLanc.value.conta_destino_id!,
+  }
+})
+
+function abrirEditModal(lanc: Lancamento) {
+  editingLanc.value = lanc
+  showEditModal.value = true
+}
+
+async function handleEditSubmit(formData: any) {
+  if (!editingLanc.value) return
+  salvandoEdit.value = true
+  try {
+    await $fetch(`${apiMap[editingLanc.value.tipo as keyof typeof apiMap]}/${editingLanc.value.id}`, {
+      method: 'PUT',
+      body: formData,
+    })
+    showEditModal.value = false
+    editingLanc.value = null
+    await refresh()
+    refreshNuxtData()
+    toast.add({ title: 'Lançamento atualizado', color: 'success', icon: 'i-heroicons-check-circle' })
+  } catch (e: any) {
+    toast.add({ title: 'Erro ao salvar', description: e?.data?.message ?? e?.message, color: 'error' })
+  } finally {
+    salvandoEdit.value = false
+  }
+}
+
+// --- Excluir Lançamento ---
+const showDeleteModal = ref(false)
+const deletingLanc = ref<Lancamento | null>(null)
+const deleting = ref(false)
+
+function abrirDeleteModal(lanc: Lancamento) {
+  deletingLanc.value = lanc
+  showDeleteModal.value = true
+}
+
+async function handleDelete(scope: 'one' | 'all') {
+  if (!deletingLanc.value) return
+  deleting.value = true
+  const tipo = deletingLanc.value.tipo as keyof typeof apiMap
+  try {
+    const params: Record<string, string> = {}
+    if (tipo !== 'transferencia') {
+      params.scope = scope
+      if (scope === 'one') params.month = currentMonth.value
+    }
+    await $fetch(`${apiMap[tipo]}/${deletingLanc.value.id}`, {
+      method: 'DELETE',
+      query: Object.keys(params).length ? params : undefined,
+    })
+    showDeleteModal.value = false
+    deletingLanc.value = null
+    await refresh()
+    refreshNuxtData()
+    toast.add({ title: 'Lançamento excluído', color: 'success', icon: 'i-heroicons-check-circle' })
+  } catch (e: any) {
+    toast.add({ title: 'Erro ao excluir', description: e?.data?.message ?? e?.message, color: 'error' })
+  } finally {
+    deleting.value = false
   }
 }
 

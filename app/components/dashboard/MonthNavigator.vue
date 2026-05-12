@@ -4,7 +4,7 @@
     <div class="flex items-center gap-1">
       <button
         type="button"
-        class="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        class="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
         @click="prev"
       >
         <UIcon name="i-heroicons-chevron-left" class="w-4 h-4" />
@@ -14,7 +14,7 @@
       </span>
       <button
         type="button"
-        class="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        class="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
         @click="next"
       >
         <UIcon name="i-heroicons-chevron-right" class="w-4 h-4" />

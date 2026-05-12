@@ -3,10 +3,13 @@
     <!-- Header -->
     <div class="flex items-center gap-4">
       <UButton icon="i-heroicons-arrow-left" variant="ghost" color="neutral" to="/cartoes" />
-      <div>
+      <div class="flex-1">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ data?.cartao.nome }}</h1>
         <p class="text-sm text-gray-500 mt-0.5">{{ data?.cartao.banco }} · Vence dia {{ data?.cartao.vencimento }}</p>
       </div>
+      <UButton icon="i-heroicons-plus" color="primary" @click="abrirNovaDespesaModal">
+        Nova Despesa
+      </UButton>
     </div>
 
     <!-- Card visual -->
@@ -103,6 +106,15 @@
           </div>
         </div>
         <div class="flex gap-2">
+          <UButton
+            icon="i-heroicons-adjustments-horizontal"
+            variant="soft"
+            color="neutral"
+            class="cursor-pointer"
+            @click="abrirAjusteModal"
+          >
+            Ajuste
+          </UButton>
           <UButton
             v-if="!data.fatura?.pago"
             icon="i-heroicons-check-circle"
@@ -256,24 +268,65 @@
 
     <!-- Lista de lançamentos -->
     <div v-else class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
-      <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
-        <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Lançamentos</p>
-        <div class="flex items-center gap-3">
-          <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
-            <button
-              v-for="op in sortOpcoes"
-              :key="op.value"
-              class="px-2.5 py-1 text-xs font-medium rounded-md transition-all"
-              :class="sortMode === op.value ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
-              @click="sortMode = op.value"
-            >{{ op.label }}</button>
+      <div class="px-5 pt-3 pb-2.5 border-b border-gray-100 dark:border-gray-800 space-y-2.5">
+        <div class="flex items-center justify-between gap-3">
+          <p class="text-sm font-medium text-gray-600 dark:text-gray-400 flex-shrink-0">Lançamentos</p>
+          <div class="flex items-center gap-3 flex-shrink-0">
+            <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+              <button
+                v-for="op in sortOpcoes"
+                :key="op.value"
+                class="px-2.5 py-1 text-xs font-medium rounded-md transition-all cursor-pointer"
+                :class="sortMode === op.value ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+                @click="sortMode = op.value"
+              >{{ op.label }}</button>
+            </div>
+            <p class="text-sm font-semibold text-gray-900 dark:text-white flex-shrink-0">
+              {{ busca ? `${lancamentosFiltrados.length} de ${data?.lancamentos.length}` : `${data?.lancamentos.length}` }} item(s)
+            </p>
           </div>
-          <p class="text-sm font-semibold text-gray-900 dark:text-white flex-shrink-0">{{ data?.lancamentos.length }} item(s)</p>
         </div>
+        <UInput
+          v-model="busca"
+          placeholder="Buscar por descrição ou valor..."
+          icon="i-heroicons-magnifying-glass"
+          size="sm"
+          class="w-full"
+          :trailing="busca ? true : false"
+        >
+          <template v-if="busca" #trailing>
+            <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-pointer" @click="busca = ''">
+              <UIcon name="i-heroicons-x-mark" class="w-4 h-4" />
+            </button>
+          </template>
+        </UInput>
+      </div>
+
+      <!-- Sem resultados na busca -->
+      <div v-if="busca && !lancamentosFiltrados.length" class="flex flex-col items-center justify-center py-10 gap-2 text-gray-400">
+        <UIcon name="i-heroicons-magnifying-glass" class="w-8 h-8 text-gray-300" />
+        <p class="text-sm">Nenhum lançamento encontrado para <strong class="text-gray-600 dark:text-gray-300">"{{ busca }}"</strong></p>
       </div>
 
       <!-- Modo: data ou valor (lista flat) -->
-      <template v-if="sortMode !== 'categoria'">
+      <template v-else-if="sortMode !== 'categoria'">
+        <!-- Ajuste de arredondamento -->
+        <div
+          v-if="!busca && data.fatura?.valor_ajuste && data.fatura.valor_ajuste < 0"
+          class="flex items-center gap-4 px-5 py-4 border-b border-gray-100 dark:border-gray-800 bg-green-50/50 dark:bg-green-900/10"
+        >
+          <div class="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center bg-green-100 dark:bg-green-900/30">
+            <UIcon name="i-heroicons-adjustments-horizontal" class="w-4 h-4 text-green-600 dark:text-green-400" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-green-700 dark:text-green-400">Ajuste de arredondamento</p>
+            <p class="text-xs text-green-600/70 dark:text-green-500/70 mt-0.5">Crédito aplicado à fatura</p>
+          </div>
+          <p class="text-sm font-semibold text-green-600 dark:text-green-400 flex-shrink-0">
+            + {{ format(Math.abs(data.fatura.valor_ajuste)) }}
+          </p>
+        </div>
+
         <div
           v-for="(lanc, i) in lancamentosOrdenados"
           :key="`${lanc.id}-${lanc.fixa}`"
@@ -372,6 +425,76 @@
         </div>
       </template>
     </div>
+
+    <!-- Slideover: Nova Despesa -->
+    <USlideover v-model:open="showNovaDespesaModal" title="Nova Despesa" :ui="{ width: 'sm:max-w-lg' }">
+      <template #body>
+        <div class="p-1">
+          <CartoesNovaDespesaForm
+            v-if="data"
+            ref="novaDespesaFormRef"
+            :cartao-id="cartaoIdNum"
+            :cartao-nome="data.cartao.nome"
+            :cartao-banco-key="data.cartao.banco_key"
+            :loading="salvandoDespesa"
+            @submit="handleNovaDespesaSubmit"
+            @cancel="showNovaDespesaModal = false"
+          />
+        </div>
+      </template>
+    </USlideover>
+
+    <!-- Modal ajuste de arredondamento -->
+    <USlideover v-model:open="showAjusteModal" title="Ajuste de arredondamento" :dismissible="false">
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            Use para corrigir pequenas discrepâncias entre o valor calculado e o cobrado pela operadora. Valores negativos aparecem como crédito na fatura.
+          </p>
+          <div class="bg-gray-50 dark:bg-gray-800 rounded-lg px-4 py-3 space-y-1">
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-500">Calculado</span>
+              <span class="font-medium text-gray-800 dark:text-gray-100">{{ format(data?.cartao.gasto_mes ?? 0) }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-500">Ajuste</span>
+              <span class="font-medium" :class="Number(ajusteEdicao) < 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'">
+                {{ Number(ajusteEdicao) < 0 ? '' : '+' }}{{ format(Number(ajusteEdicao) || 0) }}
+              </span>
+            </div>
+            <div class="flex justify-between text-sm border-t border-gray-200 dark:border-gray-700 pt-1 mt-1">
+              <span class="font-medium text-gray-700 dark:text-gray-300">Total da fatura</span>
+              <span class="font-bold text-gray-900 dark:text-white">{{ format((data?.cartao.gasto_mes ?? 0) + (Number(ajusteEdicao) || 0)) }}</span>
+            </div>
+          </div>
+          <p class="text-xs text-gray-400">Negativo = crédito (reduz a fatura) · Positivo = débito adicional</p>
+
+          <UFormField label="Valor do ajuste">
+            <UInput
+              v-model="ajusteEdicao"
+              type="number"
+              step="0.01"
+              placeholder="Ex: -0.02"
+              class="w-full"
+            />
+          </UFormField>
+
+          <div class="flex items-center justify-between gap-3 pt-2">
+            <UButton
+              v-if="data?.fatura?.id && data.fatura.valor_ajuste"
+              variant="ghost"
+              color="error"
+              :loading="salvandoAjuste"
+              @click="removerAjuste"
+            >Remover</UButton>
+            <div class="flex gap-3 ml-auto">
+              <UButton variant="ghost" color="neutral" @click="showAjusteModal = false">Cancelar</UButton>
+              <UButton color="primary" :loading="salvandoAjuste" @click="salvarAjuste">Aplicar</UButton>
+            </div>
+          </div>
+        </div>
+      </template>
+    </USlideover>
 
     <!-- Modal pagar fatura -->
     <USlideover v-model:open="showPagarModal" title="Pagar fatura" :dismissible="false">
@@ -528,6 +651,33 @@ const { data: projecao } = await useFetch<{
   `/api/cartoes/${route.params.id}/projecao`
 )
 
+// --- Nova Despesa ---
+const showNovaDespesaModal = ref(false)
+const salvandoDespesa = ref(false)
+const novaDespesaFormRef = ref<{ resetForm: () => void } | null>(null)
+const cartaoIdNum = computed(() => Number(route.params.id))
+const toast = useToast()
+
+function abrirNovaDespesaModal() {
+  novaDespesaFormRef.value?.resetForm()
+  showNovaDespesaModal.value = true
+}
+
+async function handleNovaDespesaSubmit(formData: any) {
+  salvandoDespesa.value = true
+  try {
+    await $fetch('/api/despesas', { method: 'POST', body: formData })
+    showNovaDespesaModal.value = false
+    await refresh()
+    refreshNuxtData()
+    toast.add({ title: 'Despesa adicionada', color: 'success', icon: 'i-heroicons-check-circle' })
+  } catch (e: any) {
+    toast.add({ title: 'Erro ao salvar', description: e?.data?.message ?? e?.message, color: 'error' })
+  } finally {
+    salvandoDespesa.value = false
+  }
+}
+
 // Pagamento
 const { data: contas } = await useFetch<{ id: number; nome: string; banco: string }[]>('/api/contas')
 const contaOptions = computed(() => (contas.value ?? []).map(c => ({ value: c.id, label: `${c.nome} — ${c.banco}` })))
@@ -564,6 +714,55 @@ async function salvarPagamento() {
   }
 }
 
+// Ajuste de arredondamento
+const showAjusteModal = ref(false)
+const ajusteEdicao = ref('')
+const salvandoAjuste = ref(false)
+
+function abrirAjusteModal() {
+  ajusteEdicao.value = String(data.value?.fatura?.valor_ajuste ?? '')
+  showAjusteModal.value = true
+}
+
+async function salvarAjuste() {
+  salvandoAjuste.value = true
+  try {
+    const ajuste = Number(ajusteEdicao.value) || 0
+    if (data.value?.fatura?.id) {
+      // Fatura já existe — só atualiza o ajuste
+      await $fetch(`/api/faturas/${data.value.fatura.id}`, {
+        method: 'PATCH',
+        body: { valor_ajuste: ajuste }
+      })
+    } else {
+      // Cria uma fatura não-paga apenas com o ajuste (sem conta/data obrigatórios)
+      await $fetch('/api/faturas/ajuste', {
+        method: 'POST',
+        body: { cartao_id: route.params.id, mes: currentMonth.value, valor_ajuste: ajuste }
+      })
+    }
+    await refresh()
+    showAjusteModal.value = false
+  } finally {
+    salvandoAjuste.value = false
+  }
+}
+
+async function removerAjuste() {
+  if (!data.value?.fatura?.id) return
+  salvandoAjuste.value = true
+  try {
+    await $fetch(`/api/faturas/${data.value.fatura.id}`, {
+      method: 'PATCH',
+      body: { valor_ajuste: 0 }
+    })
+    await refresh()
+    showAjusteModal.value = false
+  } finally {
+    salvandoAjuste.value = false
+  }
+}
+
 async function desfazerPagamento() {
   if (!data.value?.fatura?.id) return
   desfazendoPagamento.value = true
@@ -589,8 +788,27 @@ const sortOpcoes = [
   { value: 'categoria', label: 'Categoria' },
 ] as const
 
+const busca = ref('')
+watch(currentMonth, () => { busca.value = '' })
+
+const lancamentosFiltrados = computed(() => {
+  const list = data.value?.lancamentos ?? []
+  const q = busca.value.trim().toLowerCase()
+  if (!q) return list
+  return list.filter(l => {
+    if (l.descricao.toLowerCase().includes(q)) return true
+    // Busca por valor: tenta match no formato BR (ex: "13,45") e no valor bruto
+    const valorBR = l.valor.toFixed(2).replace('.', ',')
+    if (valorBR.includes(q)) return true
+    // Remove símbolos e compara (ex: busca "r$ 13" ou "13.45")
+    const valorFormatado = format(l.valor).toLowerCase().replace(/\s/g, '')
+    if (valorFormatado.includes(q.replace(/\s/g, ''))) return true
+    return false
+  })
+})
+
 const lancamentosOrdenados = computed(() => {
-  const list = [...(data.value?.lancamentos ?? [])]
+  const list = [...lancamentosFiltrados.value]
   if (sortMode.value === 'valor') return list.sort((a, b) => b.valor - a.valor)
   return list.sort((a, b) => b.data.localeCompare(a.data))
 })
@@ -604,7 +822,7 @@ function toggleGrupoCategoria(cat: string) {
 
 const lancamentosAgrupados = computed(() => {
   const map = new Map<string, { categoria: string; cor: string | null; icone: string | null; total: number; itens: typeof data.value.lancamentos }>()
-  for (const l of data.value?.lancamentos ?? []) {
+  for (const l of lancamentosFiltrados.value) {
     const key = l.categoria ?? 'Sem categoria'
     if (!map.has(key)) map.set(key, { categoria: key, cor: l.categoria_cor ?? null, icone: l.categoria_icone ?? null, total: 0, itens: [] })
     const g = map.get(key)!

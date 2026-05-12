@@ -1,33 +1,18 @@
 <template>
   <div class="space-y-4">
-    <!-- Conta travada -->
+    <!-- Cartão travado -->
     <div class="flex items-center gap-3 px-3 py-2.5 bg-gray-50 dark:bg-gray-800 rounded-lg">
-      <SharedBankLogo :bank="findBank(contaBancoKey)" :size="32" class="rounded-md flex-shrink-0" />
+      <SharedBankLogo :bank="findBank(cartaoBancoKey)" :size="32" class="rounded-md flex-shrink-0" />
       <div class="min-w-0">
-        <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{{ contaNome }}</p>
-        <p class="text-xs text-gray-400">{{ descricaoConta }}</p>
+        <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{{ cartaoNome }}</p>
+        <p class="text-xs text-gray-400">Cartão de crédito</p>
       </div>
       <UIcon name="i-heroicons-lock-closed" class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 flex-shrink-0 ml-auto" />
     </div>
 
-    <!-- Conta destino (só transferência) -->
-    <UFormField v-if="tipo === 'transferencia'" label="Conta de destino" required>
-      <USelect
-        v-model="form.conta_destino_id"
-        :items="contasDestino"
-        value-key="value"
-        label-key="label"
-        placeholder="Selecione a conta de destino..."
-        class="w-full"
-      />
-    </UFormField>
-
     <!-- Descrição -->
-    <UFormField v-if="tipo !== 'transferencia'" label="Descrição" required>
-      <UInput v-model="form.descricao" :placeholder="tipo === 'receita' ? 'Ex: Salário, Freelance...' : 'Ex: Aluguel, Supermercado...'" class="w-full" />
-    </UFormField>
-    <UFormField v-else label="Descrição">
-      <UInput v-model="form.descricao" placeholder="Ex: Reserva de emergência..." class="w-full" />
+    <UFormField label="Descrição" required>
+      <UInput v-model="form.descricao" placeholder="Ex: Supermercado, Netflix..." class="w-full" />
     </UFormField>
 
     <!-- Valor -->
@@ -35,13 +20,13 @@
       <SharedCurrencyInput v-model="form.valor" />
     </UFormField>
 
-    <!-- Categoria (não transferência) -->
-    <UFormField v-if="tipo !== 'transferencia'" label="Categoria">
-      <SharedCategoriaInput v-model="form.categoria" :tipo="tipo" />
+    <!-- Categoria -->
+    <UFormField label="Categoria">
+      <SharedCategoriaInput v-model="form.categoria" tipo="despesa" />
     </UFormField>
 
-    <!-- Tipo de lançamento (não transferência) -->
-    <UFormField v-if="tipo !== 'transferencia'" label="Tipo">
+    <!-- Tipo -->
+    <UFormField label="Tipo">
       <div class="flex gap-2">
         <button
           v-for="opt in tipoOpts"
@@ -64,19 +49,19 @@
     </UFormField>
 
     <!-- Avulsa: data -->
-    <template v-if="tipo !== 'transferencia' && form.tipoLanc === 'avulsa'">
+    <template v-if="form.tipoLanc === 'avulsa'">
       <UFormField label="Data" required>
         <UInput v-model="form.data" type="date" class="w-full" />
       </UFormField>
       <div v-if="form.data" class="flex items-center gap-2 p-2.5 rounded-lg text-sm font-medium"
         :class="form.data <= today ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'">
         <UIcon :name="form.data <= today ? 'i-heroicons-check-circle' : 'i-heroicons-clock'" class="w-4 h-4" />
-        {{ form.data <= today ? (tipo === 'receita' ? 'Já recebido' : 'Já pago') : (tipo === 'receita' ? 'A receber em ' : 'A pagar em ') + fmtDate(form.data) }}
+        {{ form.data <= today ? 'Já pago' : 'A pagar em ' + fmtDate(form.data) }}
       </div>
     </template>
 
     <!-- Parcelada -->
-    <template v-else-if="tipo !== 'transferencia' && form.tipoLanc === 'parcelada'">
+    <template v-else-if="form.tipoLanc === 'parcelada'">
       <div class="grid grid-cols-2 gap-3">
         <UFormField label="Data da 1ª parcela" required>
           <UInput v-model="form.data_inicio" type="date" class="w-full" />
@@ -92,7 +77,7 @@
     </template>
 
     <!-- Fixa -->
-    <template v-else-if="tipo !== 'transferencia' && form.tipoLanc === 'fixa'">
+    <template v-else>
       <div class="grid grid-cols-2 gap-3">
         <UFormField label="Data de início" required>
           <UInput v-model="form.data_inicio" type="date" class="w-full" />
@@ -107,40 +92,19 @@
       </div>
     </template>
 
-    <!-- Transferência: data -->
-    <UFormField v-if="tipo === 'transferencia'" label="Data" required>
-      <UInput v-model="form.data" type="date" class="w-full" />
-    </UFormField>
-
     <div class="flex justify-end gap-2 pt-1">
       <UButton variant="ghost" color="neutral" @click="emit('cancel')">Cancelar</UButton>
-      <UButton color="primary" :loading="loading" @click="handleSubmit">
-        {{ isEdit ? 'Salvar alterações' : tipo === 'receita' ? 'Adicionar receita' : tipo === 'despesa' ? 'Adicionar despesa' : 'Transferir' }}
-      </UButton>
+      <UButton color="primary" :loading="loading" @click="handleSubmit">Adicionar despesa</UButton>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 const props = defineProps<{
-  contaId: number
-  contaNome: string
-  contaBanco: string
-  contaBancoKey: string
-  tipo: 'receita' | 'despesa' | 'transferencia'
+  cartaoId: number
+  cartaoNome: string
+  cartaoBancoKey: string
   loading?: boolean
-  initial?: {
-    id?: number
-    descricao?: string | null
-    valor?: number
-    categoria?: string | null
-    fixa?: number
-    parcelas?: number
-    data?: string | null
-    data_inicio?: string | null
-    data_fim?: string | null
-    conta_destino_id?: number | null
-  } | null
 }>()
 
 const emit = defineEmits<{
@@ -152,27 +116,11 @@ const { format } = useCurrency()
 const { findBank } = useBanks()
 const today = new Date().toISOString().split('T')[0]
 
-const isEdit = computed(() => !!props.initial?.id)
-
 const tipoOpts = [
   { value: 'avulsa',    label: 'Avulsa',    icon: 'i-heroicons-calendar-days', desc: 'Uma vez' },
   { value: 'parcelada', label: 'Parcelada', icon: 'i-heroicons-queue-list',    desc: 'X vezes' },
   { value: 'fixa',      label: 'Fixa',      icon: 'i-heroicons-arrow-path',    desc: 'Todo mês' },
 ] as const
-
-const descricaoConta = computed(() => {
-  if (props.tipo === 'receita') return 'Conta de destino'
-  if (props.tipo === 'despesa') return 'Conta de débito'
-  return 'Conta de origem'
-})
-
-// Outras contas para transferência
-const { data: todasContas } = await useFetch<{ id: number; nome: string; banco: string }[]>('/api/contas')
-const contasDestino = computed(() =>
-  (todasContas.value ?? [])
-    .filter(c => c.id !== props.contaId)
-    .map(c => ({ value: c.id, label: `${c.nome} — ${c.banco}` }))
-)
 
 const form = reactive({
   descricao: '',
@@ -183,43 +131,6 @@ const form = reactive({
   data_inicio: today,
   data_fim: '',
   parcelas: 2,
-  conta_destino_id: null as number | null,
-})
-
-// Pre-fill form when editing
-watch(() => props.initial, (val) => {
-  if (val?.id) {
-    form.descricao = val.descricao ?? ''
-    form.valor = val.valor ?? 0
-    form.categoria = val.categoria ?? ''
-    if (val.fixa && val.parcelas && val.parcelas > 0) {
-      form.tipoLanc = 'parcelada'
-      form.data_inicio = val.data_inicio ?? today
-      form.parcelas = val.parcelas
-    } else if (val.fixa) {
-      form.tipoLanc = 'fixa'
-      form.data_inicio = val.data_inicio ?? today
-      form.data_fim = val.data_fim ?? ''
-    } else {
-      form.tipoLanc = 'avulsa'
-      form.data = val.data ?? today
-    }
-    if (val.conta_destino_id) form.conta_destino_id = val.conta_destino_id
-  }
-}, { immediate: true })
-
-// Reset form when tipo changes (only when not editing)
-watch(() => props.tipo, () => {
-  if (props.initial?.id) return
-  form.descricao = ''
-  form.valor = 0
-  form.categoria = ''
-  form.tipoLanc = 'avulsa'
-  form.data = today
-  form.data_inicio = today
-  form.data_fim = ''
-  form.parcelas = 2
-  form.conta_destino_id = null
 })
 
 const dataFimParcelada = computed(() => {
@@ -237,26 +148,27 @@ function fmtDate(d: string) {
   return `${day}/${m}/${y}`
 }
 
-function handleSubmit() {
-  if (props.tipo === 'transferencia') {
-    if (!form.conta_destino_id || form.valor <= 0 || !form.data) return
-    emit('submit', {
-      conta_origem_id: props.contaId,
-      conta_destino_id: form.conta_destino_id,
-      valor: Number(form.valor),
-      data: form.data,
-      descricao: form.descricao.trim() || undefined,
-    })
-    return
-  }
+function resetForm() {
+  form.descricao = ''
+  form.valor = 0
+  form.categoria = ''
+  form.tipoLanc = 'avulsa'
+  form.data = today
+  form.data_inicio = today
+  form.data_fim = ''
+  form.parcelas = 2
+}
 
+defineExpose({ resetForm })
+
+function handleSubmit() {
   if (!form.descricao.trim() || form.valor <= 0) return
 
   const base = {
     descricao: form.descricao.trim(),
     valor: Number(form.valor),
     categoria: form.categoria.trim() || undefined,
-    conta_id: props.contaId,
+    cartao_id: props.cartaoId,
     tipo: form.tipoLanc,
   }
 

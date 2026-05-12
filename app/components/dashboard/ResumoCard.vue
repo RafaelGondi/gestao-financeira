@@ -8,7 +8,7 @@
         </div>
         <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ title }}</span>
       </div>
-      <button v-if="showEye" class="text-gray-300 dark:text-gray-600 hover:text-gray-500 transition-colors" @click="hidden = !hidden">
+      <button v-if="showEye" class="text-gray-300 dark:text-gray-600 hover:text-gray-500 transition-colors cursor-pointer" @click="hidden = !hidden">
         <UIcon :name="hidden ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'" class="w-4 h-4" />
       </button>
     </div>
@@ -27,7 +27,7 @@
     <!-- Divider + toggle -->
     <div class="mt-4 border-t border-gray-100 dark:border-gray-800 pt-3">
       <button
-        class="flex items-center justify-between w-full text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors mb-3"
+        class="flex items-center justify-between w-full text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors mb-3 cursor-pointer"
         @click="showDetails = !showDetails"
       >
         <span>{{ showDetails ? 'Ocultar detalhes' : 'Ver detalhes' }}</span>

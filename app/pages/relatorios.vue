@@ -6,8 +6,8 @@
       <p class="text-sm text-gray-500 mt-1">Análise detalhada das suas finanças</p>
     </div>
 
-    <!-- Month Navigator -->
-    <div class="bg-white dark:bg-gray-900 rounded-lg px-6 py-4 border border-gray-100 dark:border-gray-800">
+    <!-- Month Navigator (hidden on evolution tab) -->
+    <div v-if="abaAtiva !== 'evolution'" class="bg-white dark:bg-gray-900 rounded-lg px-6 py-4 border border-gray-100 dark:border-gray-800">
       <DashboardMonthNavigator v-model="currentMonth" />
     </div>
 
@@ -16,7 +16,7 @@
       <button
         v-for="aba in abas"
         :key="aba.key"
-        class="px-4 py-1.5 text-sm font-medium rounded-md transition-all"
+        class="px-4 py-1.5 text-sm font-medium rounded-md transition-all cursor-pointer"
         :class="abaAtiva === aba.key
           ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm'
           : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
@@ -25,7 +25,7 @@
     </div>
 
     <!-- Loading -->
-    <div v-if="pending || pendingComposicao" class="space-y-3">
+    <div v-if="(abaAtiva === 'categoria' && pending) || (abaAtiva === 'composicao' && pendingComposicao)" class="space-y-3">
       <USkeleton class="h-64 rounded-lg" />
     </div>
 
@@ -46,12 +46,12 @@
           <div class="flex items-center gap-4">
             <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
               <button
-                class="px-3 py-1 text-xs font-medium rounded-md transition-all"
+                class="px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer"
                 :class="modo === 'categoria' ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
                 @click="setModo('categoria')"
               >Categoria</button>
               <button
-                class="px-3 py-1 text-xs font-medium rounded-md transition-all"
+                class="px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer"
                 :class="modo === 'supercategoria' ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
                 @click="setModo('supercategoria')"
               >Supercategoria</button>
@@ -85,7 +85,7 @@
         <!-- Accordion -->
         <div v-for="item in dadosAtivos" :key="item.nome">
           <button
-            class="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-t border-gray-100 dark:border-gray-800 first:border-t-0"
+            class="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-t border-gray-100 dark:border-gray-800 first:border-t-0 cursor-pointer"
             @click="toggle(item.nome)"
           >
             <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" :style="{ background: item.cor }">
@@ -132,6 +132,15 @@
         :period="periodLabel"
       />
     </template>
+
+    <!-- Aba: Evolução -->
+    <template v-else-if="abaAtiva === 'evolution'">
+      <div v-if="pendingEvolution" class="space-y-3">
+        <USkeleton class="h-40 rounded-lg" />
+        <USkeleton class="h-80 rounded-lg" />
+      </div>
+      <ReportsMonthlyEvolution v-else-if="evolutionData" :data="evolutionData" />
+    </template>
   </div>
 </template>
 
@@ -149,10 +158,13 @@ const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padS
 const abas = [
   { key: 'categoria',  label: 'Por Categoria' },
   { key: 'composicao', label: 'Composição' },
+  { key: 'evolution',  label: 'Evolução' },
 ]
 const route = useRoute()
-const abaAtiva = ref<'categoria' | 'composicao'>(
-  route.query.aba === 'composicao' ? 'composicao' : 'categoria'
+const abaAtiva = ref<'categoria' | 'composicao' | 'evolution'>(
+  route.query.aba === 'composicao' ? 'composicao'
+  : route.query.aba === 'evolution' ? 'evolution'
+  : 'categoria'
 )
 
 const { data, pending } = await useFetch('/api/relatorios', {
@@ -164,6 +176,8 @@ const { data: composicaoData, pending: pendingComposicao } = await useFetch('/ap
   query: computed(() => ({ month: currentMonth.value })),
   watch: [currentMonth],
 })
+
+const { data: evolutionData, pending: pendingEvolution } = await useFetch('/api/reports/monthly-evolution')
 
 const expanded = ref<string | null>(null)
 const modo = ref<'categoria' | 'supercategoria'>('categoria')

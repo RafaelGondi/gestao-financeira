@@ -33,6 +33,7 @@ export default defineEventHandler((event) => {
     data_inicio: string | null
     descricao: string
     origem: string
+    tipo: 'avulsa' | 'fixa' | 'parcelada'
   }
 
   const defaultIcon = 'i-heroicons-tag'
@@ -48,7 +49,7 @@ export default defineEventHandler((event) => {
     WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id IS NULL
       AND t.data >= ? AND t.data <= ? AND t.data <= ?
   `).all([startDate, endDate, today]) as DayItem[]
-  itens.push(...avulsas)
+  itens.push(...avulsas.map(t => ({ ...t, tipo: 'avulsa' as const })))
 
   // Fixas sem cartão
   const fixas = db.prepare(`
@@ -65,7 +66,7 @@ export default defineEventHandler((event) => {
   for (const t of fixas) {
     if (t.data > today) continue
     if (t.parcelas > 0 && t.data_inicio?.slice(0, 7) !== t.data?.slice(0, 7)) continue
-    itens.push(t)
+    itens.push({ ...t, tipo: t.parcelas > 0 ? 'parcelada' : 'fixa' })
   }
 
   // Cartão avulsas — compras feitas dentro do mês visualizado
@@ -78,7 +79,7 @@ export default defineEventHandler((event) => {
       WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id = ?
         AND t.data >= ? AND t.data <= ? AND t.data <= ?
     `).all([c.nome, c.id, startDate, endDate, today]) as DayItem[]
-    itens.push(...rows)
+    itens.push(...rows.map((t: DayItem) => ({ ...t, tipo: 'avulsa' as const })))
   }
 
   // Cartão fixas/parceladas
@@ -100,7 +101,7 @@ export default defineEventHandler((event) => {
       if (effectiveDate > today) continue
       if (t.parcelas > 0 && t.data_inicio.slice(0, 7) !== effectiveDate.slice(0, 7)) continue
       if (effectiveDate.slice(0, 7) !== month) continue
-      itens.push({ data: effectiveDate, valor: t.valor, categoria: t.categoria, parcelas: t.parcelas ?? 0, data_inicio: t.data_inicio, descricao: t.descricao, origem: t.origem })
+      itens.push({ data: effectiveDate, valor: t.valor, categoria: t.categoria, parcelas: t.parcelas ?? 0, data_inicio: t.data_inicio, descricao: t.descricao, origem: t.origem, tipo: (t.parcelas ?? 0) > 0 ? 'parcelada' : 'fixa' })
     }
   }
 
@@ -108,7 +109,7 @@ export default defineEventHandler((event) => {
   const dayMap = new Map<number, {
     total: number
     categorias: Map<string, { total: number; cor: string }>
-    itens: { descricao: string; valor: number; categoria: string; cor: string; icone: string; origem: string }[]
+    itens: { descricao: string; valor: number; categoria: string; cor: string; icone: string; origem: string; tipo: string }[]
   }>()
 
   for (const item of itens) {
@@ -122,7 +123,7 @@ export default defineEventHandler((event) => {
     const icone = meta?.icone ?? defaultIcon
     if (!entry.categorias.has(catKey)) entry.categorias.set(catKey, { total: 0, cor })
     entry.categorias.get(catKey)!.total += item.valor
-    entry.itens.push({ descricao: item.descricao, valor: item.valor, categoria: catKey, cor, icone, origem: item.origem })
+    entry.itens.push({ descricao: item.descricao, valor: item.valor, categoria: catKey, cor, icone, origem: item.origem, tipo: item.tipo })
   }
 
   const dias = [...dayMap.entries()].map(([day, { total, categorias, itens }]) => {
