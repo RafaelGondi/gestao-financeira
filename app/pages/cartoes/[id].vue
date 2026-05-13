@@ -330,7 +330,7 @@
         <div
           v-for="(lanc, i) in lancamentosOrdenados"
           :key="`${lanc.id}-${lanc.fixa}`"
-          class="flex items-center gap-4 px-5 py-4"
+          class="group flex items-center gap-4 px-5 py-4"
           :class="i < lancamentosOrdenados.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
         >
           <div
@@ -361,6 +361,25 @@
                 <span class="text-xs text-gray-400">Fixa</span>
               </template>
             </div>
+            <p v-if="lanc.nome_fatura" class="text-xs text-gray-400 mt-0.5 truncate font-mono">{{ lanc.nome_fatura }}</p>
+            <p v-if="lanc.notas" class="text-xs text-gray-400 mt-0.5 truncate italic">{{ lanc.notas }}</p>
+          </div>
+          <!-- Actions -->
+          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+            <button
+              class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
+              title="Editar"
+              @click="abrirEditarLancamento(lanc)"
+            >
+              <UIcon name="i-heroicons-pencil" class="w-3.5 h-3.5 text-gray-400" />
+            </button>
+            <button
+              class="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer transition-colors"
+              title="Excluir"
+              @click="confirmarDeletar(lanc)"
+            >
+              <UIcon name="i-heroicons-trash" class="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+            </button>
           </div>
           <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 flex-shrink-0">
             - {{ format(lanc.valor) }}
@@ -426,8 +445,12 @@
       </template>
     </div>
 
-    <!-- Slideover: Nova Despesa -->
-    <USlideover v-model:open="showNovaDespesaModal" title="Nova Despesa" :ui="{ width: 'sm:max-w-lg' }">
+    <!-- Slideover: Nova / Editar Despesa -->
+    <USlideover
+      v-model:open="showNovaDespesaModal"
+      :title="editandoLancamento ? 'Editar despesa' : 'Nova Despesa'"
+      :ui="{ width: 'sm:max-w-lg' }"
+    >
       <template #body>
         <div class="p-1">
           <CartoesNovaDespesaForm
@@ -437,12 +460,48 @@
             :cartao-nome="data.cartao.nome"
             :cartao-banco-key="data.cartao.banco_key"
             :loading="salvandoDespesa"
+            :edit-mode="!!editandoLancamento"
             @submit="handleNovaDespesaSubmit"
             @cancel="showNovaDespesaModal = false"
           />
         </div>
       </template>
     </USlideover>
+
+    <!-- Modal: confirmar exclusão -->
+    <UModal v-model:open="showDeletarModal" title="Excluir lançamento" :dismissible="false">
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Tem certeza que deseja excluir
+            <span class="font-medium text-gray-800 dark:text-gray-100">{{ lancamentoDeletar?.descricao }}</span>?
+          </p>
+          <template v-if="lancamentoDeletar?.fixa">
+            <p class="text-sm text-gray-500">Esta é uma despesa recorrente. O que deseja excluir?</p>
+            <div class="space-y-2">
+              <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <input v-model="deletarScope" type="radio" value="one" class="cursor-pointer" />
+                <div>
+                  <p class="text-sm font-medium text-gray-800 dark:text-gray-100">Somente este mês</p>
+                  <p class="text-xs text-gray-400">Remove apenas a ocorrência de {{ fmtMonth(currentMonth) }}</p>
+                </div>
+              </label>
+              <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                <input v-model="deletarScope" type="radio" value="all" class="cursor-pointer" />
+                <div>
+                  <p class="text-sm font-medium text-gray-800 dark:text-gray-100">Todos os meses</p>
+                  <p class="text-xs text-gray-400">Remove a despesa completamente</p>
+                </div>
+              </label>
+            </div>
+          </template>
+          <div class="flex justify-end gap-3 pt-1">
+            <UButton variant="ghost" color="neutral" @click="showDeletarModal = false">Cancelar</UButton>
+            <UButton color="error" :loading="deletandoLancamento" @click="executarDeletar">Excluir</UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
 
     <!-- Modal ajuste de arredondamento -->
     <USlideover v-model:open="showAjusteModal" title="Ajuste de arredondamento" :dismissible="false">
@@ -565,6 +624,8 @@ interface Lancamento {
   fixa: number
   parcelas: number
   parcela_atual: number | null
+  notas?: string | null
+  nome_fatura?: string | null
 }
 
 interface Fatura {
@@ -651,30 +712,80 @@ const { data: projecao } = await useFetch<{
   `/api/cartoes/${route.params.id}/projecao`
 )
 
-// --- Nova Despesa ---
+// --- Nova / Editar Despesa ---
 const showNovaDespesaModal = ref(false)
 const salvandoDespesa = ref(false)
-const novaDespesaFormRef = ref<{ resetForm: () => void } | null>(null)
+const novaDespesaFormRef = ref<{ resetForm: () => void; fillForm: (l: any) => void } | null>(null)
 const cartaoIdNum = computed(() => Number(route.params.id))
 const toast = useToast()
+const editandoLancamento = ref<Lancamento | null>(null)
 
 function abrirNovaDespesaModal() {
+  editandoLancamento.value = null
   novaDespesaFormRef.value?.resetForm()
   showNovaDespesaModal.value = true
+}
+
+function abrirEditarLancamento(lanc: Lancamento) {
+  editandoLancamento.value = lanc
+  showNovaDespesaModal.value = true
+  nextTick(() => novaDespesaFormRef.value?.fillForm(lanc))
 }
 
 async function handleNovaDespesaSubmit(formData: any) {
   salvandoDespesa.value = true
   try {
-    await $fetch('/api/despesas', { method: 'POST', body: formData })
+    if (editandoLancamento.value) {
+      await $fetch(`/api/despesas/${editandoLancamento.value.id}`, {
+        method: 'PUT',
+        body: { ...formData, cartao_id: cartaoIdNum.value },
+      })
+      toast.add({ title: 'Despesa atualizada', color: 'success', icon: 'i-heroicons-check-circle' })
+    } else {
+      await $fetch('/api/despesas', { method: 'POST', body: formData })
+      toast.add({ title: 'Despesa adicionada', color: 'success', icon: 'i-heroicons-check-circle' })
+    }
     showNovaDespesaModal.value = false
+    editandoLancamento.value = null
     await refresh()
     refreshNuxtData()
-    toast.add({ title: 'Despesa adicionada', color: 'success', icon: 'i-heroicons-check-circle' })
   } catch (e: any) {
     toast.add({ title: 'Erro ao salvar', description: e?.data?.message ?? e?.message, color: 'error' })
   } finally {
     salvandoDespesa.value = false
+  }
+}
+
+// --- Deletar Lancamento ---
+const showDeletarModal = ref(false)
+const lancamentoDeletar = ref<Lancamento | null>(null)
+const deletarScope = ref<'one' | 'all'>('one')
+const deletandoLancamento = ref(false)
+
+function confirmarDeletar(lanc: Lancamento) {
+  lancamentoDeletar.value = lanc
+  deletarScope.value = 'one'
+  showDeletarModal.value = true
+}
+
+async function executarDeletar() {
+  if (!lancamentoDeletar.value) return
+  deletandoLancamento.value = true
+  try {
+    const lanc = lancamentoDeletar.value
+    const params = lanc.fixa && deletarScope.value === 'one'
+      ? `?scope=one&month=${currentMonth.value}`
+      : ''
+    await $fetch(`/api/despesas/${lanc.id}${params}`, { method: 'DELETE' })
+    showDeletarModal.value = false
+    lancamentoDeletar.value = null
+    await refresh()
+    refreshNuxtData()
+    toast.add({ title: 'Lançamento excluído', color: 'success', icon: 'i-heroicons-check-circle' })
+  } catch (e: any) {
+    toast.add({ title: 'Erro ao excluir', description: e?.data?.message ?? e?.message, color: 'error' })
+  } finally {
+    deletandoLancamento.value = false
   }
 }
 

@@ -13,7 +13,7 @@ export default defineEventHandler((event) => {
 
   if (!month || !/^\d{4}-\d{2}$/.test(month)) {
     return db.prepare(`
-      SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data, t.data_inicio, t.data_fim, t.conta_id,
+      SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data, t.data_inicio, t.data_fim, t.conta_id, t.notas, t.nome_fatura,
         c.nome AS conta_nome, c.banco_key,
         CASE
           WHEN t.fixa = 1 THEN
@@ -33,7 +33,7 @@ export default defineEventHandler((event) => {
   const endDate = `${year}-${mon}-${String(lastDay).padStart(2, '0')}`
 
   const avulsas = db.prepare(`
-    SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas, t.data, NULL AS data_inicio, NULL AS data_fim, t.conta_id,
+    SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas, t.data, NULL AS data_inicio, NULL AS data_fim, t.conta_id, t.notas, t.nome_fatura,
       c.nome AS conta_nome, c.banco_key,
       cat.cor AS categoria_cor, cat.icone AS categoria_icone,
       CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS recebido
@@ -47,7 +47,7 @@ export default defineEventHandler((event) => {
   const fixas = (db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,
       ? || '-' || substr(t.data_inicio, 9, 2) AS data,
-      t.data_inicio, t.data_fim, t.conta_id,
+      t.data_inicio, t.data_fim, t.conta_id, t.notas, t.nome_fatura,
       c.nome AS conta_nome, c.banco_key,
       cat.cor AS categoria_cor, cat.icone AS categoria_icone,
       CASE WHEN ? || '-' || substr(t.data_inicio, 9, 2) <= date('now') THEN 1 ELSE 2 END AS recebido

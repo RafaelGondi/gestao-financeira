@@ -12,6 +12,8 @@ interface DespesaBody {
   data_inicio?: string
   data_fim?: string
   parcelas?: number
+  notas?: string
+  nome_fatura?: string
 }
 
 function calcDataFim(dataInicio: string, parcelas: number): string {
@@ -25,7 +27,7 @@ function calcDataFim(dataInicio: string, parcelas: number): string {
 
 const selectBack = `
   SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data_inicio, t.data_fim, t.data,
-    t.conta_id, t.cartao_id, c.nome AS conta_nome, c.banco_key
+    t.conta_id, t.cartao_id, t.notas, t.nome_fatura, c.nome AS conta_nome, c.banco_key
   FROM transacoes t LEFT JOIN contas c ON c.id = t.conta_id WHERE t.id = ?
 `
 
@@ -52,9 +54,9 @@ export default defineEventHandler(async (event) => {
 
     const dataFim = calcDataFim(body.data_inicio, parcelas)
     const result = db.prepare(`
-      INSERT INTO transacoes (descricao, valor, tipo, categoria, conta_id, cartao_id, data, pago, fixa, data_inicio, data_fim, parcelas)
-      VALUES (?, ?, 'despesa', ?, ?, ?, ?, 0, 1, ?, ?, ?)
-    `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, cartaoId, body.data_inicio, body.data_inicio, dataFim, parcelas])
+      INSERT INTO transacoes (descricao, valor, tipo, categoria, conta_id, cartao_id, data, pago, fixa, data_inicio, data_fim, parcelas, notas, nome_fatura)
+      VALUES (?, ?, 'despesa', ?, ?, ?, ?, 0, 1, ?, ?, ?, ?, ?)
+    `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, cartaoId, body.data_inicio, body.data_inicio, dataFim, parcelas, body.notas?.trim() || null, body.nome_fatura?.trim() || null])
     return db.prepare(selectBack).get([result.lastInsertRowid])
   }
 
@@ -65,9 +67,9 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Data de fim inválida' })
 
     const result = db.prepare(`
-      INSERT INTO transacoes (descricao, valor, tipo, categoria, conta_id, cartao_id, data, pago, fixa, data_inicio, data_fim, parcelas)
-      VALUES (?, ?, 'despesa', ?, ?, ?, ?, 0, 1, ?, ?, 0)
-    `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, cartaoId, body.data_inicio, body.data_inicio, body.data_fim || null])
+      INSERT INTO transacoes (descricao, valor, tipo, categoria, conta_id, cartao_id, data, pago, fixa, data_inicio, data_fim, parcelas, notas, nome_fatura)
+      VALUES (?, ?, 'despesa', ?, ?, ?, ?, 0, 1, ?, ?, 0, ?, ?)
+    `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, cartaoId, body.data_inicio, body.data_inicio, body.data_fim || null, body.notas?.trim() || null, body.nome_fatura?.trim() || null])
     return db.prepare(selectBack).get([result.lastInsertRowid])
   }
 
@@ -76,8 +78,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Data inválida' })
 
   const result = db.prepare(`
-    INSERT INTO transacoes (descricao, valor, tipo, categoria, conta_id, cartao_id, data, pago, fixa, parcelas)
-    VALUES (?, ?, 'despesa', ?, ?, ?, ?, CASE WHEN ? <= date('now') THEN 1 ELSE 0 END, 0, 0)
-  `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, cartaoId, body.data, body.data])
+    INSERT INTO transacoes (descricao, valor, tipo, categoria, conta_id, cartao_id, data, pago, fixa, parcelas, notas, nome_fatura)
+    VALUES (?, ?, 'despesa', ?, ?, ?, ?, CASE WHEN ? <= date('now') THEN 1 ELSE 0 END, 0, 0, ?, ?)
+  `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, cartaoId, body.data, body.data, body.notas?.trim() || null, body.nome_fatura?.trim() || null])
   return db.prepare(selectBack).get([result.lastInsertRowid])
 })

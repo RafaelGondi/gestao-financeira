@@ -32,7 +32,7 @@ export default defineEventHandler((event) => {
 
   const avulsas = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas,
-      t.data, NULL AS data_inicio, NULL AS data_fim,
+      t.data, NULL AS data_inicio, NULL AS data_fim, t.notas, t.nome_fatura,
       cat.icone AS categoria_icone, cat.cor AS categoria_cor
     FROM transacoes t
     LEFT JOIN categorias cat ON cat.nome = t.categoria
@@ -43,7 +43,7 @@ export default defineEventHandler((event) => {
 
   const fixasRaw = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,
-      t.data_inicio, t.data_fim,
+      t.data_inicio, t.data_fim, t.notas, t.nome_fatura,
       cat.icone AS categoria_icone, cat.cor AS categoria_cor
     FROM transacoes t
     LEFT JOIN categorias cat ON cat.nome = t.categoria

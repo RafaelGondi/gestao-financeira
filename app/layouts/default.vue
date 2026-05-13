@@ -82,8 +82,16 @@
             </UButton>
           </nav>
 
-          <!-- Theme Toggle -->
+          <!-- Search + Theme Toggle -->
           <div class="flex items-center gap-2">
+            <button
+              class="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors cursor-pointer"
+              @click="searchOpen = true"
+            >
+              <UIcon name="i-heroicons-magnifying-glass" class="w-4 h-4" />
+              <span class="hidden sm:inline text-xs">Buscar</span>
+              <kbd class="hidden sm:inline-flex items-center px-1 py-0.5 text-xs bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">/</kbd>
+            </button>
             <UButton
               :icon="isDark ? 'i-heroicons-sun' : 'i-heroicons-moon'"
               variant="ghost"
@@ -100,6 +108,8 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <slot />
     </main>
+
+    <SharedSearchModal :open="searchOpen" @close="searchOpen = false" />
   </div>
 </template>
 
@@ -133,6 +143,26 @@ const movLinks = [
 ]
 
 const movOpen = ref(false)
+const searchOpen = ref(false)
+
+function onKeydown(e: KeyboardEvent) {
+  // Ctrl+K ou Cmd+K — sempre abre
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+    e.preventDefault()
+    searchOpen.value = true
+    return
+  }
+  // / — abre só se não estiver em input/textarea
+  if (e.key === '/' && !searchOpen.value) {
+    const tag = (e.target as HTMLElement).tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return
+    e.preventDefault()
+    searchOpen.value = true
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
 
 const isMovActive = computed(() =>
   movLinks.some(l => route.path.startsWith(l.to))

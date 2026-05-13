@@ -3,21 +3,25 @@
 ## ✅ Concluído
 
 - [x] Evolução mensal — gráfico de barras + linha com receitas, despesas e saldo dos últimos 12 meses
+- [x] Comparação mês a mês por categoria — com sparkline de tendência e filtro "só comparáveis"
+- [x] Notas/observações em transações — campo livre para anotações (ex: "reembolso pendente", "dividido com fulano")
+- [x] Nome na fatura — segundo campo de descrição para reconciliar com extrato do banco/cartão
+- [x] Limite global de gastos — teto fixo ou meta de poupança (% da receita), com histórico preservado
+- [x] Análise de orçamento — acompanhamento do mês atual vs limite global, com ritmo de gasto e saldo disponível
 
 ---
 
 ## 🚧 A desenvolver
 
 ### Análises
-- [ ] Projeção do mês atual — "se continuar no ritmo atual, vai gastar X até o fim do mês"
-- [ ] Comparação mês a mês por categoria — "você gastou 40% mais em alimentação do que no mês passado"
+- [ ] Projeção do mês atual — requer IA para identificar padrões e comparar com períodos equivalentes; extrapolação linear simples não é suficiente
 
 ### Transações
-- [ ] Notas/observações em transações — campo livre para anotações (ex: "reembolso pendente", "dividido com fulano")
-- [ ] Busca global — busca única que varre todas as transações de todos os meses
+- [x] Busca global — modal flutuante com debounce, busca em descrição e nome na fatura, highlight do termo
 
 ### UX
-- [ ] Atalhos de teclado — `N` nova transação, `/` busca global, `Esc` fechar modais
+- [x] Atalho de busca — `/` abre a busca global quando fora de inputs, `Ctrl+K` / `Cmd+K` abre sempre
+- [ ] Atalhos de teclado — `N` nova transação, `Esc` fechar modais
 - [ ] Confirmação antes de sair de formulário com dados preenchidos
 - [ ] Undo após deletar — toast com botão "Desfazer" por ~5 segundos
 

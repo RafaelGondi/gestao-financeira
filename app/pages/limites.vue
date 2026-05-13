@@ -9,6 +9,141 @@
       <DashboardMonthNavigator v-model="currentMonth" />
     </div>
 
+    <!-- Limite Global -->
+    <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+            <UIcon name="i-heroicons-flag" class="w-5 h-5 text-gray-500 dark:text-gray-400" />
+          </div>
+          <div>
+            <h2 class="font-semibold text-gray-800 dark:text-gray-100">Limite Global</h2>
+            <p class="text-xs text-gray-400 mt-0.5">Teto de gastos mensais ou meta de poupança</p>
+          </div>
+        </div>
+        <button
+          v-if="!editingGlobal"
+          class="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors cursor-pointer"
+          @click="startEditGlobal"
+        >{{ limiteGlobal?.active ? 'Alterar' : 'Definir' }}</button>
+      </div>
+
+      <!-- Estado atual -->
+      <div v-if="!editingGlobal" class="px-5 py-4">
+        <template v-if="limiteGlobal?.active">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-xs text-gray-400 mb-1">{{ limiteGlobal.active.tipo === 'fixo' ? 'Valor fixo mensal' : 'Meta de poupança' }}</p>
+              <p class="text-lg font-bold text-gray-900 dark:text-white">
+                {{ limiteGlobal.active.tipo === 'fixo'
+                  ? format(limiteGlobal.active.valor)
+                  : limiteGlobal.active.valor + '% da receita' }}
+              </p>
+              <p class="text-xs text-gray-400 mt-0.5">Vigente desde {{ fmtMonth(limiteGlobal.active.data_inicio) }}</p>
+            </div>
+            <button
+              class="text-xs text-gray-300 dark:text-gray-600 hover:text-rose-400 dark:hover:text-rose-500 transition-colors cursor-pointer"
+              @click="deleteGlobal(limiteGlobal.active.id)"
+            >
+              <UIcon name="i-heroicons-trash" class="w-4 h-4" />
+            </button>
+          </div>
+
+          <!-- Histórico -->
+          <template v-if="limiteGlobal.history.length > 1">
+            <button
+              class="mt-3 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex items-center gap-1 transition-colors cursor-pointer"
+              @click="showHistory = !showHistory"
+            >
+              <UIcon :name="showHistory ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'" class="w-3.5 h-3.5" />
+              {{ showHistory ? 'Ocultar histórico' : 'Ver histórico de alterações' }}
+            </button>
+            <div v-if="showHistory" class="mt-2 space-y-1.5">
+              <div
+                v-for="entry in limiteGlobal.history"
+                :key="entry.id"
+                class="flex items-center justify-between py-1.5 border-t border-gray-100 dark:border-gray-800"
+              >
+                <div class="flex items-center gap-3">
+                  <p class="text-xs text-gray-500">{{ fmtMonth(entry.data_inicio) }}</p>
+                  <p class="text-xs font-medium text-gray-700 dark:text-gray-300">
+                    {{ entry.tipo === 'fixo' ? format(entry.valor) : entry.valor + '% da receita' }}
+                  </p>
+                </div>
+                <button
+                  class="text-xs text-gray-300 dark:text-gray-600 hover:text-rose-400 dark:hover:text-rose-500 transition-colors cursor-pointer"
+                  @click="deleteGlobal(entry.id)"
+                >
+                  <UIcon name="i-heroicons-trash" class="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </template>
+        </template>
+        <p v-else class="text-sm text-gray-400">Nenhum limite global definido</p>
+      </div>
+
+      <!-- Formulário de edição -->
+      <div v-else class="px-5 py-4 space-y-4">
+        <!-- Toggle tipo -->
+        <div>
+          <p class="text-xs text-gray-500 mb-2">Tipo de limite</p>
+          <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 w-fit">
+            <button
+              class="px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer"
+              :class="newGlobal.tipo === 'fixo' ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+              @click="newGlobal.tipo = 'fixo'"
+            >Valor fixo</button>
+            <button
+              class="px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer"
+              :class="newGlobal.tipo === 'porcentagem' ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+              @click="newGlobal.tipo = 'porcentagem'"
+            >% da receita</button>
+          </div>
+        </div>
+
+        <!-- Valor -->
+        <div class="flex items-end gap-4 flex-wrap">
+          <div>
+            <p class="text-xs text-gray-500 mb-1.5">
+              {{ newGlobal.tipo === 'fixo' ? 'Teto de gastos mensais' : 'Percentual a poupar' }}
+            </p>
+            <div class="flex items-center gap-2">
+              <span v-if="newGlobal.tipo === 'fixo'" class="text-sm text-gray-400">R$</span>
+              <input
+                v-model="newGlobal.valor"
+                type="number"
+                :step="newGlobal.tipo === 'fixo' ? '0.01' : '1'"
+                :min="newGlobal.tipo === 'fixo' ? '0.01' : '1'"
+                :max="newGlobal.tipo === 'porcentagem' ? '99' : undefined"
+                :placeholder="newGlobal.tipo === 'fixo' ? '8000,00' : '25'"
+                class="text-sm bg-gray-100 dark:bg-gray-800 border-0 rounded-lg px-3 py-1.5 w-32 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <span v-if="newGlobal.tipo === 'porcentagem'" class="text-sm text-gray-400">%</span>
+            </div>
+            <p v-if="newGlobal.tipo === 'porcentagem'" class="text-xs text-gray-400 mt-1">
+              O limite de gastos = receitas do mês × {{ 100 - (Number(newGlobal.valor) || 0) }}%
+            </p>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500 mb-1.5">Vigente a partir de</p>
+            <select
+              v-model="newGlobal.data_inicio"
+              class="text-sm bg-gray-100 dark:bg-gray-800 border-0 rounded-lg px-3 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+            >
+              <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Ações -->
+        <div class="flex items-center gap-2">
+          <UButton size="sm" color="primary" variant="soft" :loading="savingGlobal" @click="saveGlobal">Salvar</UButton>
+          <UButton size="sm" color="neutral" variant="ghost" @click="editingGlobal = false">Cancelar</UButton>
+        </div>
+      </div>
+    </div>
+
     <div v-if="pending" class="space-y-3">
       <USkeleton class="h-64 rounded-lg" />
     </div>
@@ -189,6 +324,72 @@ const { format } = useCurrency()
 const now = new Date()
 const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 const modo = ref<'categoria' | 'supercategoria'>('categoria')
+
+// ── Limite Global ────────────────────────────────────────────────
+interface LimiteGlobalEntry {
+  id: number
+  tipo: 'fixo' | 'porcentagem'
+  valor: number
+  data_inicio: string
+}
+
+const { data: limiteGlobal, refresh: refreshGlobal } = await useFetch('/api/limite-global')
+
+const editingGlobal = ref(false)
+const savingGlobal = ref(false)
+const showHistory = ref(false)
+const newGlobal = reactive({ tipo: 'fixo' as 'fixo' | 'porcentagem', valor: '', data_inicio: currentMonth.value })
+
+const monthOptions = computed(() => {
+  const opts = []
+  let y = now.getFullYear(), m = now.getMonth() + 1
+  for (let i = 0; i < 24; i++) {
+    const val = `${y}-${String(m).padStart(2, '0')}`
+    const date = new Date(y, m - 1, 1)
+    const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    opts.push({ value: val, label: label.charAt(0).toUpperCase() + label.slice(1) })
+    m--
+    if (m === 0) { m = 12; y-- }
+  }
+  return opts
+})
+
+function fmtMonth(ym: string) {
+  const [y, m] = ym.split('-').map(Number)
+  const date = new Date(y, m - 1, 1)
+  const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+  return label.charAt(0).toUpperCase() + label.slice(1)
+}
+
+function startEditGlobal() {
+  const active = limiteGlobal.value?.active
+  newGlobal.tipo = active?.tipo ?? 'fixo'
+  newGlobal.valor = active ? String(active.valor) : ''
+  newGlobal.data_inicio = currentMonth.value
+  editingGlobal.value = true
+}
+
+async function saveGlobal() {
+  const valor = parseFloat(newGlobal.valor)
+  if (isNaN(valor) || valor <= 0) return
+  savingGlobal.value = true
+  try {
+    await $fetch('/api/limite-global', {
+      method: 'POST',
+      body: { tipo: newGlobal.tipo, valor, data_inicio: newGlobal.data_inicio },
+    })
+    editingGlobal.value = false
+    await refreshGlobal()
+  } finally {
+    savingGlobal.value = false
+  }
+}
+
+async function deleteGlobal(id: number) {
+  await $fetch(`/api/limite-global/${id}`, { method: 'DELETE' })
+  await refreshGlobal()
+}
+// ────────────────────────────────────────────────────────────────
 
 const editingReferencia = ref<string | null>(null)
 const editingValor = ref<string>('')

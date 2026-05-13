@@ -6,8 +6,8 @@
       <p class="text-sm text-gray-500 mt-1">Análise detalhada das suas finanças</p>
     </div>
 
-    <!-- Month Navigator (hidden on evolution tab) -->
-    <div v-if="abaAtiva !== 'evolution'" class="bg-white dark:bg-gray-900 rounded-lg px-6 py-4 border border-gray-100 dark:border-gray-800">
+    <!-- Month Navigator (hidden on tabs with their own period control) -->
+    <div v-if="abaAtiva !== 'evolution' && abaAtiva !== 'comparacao' && abaAtiva !== 'orcamento'" class="bg-white dark:bg-gray-900 rounded-lg px-6 py-4 border border-gray-100 dark:border-gray-800">
       <DashboardMonthNavigator v-model="currentMonth" />
     </div>
 
@@ -24,8 +24,8 @@
       >{{ aba.label }}</button>
     </div>
 
-    <!-- Loading -->
-    <div v-if="(abaAtiva === 'categoria' && pending) || (abaAtiva === 'composicao' && pendingComposicao)" class="space-y-3">
+    <!-- Loading (comparacao has its own loading state) -->
+    <div v-if="(abaAtiva === 'categoria' && pending) || (abaAtiva === 'composicao' && pendingComposicao) || (abaAtiva === 'orcamento' && pendingBudget)" class="space-y-3">
       <USkeleton class="h-64 rounded-lg" />
     </div>
 
@@ -133,6 +133,11 @@
       />
     </template>
 
+    <!-- Aba: Orçamento -->
+    <template v-else-if="abaAtiva === 'orcamento' && budgetData">
+      <ReportsBudgetStatus :data="budgetData" />
+    </template>
+
     <!-- Aba: Evolução -->
     <template v-else-if="abaAtiva === 'evolution'">
       <div v-if="pendingEvolution" class="space-y-3">
@@ -140,6 +145,11 @@
         <USkeleton class="h-80 rounded-lg" />
       </div>
       <ReportsMonthlyEvolution v-else-if="evolutionData" :data="evolutionData" />
+    </template>
+
+    <!-- Aba: Comparação por categoria -->
+    <template v-else-if="abaAtiva === 'comparacao'">
+      <ReportsCategoryComparison />
     </template>
   </div>
 </template>
@@ -158,12 +168,16 @@ const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padS
 const abas = [
   { key: 'categoria',  label: 'Por Categoria' },
   { key: 'composicao', label: 'Composição' },
+  { key: 'orcamento',  label: 'Orçamento' },
   { key: 'evolution',  label: 'Evolução' },
+  { key: 'comparacao', label: 'Comparação' },
 ]
 const route = useRoute()
-const abaAtiva = ref<'categoria' | 'composicao' | 'evolution'>(
+const abaAtiva = ref<'categoria' | 'composicao' | 'orcamento' | 'evolution' | 'comparacao'>(
   route.query.aba === 'composicao' ? 'composicao'
+  : route.query.aba === 'orcamento' ? 'orcamento'
   : route.query.aba === 'evolution' ? 'evolution'
+  : route.query.aba === 'comparacao' ? 'comparacao'
   : 'categoria'
 )
 
@@ -178,6 +192,8 @@ const { data: composicaoData, pending: pendingComposicao } = await useFetch('/ap
 })
 
 const { data: evolutionData, pending: pendingEvolution } = await useFetch('/api/reports/monthly-evolution')
+
+const { data: budgetData, pending: pendingBudget } = await useFetch('/api/reports/budget-status')
 
 const expanded = ref<string | null>(null)
 const modo = ref<'categoria' | 'supercategoria'>('categoria')

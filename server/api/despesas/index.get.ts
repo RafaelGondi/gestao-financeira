@@ -14,7 +14,7 @@ export default defineEventHandler((event) => {
 
   if (!month || !/^\d{4}-\d{2}$/.test(month)) {
     return db.prepare(`
-      SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data, t.data_inicio, t.data_fim, t.conta_id, t.cartao_id,
+      SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data, t.data_inicio, t.data_fim, t.conta_id, t.cartao_id, t.notas, t.nome_fatura,
         c.nome AS conta_nome, c.banco_key, cr.nome AS cartao_nome,
         cat.cor AS categoria_cor, cat.icone AS categoria_icone,
         CASE
@@ -39,7 +39,7 @@ export default defineEventHandler((event) => {
   // Non-card avulsas: use calendar month as before
   const avulsasNormais = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas, t.data, NULL AS data_inicio, NULL AS data_fim,
-      t.conta_id, t.cartao_id, c.nome AS conta_nome, c.banco_key, NULL AS cartao_nome,
+      t.conta_id, t.cartao_id, t.notas, t.nome_fatura, c.nome AS conta_nome, c.banco_key, NULL AS cartao_nome,
       cat.cor AS categoria_cor, cat.icone AS categoria_icone,
       CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS pago
     FROM transacoes t
@@ -58,7 +58,7 @@ export default defineEventHandler((event) => {
 
   const avulsasCartaoRaw = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas, t.data, NULL AS data_inicio, NULL AS data_fim,
-      t.conta_id, t.cartao_id, NULL AS conta_nome, NULL AS banco_key, cr.nome AS cartao_nome,
+      t.conta_id, t.cartao_id, t.notas, t.nome_fatura, NULL AS conta_nome, NULL AS banco_key, cr.nome AS cartao_nome,
       cr.banco_key AS cartao_banco_key, cr.cor AS cartao_cor, cr.melhor_data_compra,
       cat.cor AS categoria_cor, cat.icone AS categoria_icone,
       CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS pago
@@ -80,7 +80,7 @@ export default defineEventHandler((event) => {
 
   const fixasRaw = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,
-      t.data_inicio, t.data_fim, t.conta_id, t.cartao_id,
+      t.data_inicio, t.data_fim, t.conta_id, t.cartao_id, t.notas, t.nome_fatura,
       c.nome AS conta_nome, c.banco_key, cr.nome AS cartao_nome,
       cr.banco_key AS cartao_banco_key, cr.cor AS cartao_cor, cr.melhor_data_compra,
       cat.cor AS categoria_cor, cat.icone AS categoria_icone

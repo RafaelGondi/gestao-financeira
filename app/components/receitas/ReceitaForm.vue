@@ -26,6 +26,14 @@
       <SharedCategoriaInput v-model="form.categoria" tipo="receita" placeholder="Ex: Salário, Investimento..." />
     </UFormField>
 
+    <UFormField label="Nome na fatura">
+      <UInput v-model="form.nome_fatura" placeholder="Ex: AMZN*MKTP BR 7K9QP2..." class="w-full" />
+    </UFormField>
+
+    <UFormField label="Notas">
+      <UTextarea v-model="form.notas" placeholder="Observações opcionais..." :rows="2" class="w-full" />
+    </UFormField>
+
     <!-- Tipo -->
     <UFormField label="Tipo de receita">
       <div class="flex gap-2">
@@ -120,6 +128,8 @@ interface ReceitaInput {
   data_inicio?: string
   data_fim?: string
   parcelas?: number
+  notas?: string
+  nome_fatura?: string
 }
 
 interface ReceitaFormData extends ReceitaInput {
@@ -162,6 +172,8 @@ const form = reactive({
   descricao: '',
   valor: 0,
   categoria: '',
+  nome_fatura: '',
+  notas: '',
   conta_id: null as number | null,
   tipo: 'avulsa' as 'avulsa' | 'fixa' | 'parcelada',
   data: today,
@@ -175,6 +187,8 @@ watch(() => props.initial, (val) => {
     form.descricao = val.descricao
     form.valor = val.valor
     form.categoria = val.categoria ?? ''
+    form.nome_fatura = val.nome_fatura ?? ''
+    form.notas = val.notas ?? ''
     form.conta_id = val.conta_id ?? null
     form.tipo = inferTipo(val)
     form.data = val.data ?? today
@@ -185,6 +199,8 @@ watch(() => props.initial, (val) => {
     form.descricao = ''
     form.valor = 0
     form.categoria = ''
+    form.nome_fatura = ''
+    form.notas = ''
     form.conta_id = null
     form.tipo = 'avulsa'
     form.data = today
@@ -220,6 +236,8 @@ function handleSubmit() {
     descricao: form.descricao.trim(),
     valor: Number(form.valor),
     categoria: form.categoria.trim() || undefined,
+    nome_fatura: form.nome_fatura.trim() || undefined,
+    notas: form.notas.trim() || undefined,
     conta_id: form.conta_id,
     tipo: form.tipo
   }

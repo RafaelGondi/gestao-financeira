@@ -40,6 +40,16 @@
       <SharedCategoriaInput v-model="form.categoria" :tipo="tipo" />
     </UFormField>
 
+    <!-- Nome na fatura (não transferência) -->
+    <UFormField v-if="tipo !== 'transferencia'" label="Nome na fatura">
+      <UInput v-model="form.nome_fatura" placeholder="Ex: AMZN*MKTP BR 7K9QP2..." class="w-full" />
+    </UFormField>
+
+    <!-- Notas (não transferência) -->
+    <UFormField v-if="tipo !== 'transferencia'" label="Notas">
+      <UTextarea v-model="form.notas" placeholder="Observações opcionais..." :rows="2" class="w-full" />
+    </UFormField>
+
     <!-- Tipo de lançamento (não transferência) -->
     <UFormField v-if="tipo !== 'transferencia'" label="Tipo">
       <div class="flex gap-2">
@@ -134,6 +144,8 @@ const props = defineProps<{
     descricao?: string | null
     valor?: number
     categoria?: string | null
+    notas?: string | null
+    nome_fatura?: string | null
     fixa?: number
     parcelas?: number
     data?: string | null
@@ -178,6 +190,8 @@ const form = reactive({
   descricao: '',
   valor: 0,
   categoria: '',
+  nome_fatura: '',
+  notas: '',
   tipoLanc: 'avulsa' as 'avulsa' | 'fixa' | 'parcelada',
   data: today,
   data_inicio: today,
@@ -192,6 +206,8 @@ watch(() => props.initial, (val) => {
     form.descricao = val.descricao ?? ''
     form.valor = val.valor ?? 0
     form.categoria = val.categoria ?? ''
+    form.nome_fatura = val.nome_fatura ?? ''
+    form.notas = val.notas ?? ''
     if (val.fixa && val.parcelas && val.parcelas > 0) {
       form.tipoLanc = 'parcelada'
       form.data_inicio = val.data_inicio ?? today
@@ -214,6 +230,8 @@ watch(() => props.tipo, () => {
   form.descricao = ''
   form.valor = 0
   form.categoria = ''
+  form.nome_fatura = ''
+  form.notas = ''
   form.tipoLanc = 'avulsa'
   form.data = today
   form.data_inicio = today
@@ -256,6 +274,8 @@ function handleSubmit() {
     descricao: form.descricao.trim(),
     valor: Number(form.valor),
     categoria: form.categoria.trim() || undefined,
+    nome_fatura: form.nome_fatura.trim() || undefined,
+    notas: form.notas.trim() || undefined,
     conta_id: props.contaId,
     tipo: form.tipoLanc,
   }

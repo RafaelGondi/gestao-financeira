@@ -11,6 +11,8 @@ interface ReceitaBody {
   data_inicio?: string
   data_fim?: string
   parcelas?: number
+  notas?: string
+  nome_fatura?: string
 }
 
 function calcDataFim(dataInicio: string, parcelas: number): string {
@@ -54,10 +56,10 @@ export default defineEventHandler(async (event) => {
     db.prepare(`
       UPDATE transacoes
       SET descricao = ?, valor = ?, categoria = ?, conta_id = ?, fixa = 1,
-          data = ?, data_inicio = ?, data_fim = ?, parcelas = ?, pago = 0
+          data = ?, data_inicio = ?, data_fim = ?, parcelas = ?, pago = 0, notas = ?, nome_fatura = ?
       WHERE id = ?
     `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId,
-            body.data_inicio, body.data_inicio, dataFim, parcelas, id])
+            body.data_inicio, body.data_inicio, dataFim, parcelas, body.notas?.trim() || null, body.nome_fatura?.trim() || null, id])
   } else if (body.tipo === 'fixa') {
     if (!body.data_inicio || !dateRe.test(body.data_inicio))
       throw createError({ statusCode: 400, statusMessage: 'Data de início inválida' })
@@ -67,10 +69,10 @@ export default defineEventHandler(async (event) => {
     db.prepare(`
       UPDATE transacoes
       SET descricao = ?, valor = ?, categoria = ?, conta_id = ?, fixa = 1,
-          data = ?, data_inicio = ?, data_fim = ?, parcelas = 0, pago = 0
+          data = ?, data_inicio = ?, data_fim = ?, parcelas = 0, pago = 0, notas = ?, nome_fatura = ?
       WHERE id = ?
     `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId,
-            body.data_inicio, body.data_inicio, body.data_fim || null, id])
+            body.data_inicio, body.data_inicio, body.data_fim || null, body.notas?.trim() || null, body.nome_fatura?.trim() || null, id])
   } else {
     if (!body.data || !dateRe.test(body.data))
       throw createError({ statusCode: 400, statusMessage: 'Data inválida' })
@@ -79,14 +81,14 @@ export default defineEventHandler(async (event) => {
       UPDATE transacoes
       SET descricao = ?, valor = ?, categoria = ?, conta_id = ?, fixa = 0,
           data = ?, data_inicio = NULL, data_fim = NULL, parcelas = 0,
-          pago = CASE WHEN ? <= date('now') THEN 1 ELSE 0 END
+          pago = CASE WHEN ? <= date('now') THEN 1 ELSE 0 END, notas = ?, nome_fatura = ?
       WHERE id = ?
     `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId,
-            body.data, body.data, id])
+            body.data, body.data, body.notas?.trim() || null, body.nome_fatura?.trim() || null, id])
   }
 
   return db.prepare(`
-    SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data_inicio, t.data_fim, t.data, t.conta_id,
+    SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data_inicio, t.data_fim, t.data, t.conta_id, t.notas, t.nome_fatura,
       c.nome AS conta_nome, c.banco_key,
       CASE
         WHEN t.fixa = 1 THEN

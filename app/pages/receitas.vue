@@ -91,6 +91,8 @@
               <span class="text-xs text-gray-400">Fixa</span>
             </template>
           </div>
+          <p v-if="receita.nome_fatura" class="text-xs text-gray-400 mt-0.5 truncate font-mono">{{ receita.nome_fatura }}</p>
+          <p v-if="receita.notas" class="text-xs text-gray-400 mt-0.5 truncate italic">{{ receita.notas }}</p>
         </div>
 
         <!-- Valor e status -->
@@ -187,6 +189,8 @@ interface Receita {
   conta_id: number | null
   conta_nome: string | null
   banco_key: string | null
+  notas?: string | null
+  nome_fatura?: string | null
 }
 
 const { format } = useCurrency()

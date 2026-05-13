@@ -130,6 +130,8 @@
                 <span class="text-xs text-gray-400">Fixa</span>
               </template>
             </div>
+            <p v-if="despesa.nome_fatura" class="text-xs text-gray-400 mt-0.5 truncate font-mono">{{ despesa.nome_fatura }}</p>
+            <p v-if="despesa.notas" class="text-xs text-gray-400 mt-0.5 truncate italic">{{ despesa.notas }}</p>
           </div>
 
           <!-- Valor e status -->
@@ -328,6 +330,8 @@ interface Despesa {
   cartao_nome: string | null
   cartao_banco_key: string | null
   cartao_cor: string | null
+  notas?: string | null
+  nome_fatura?: string | null
 }
 
 interface Fatura {

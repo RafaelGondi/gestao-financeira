@@ -147,6 +147,8 @@
               <span class="text-xs text-gray-400">{{ lanc.categoria }}</span>
             </template>
           </div>
+          <p v-if="lanc.nome_fatura" class="text-xs text-gray-400 mt-0.5 truncate font-mono">{{ lanc.nome_fatura }}</p>
+          <p v-if="lanc.notas" class="text-xs text-gray-400 mt-0.5 truncate italic">{{ lanc.notas }}</p>
         </div>
 
         <!-- Valor + pagar -->
@@ -349,6 +351,8 @@ interface Lancamento {
   conta_origem_nome?: string
   conta_destino_nome?: string
   cartao_nome?: string
+  notas?: string | null
+  nome_fatura?: string | null
 }
 
 interface Resumo { entradas: number; saidas: number; saldo_mes: number }

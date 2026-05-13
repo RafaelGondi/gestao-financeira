@@ -1,23 +1,31 @@
 <template>
   <div class="space-y-4">
     <!-- Summary stats -->
-    <div class="grid grid-cols-3 gap-4">
+    <div class="grid grid-cols-4 gap-4">
       <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
         <p class="text-xs text-gray-400 mb-1">Média de receitas</p>
-        <p class="text-lg font-bold text-green-600 dark:text-green-400">{{ format(avgIncome) }}</p>
+        <p class="text-lg font-bold text-emerald-900 dark:text-emerald-400">{{ format(avgIncome) }}</p>
         <p class="text-xs text-gray-400 mt-1">por mês</p>
       </div>
       <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
         <p class="text-xs text-gray-400 mb-1">Média de despesas</p>
-        <p class="text-lg font-bold text-red-600 dark:text-red-400">{{ format(avgExpenses) }}</p>
+        <p class="text-lg font-bold text-rose-900 dark:text-rose-400">{{ format(avgExpenses) }}</p>
         <p class="text-xs text-gray-400 mt-1">por mês</p>
       </div>
       <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
         <p class="text-xs text-gray-400 mb-1">Saldo médio</p>
-        <p class="text-lg font-bold" :class="avgBalance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'">
-          {{ format(avgBalance) }}
-        </p>
+        <p class="text-lg font-bold text-blue-900 dark:text-blue-400">{{ format(avgBalance) }}</p>
         <p class="text-xs text-gray-400 mt-1">por mês</p>
+      </div>
+      <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
+        <p class="text-xs text-gray-400 mb-1">Taxa de poupança</p>
+        <p
+          class="text-lg font-bold"
+          :class="avgSavingsRate >= 0 ? 'text-emerald-900 dark:text-emerald-400' : 'text-rose-900 dark:text-rose-400'"
+        >
+          {{ avgSavingsRate.toFixed(1) }}%
+        </p>
+        <p class="text-xs text-gray-400 mt-1">média dos meses com receita</p>
       </div>
     </div>
 
@@ -36,16 +44,16 @@
         <!-- Legend -->
         <div class="flex items-center gap-4">
           <div class="flex items-center gap-1.5">
-            <div class="w-3 h-3 rounded-sm bg-green-500" />
-            <span class="text-xs text-gray-500">Receitas</span>
+            <div class="w-3 h-3 rounded-sm bg-emerald-500" />
+            <span class="text-xs text-gray-400">Receitas</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <div class="w-3 h-3 rounded-sm bg-red-400" />
-            <span class="text-xs text-gray-500">Despesas</span>
+            <div class="w-3 h-3 rounded-sm bg-rose-400" />
+            <span class="text-xs text-gray-400">Despesas</span>
           </div>
           <div class="flex items-center gap-1.5">
-            <div class="w-3 h-0.5 bg-primary-500" />
-            <span class="text-xs text-gray-500">Saldo</span>
+            <div class="w-3 h-0.5 bg-primary-400" />
+            <span class="text-xs text-gray-400">Saldo</span>
           </div>
         </div>
       </div>
@@ -67,31 +75,34 @@
           v-for="row in [...data].reverse()"
           :key="row.month"
           class="flex items-center px-5 py-3 gap-4"
-          :class="row.month === currentMonth ? 'bg-primary-50/40 dark:bg-primary-900/10' : ''"
+          :class="row.month === currentMonth ? 'bg-gray-50 dark:bg-gray-800/40' : ''"
         >
           <p class="text-sm font-medium text-gray-700 dark:text-gray-300 w-20 flex-shrink-0 capitalize">
             {{ formatMonthLabel(row.month) }}
-            <span v-if="row.month === currentMonth" class="ml-1 text-xs text-primary-500">(atual)</span>
+            <span v-if="row.month === currentMonth" class="ml-1 text-xs text-gray-400">(atual)</span>
           </p>
-          <div class="flex-1 flex items-center gap-1 min-w-0">
+          <div class="flex-1 flex items-center min-w-0">
             <div
-              class="h-1.5 rounded-full bg-green-500 flex-shrink-0"
+              class="h-1 rounded-full bg-emerald-400 dark:bg-emerald-500 flex-shrink-0"
               :style="{ width: barWidth(row.income, maxValue) }"
             />
           </div>
-          <p class="text-sm font-medium text-green-600 dark:text-green-400 w-28 text-right flex-shrink-0">{{ format(row.income) }}</p>
-          <div class="flex-1 flex items-center gap-1 min-w-0">
+          <p class="text-sm font-medium text-emerald-900 dark:text-emerald-400 w-28 text-right flex-shrink-0">{{ format(row.income) }}</p>
+          <div class="flex-1 flex items-center min-w-0">
             <div
-              class="h-1.5 rounded-full bg-red-400 flex-shrink-0"
+              class="h-1 rounded-full bg-rose-300 dark:bg-rose-400 flex-shrink-0"
               :style="{ width: barWidth(row.expenses, maxValue) }"
             />
           </div>
-          <p class="text-sm font-medium text-red-600 dark:text-red-400 w-28 text-right flex-shrink-0">{{ format(row.expenses) }}</p>
-          <p
-            class="text-sm font-semibold w-28 text-right flex-shrink-0"
-            :class="row.balance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'"
-          >
+          <p class="text-sm font-medium text-rose-900 dark:text-rose-400 w-28 text-right flex-shrink-0">{{ format(row.expenses) }}</p>
+          <p class="text-sm font-medium text-blue-900 dark:text-blue-400 w-28 text-right flex-shrink-0">
             {{ format(row.balance) }}
+          </p>
+          <p
+            class="text-sm font-medium w-16 text-right flex-shrink-0"
+            :class="savingsRate(row) === null ? 'text-gray-300 dark:text-gray-600' : savingsRate(row)! >= 0 ? 'text-emerald-900 dark:text-emerald-400' : 'text-rose-900 dark:text-rose-400'"
+          >
+            {{ savingsRate(row) === null ? '—' : savingsRate(row)!.toFixed(1) + '%' }}
           </p>
         </div>
       </div>
@@ -148,6 +159,17 @@ const avgExpenses = computed(() => {
 
 const avgBalance = computed(() => avgIncome.value - avgExpenses.value)
 
+function savingsRate(row: MonthData): number | null {
+  if (row.income <= 0) return null
+  return (row.balance / row.income) * 100
+}
+
+const avgSavingsRate = computed(() => {
+  const months = props.data.filter(d => d.income > 0)
+  if (!months.length) return 0
+  return months.reduce((s, d) => s + (d.balance / d.income) * 100, 0) / months.length
+})
+
 const maxValue = computed(() => Math.max(...props.data.map(d => Math.max(d.income, d.expenses)), 1))
 
 function barWidth(value: number, max: number) {
@@ -161,9 +183,9 @@ const chartData = computed(() => ({
       type: 'bar' as const,
       label: 'Receitas',
       data: props.data.map(d => d.income),
-      backgroundColor: 'rgba(34, 197, 94, 0.7)',
-      borderColor: 'rgba(34, 197, 94, 1)',
-      borderWidth: 1.5,
+      backgroundColor: 'rgba(52, 211, 153, 0.65)',
+      borderColor: 'rgba(52, 211, 153, 0)',
+      borderWidth: 0,
       borderRadius: 4,
       order: 2,
     },
@@ -171,9 +193,9 @@ const chartData = computed(() => ({
       type: 'bar' as const,
       label: 'Despesas',
       data: props.data.map(d => d.expenses),
-      backgroundColor: 'rgba(248, 113, 113, 0.7)',
-      borderColor: 'rgba(248, 113, 113, 1)',
-      borderWidth: 1.5,
+      backgroundColor: 'rgba(251, 113, 133, 0.55)',
+      borderColor: 'rgba(251, 113, 133, 0)',
+      borderWidth: 0,
       borderRadius: 4,
       order: 2,
     },
@@ -181,11 +203,11 @@ const chartData = computed(() => ({
       type: 'line' as const,
       label: 'Saldo',
       data: props.data.map(d => d.balance),
-      borderColor: 'rgb(99, 102, 241)',
-      backgroundColor: 'rgba(99, 102, 241, 0.1)',
-      borderWidth: 2,
-      pointRadius: 3,
-      pointBackgroundColor: 'rgb(99, 102, 241)',
+      borderColor: 'rgba(99, 102, 241, 0.7)',
+      backgroundColor: 'rgba(99, 102, 241, 0.04)',
+      borderWidth: 1.5,
+      pointRadius: 2.5,
+      pointBackgroundColor: 'rgba(99, 102, 241, 0.7)',
       tension: 0.3,
       fill: false,
       order: 1,
@@ -214,7 +236,7 @@ const chartOptions = {
       ticks: { color: '#9ca3af', font: { size: 11 } },
     },
     y: {
-      grid: { color: 'rgba(156, 163, 175, 0.1)' },
+      grid: { color: 'rgba(156, 163, 175, 0.08)' },
       ticks: {
         color: '#9ca3af',
         font: { size: 11 },

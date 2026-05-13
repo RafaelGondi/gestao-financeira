@@ -25,6 +25,16 @@
       <SharedCategoriaInput v-model="form.categoria" tipo="despesa" />
     </UFormField>
 
+    <!-- Nome na fatura -->
+    <UFormField label="Nome na fatura">
+      <UInput v-model="form.nome_fatura" placeholder="Ex: AMZN*MKTP BR 7K9QP2..." class="w-full" />
+    </UFormField>
+
+    <!-- Notas -->
+    <UFormField label="Notas">
+      <UTextarea v-model="form.notas" placeholder="Observações opcionais..." :rows="2" class="w-full" />
+    </UFormField>
+
     <!-- Tipo -->
     <UFormField label="Tipo">
       <div class="flex gap-2">
@@ -94,17 +104,34 @@
 
     <div class="flex justify-end gap-2 pt-1">
       <UButton variant="ghost" color="neutral" @click="emit('cancel')">Cancelar</UButton>
-      <UButton color="primary" :loading="loading" @click="handleSubmit">Adicionar despesa</UButton>
+      <UButton color="primary" :loading="loading" @click="handleSubmit">
+        {{ editMode ? 'Salvar alterações' : 'Adicionar despesa' }}
+      </UButton>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+interface LancamentoInicial {
+  id: number
+  descricao: string
+  valor: number
+  data: string
+  data_inicio: string | null
+  data_fim: string | null
+  fixa: number
+  parcelas: number
+  categoria: string | null
+  notas?: string | null
+  nome_fatura?: string | null
+}
+
 const props = defineProps<{
   cartaoId: number
   cartaoNome: string
   cartaoBancoKey: string
   loading?: boolean
+  editMode?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -126,6 +153,8 @@ const form = reactive({
   descricao: '',
   valor: 0,
   categoria: '',
+  nome_fatura: '',
+  notas: '',
   tipoLanc: 'avulsa' as 'avulsa' | 'fixa' | 'parcelada',
   data: today,
   data_inicio: today,
@@ -152,6 +181,8 @@ function resetForm() {
   form.descricao = ''
   form.valor = 0
   form.categoria = ''
+  form.nome_fatura = ''
+  form.notas = ''
   form.tipoLanc = 'avulsa'
   form.data = today
   form.data_inicio = today
@@ -159,7 +190,27 @@ function resetForm() {
   form.parcelas = 2
 }
 
-defineExpose({ resetForm })
+function fillForm(lanc: LancamentoInicial) {
+  form.descricao = lanc.descricao
+  form.valor = lanc.valor
+  form.categoria = lanc.categoria ?? ''
+  form.nome_fatura = lanc.nome_fatura ?? ''
+  form.notas = lanc.notas ?? ''
+  if (!lanc.fixa) {
+    form.tipoLanc = 'avulsa'
+    form.data = lanc.data
+  } else if (lanc.parcelas > 0) {
+    form.tipoLanc = 'parcelada'
+    form.data_inicio = lanc.data_inicio ?? today
+    form.parcelas = lanc.parcelas
+  } else {
+    form.tipoLanc = 'fixa'
+    form.data_inicio = lanc.data_inicio ?? today
+    form.data_fim = lanc.data_fim ?? ''
+  }
+}
+
+defineExpose({ resetForm, fillForm })
 
 function handleSubmit() {
   if (!form.descricao.trim() || form.valor <= 0) return
@@ -168,6 +219,8 @@ function handleSubmit() {
     descricao: form.descricao.trim(),
     valor: Number(form.valor),
     categoria: form.categoria.trim() || undefined,
+    nome_fatura: form.nome_fatura.trim() || undefined,
+    notas: form.notas.trim() || undefined,
     cartao_id: props.cartaoId,
     tipo: form.tipoLanc,
   }

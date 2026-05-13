@@ -121,7 +121,7 @@ export default defineEventHandler((event) => {
 
   // Receitas avulsas
   for (const t of db.prepare(`
-    SELECT t.id, t.descricao, t.valor, t.categoria, t.data, 0 AS fixa, 0 AS parcelas,
+    SELECT t.id, t.descricao, t.valor, t.categoria, t.data, t.notas, t.nome_fatura, 0 AS fixa, 0 AS parcelas,
       c.cor AS categoria_cor, c.icone AS categoria_icone
     FROM transacoes t
     LEFT JOIN categorias c ON c.nome = t.categoria
@@ -133,7 +133,7 @@ export default defineEventHandler((event) => {
 
   // Receitas fixas
   for (const t of db.prepare(`
-    SELECT t.id, t.descricao, t.valor, t.categoria, t.data_inicio, t.data_fim, 1 AS fixa, t.parcelas,
+    SELECT t.id, t.descricao, t.valor, t.categoria, t.data_inicio, t.data_fim, t.notas, t.nome_fatura, 1 AS fixa, t.parcelas,
       c.cor AS categoria_cor, c.icone AS categoria_icone,
       pf.data_pagamento AS pago_data
     FROM transacoes t
@@ -154,7 +154,7 @@ export default defineEventHandler((event) => {
 
   // Despesas avulsas (não cartão)
   for (const t of db.prepare(`
-    SELECT t.id, t.descricao, t.valor, t.categoria, t.data, t.pago, t.data_pagamento, 0 AS fixa, 0 AS parcelas,
+    SELECT t.id, t.descricao, t.valor, t.categoria, t.data, t.pago, t.data_pagamento, t.notas, t.nome_fatura, 0 AS fixa, 0 AS parcelas,
       c.cor AS categoria_cor, c.icone AS categoria_icone
     FROM transacoes t
     LEFT JOIN categorias c ON c.nome = t.categoria
@@ -167,7 +167,7 @@ export default defineEventHandler((event) => {
 
   // Despesas fixas (não cartão)
   for (const t of db.prepare(`
-    SELECT t.id, t.descricao, t.valor, t.categoria, t.data_inicio, t.data_fim, 1 AS fixa, t.parcelas,
+    SELECT t.id, t.descricao, t.valor, t.categoria, t.data_inicio, t.data_fim, t.notas, t.nome_fatura, 1 AS fixa, t.parcelas,
       c.cor AS categoria_cor, c.icone AS categoria_icone,
       pf.data_pagamento AS pago_data
     FROM transacoes t

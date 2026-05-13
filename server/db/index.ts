@@ -151,6 +151,16 @@ if (!g.__db) {
     )
   `)
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS limite_global (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tipo TEXT NOT NULL CHECK(tipo IN ('fixo', 'porcentagem')),
+      valor REAL NOT NULL,
+      data_inicio TEXT NOT NULL UNIQUE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
   g.__db = db
 }
 
