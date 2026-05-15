@@ -128,10 +128,10 @@
           <UInput v-model="form.data_inicio" type="date" class="w-full" />
         </UFormField>
         <UFormField label="Número de parcelas" required>
-          <UInput v-model.number="form.parcelas" type="number" min="2" max="360" placeholder="Ex: 12" class="w-full" />
+          <UInput v-model.number="form.parcelas" type="number" min="1" max="360" placeholder="Ex: 12" class="w-full" />
         </UFormField>
       </div>
-      <div v-if="form.data_inicio && form.parcelas >= 2" class="flex items-center gap-2 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+      <div v-if="form.data_inicio && form.parcelas >= 1" class="flex items-center gap-2 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
         <UIcon name="i-heroicons-queue-list" class="w-5 h-5 text-purple-600 dark:text-purple-400" />
         <span class="text-sm font-medium text-purple-700 dark:text-purple-400">
           {{ form.parcelas }}x de {{ format(form.valor) }} · de {{ fmtDate(form.data_inicio) }} até {{ fmtDate(dataFimParcelada) }}
@@ -199,7 +199,7 @@ const emit = defineEmits<{
 
 const { format } = useCurrency()
 const isEdit = computed(() => !!props.initial?.id)
-const today = new Date().toISOString().split('T')[0]
+const today = useLocalDate().localDateStr()
 
 const tipoOpts = [
   { value: 'avulsa',    label: 'Avulsa',    icon: 'i-heroicons-calendar-days', desc: 'Uma única vez' },
@@ -275,7 +275,7 @@ const isPago = computed(() => !!form.data && form.data <= today)
 const diaInicio = computed(() => form.data_inicio?.split('-')[2] ?? '')
 
 const dataFimParcelada = computed(() => {
-  if (!form.data_inicio || form.parcelas < 2) return ''
+  if (!form.data_inicio || form.parcelas < 1) return ''
   const [y, m, d] = form.data_inicio.split('-').map(Number)
   const total = m - 1 + form.parcelas - 1
   const ny = y + Math.floor(total / 12)
@@ -306,7 +306,7 @@ function handleSubmit() {
   }
 
   if (form.tipo === 'parcelada') {
-    if (!form.data_inicio || form.parcelas < 2) return
+    if (!form.data_inicio || form.parcelas < 1) return
     emit('submit', { ...base, data_inicio: form.data_inicio, parcelas: form.parcelas })
   } else if (form.tipo === 'fixa') {
     if (!form.data_inicio) return

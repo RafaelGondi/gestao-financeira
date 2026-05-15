@@ -66,6 +66,20 @@ export function computeMonthTotals(year: number, mon: number, cartoes: Cartao[])
       if (t.data_fim && effectiveDate > t.data_fim) continue
       totalDespesas += t.valor
     }
+
+    // Extornos do cartão neste mês reduzem o total de despesas
+    const extornos = db.prepare(`
+      SELECT COALESCE(SUM(valor), 0) AS total FROM extornos
+      WHERE cartao_id = ? AND mes = ?
+    `).get([c.id, monthStr]) as { total: number }
+    totalDespesas -= extornos.total
+
+    // Ajuste da fatura deste cartão neste mês
+    const ajusteRow = db.prepare(`
+      SELECT COALESCE(valor_ajuste, 0) AS ajuste FROM faturas
+      WHERE cartao_id = ? AND mes = ?
+    `).get([c.id, monthStr]) as { ajuste: number } | undefined
+    totalDespesas += ajusteRow?.ajuste ?? 0
   }
 
   return { totalReceitas: r2(totalReceitas), totalDespesas: r2(totalDespesas) }

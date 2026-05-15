@@ -317,7 +317,8 @@ function selectDay(day: number) {
 
 watch(currentMonth, () => { selectedDay.value = null })
 
-const todayStr = new Date().toISOString().split('T')[0]
+const { localDateStr } = useLocalDate()
+const todayStr = localDateStr()
 function isToday(day: number) {
   const [y, m] = currentMonth.value.split('-')
   return `${y}-${m}-${String(day).padStart(2, '0')}` === todayStr

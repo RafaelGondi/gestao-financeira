@@ -149,7 +149,7 @@ const emit = defineEmits<{
 
 const { format } = useCurrency()
 const isEdit = computed(() => !!props.initial?.id)
-const today = new Date().toISOString().split('T')[0]
+const today = useLocalDate().localDateStr()
 
 const tipoOpts = [
   { value: 'avulsa',    label: 'Avulsa',    icon: 'i-heroicons-calendar-days', desc: 'Uma única vez' },

@@ -8,6 +8,8 @@ interface Item {
   data: string
   origem: string
   categoria: string | null
+  categoria_cor: string | null
+  categoria_icone: string | null
 }
 
 interface Segmento {
@@ -33,6 +35,25 @@ export default defineEventHandler((event) => {
   const prevMon = mon === 1 ? 12 : mon - 1
   const prevMonStr = `${prevYear}-${String(prevMon).padStart(2, '0')}`
 
+  // Pre-load category metadata (name → cor, icone)
+  const catMeta = new Map<string, { cor: string; icone: string }>()
+  for (const c of db.prepare(`SELECT nome, cor, icone FROM categorias`).all() as { nome: string; cor: string; icone: string }[]) {
+    catMeta.set(c.nome, { cor: c.cor, icone: c.icone })
+  }
+
+  function enrichItem(item: any): Item {
+    const meta = item.categoria ? catMeta.get(item.categoria) ?? null : null
+    return {
+      descricao: item.descricao,
+      valor: item.valor,
+      data: item.data,
+      origem: item.origem,
+      categoria: item.categoria ?? null,
+      categoria_cor: meta?.cor ?? null,
+      categoria_icone: meta?.icone ?? null,
+    }
+  }
+
   const seg: Record<string, Segmento> = {
     contaAvulso:      { total: 0, itens: [] },
     cartaoAvulso:     { total: 0, itens: [] },
@@ -57,7 +78,7 @@ export default defineEventHandler((event) => {
       AND t.data >= ? AND t.data <= ?
     ORDER BY t.data DESC
   `).all([startDate, endDate]) as Item[]
-  for (const r of avulsasConta) add('contaAvulso', r)
+  for (const r of avulsasConta) add('contaAvulso', enrichItem(r))
 
   // Conta parcelado + recorrente
   const fixasConta = db.prepare(`
@@ -70,7 +91,7 @@ export default defineEventHandler((event) => {
       AND t.data_inicio <= ? AND (t.data_fim IS NULL OR t.data_fim >= ?)
   `).all([month, endDate, startDate]) as (Item & { parcelas: number })[]
   for (const r of fixasConta) {
-    add(r.parcelas > 0 ? 'contaParcelado' : 'contaRecorrente', r)
+    add(r.parcelas > 0 ? 'contaParcelado' : 'contaRecorrente', enrichItem(r))
   }
 
   const cartoes = db.prepare(`SELECT id, nome, melhor_data_compra FROM cartoes`).all() as { id: number; nome: string; melhor_data_compra: number }[]
@@ -84,7 +105,7 @@ export default defineEventHandler((event) => {
       WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id = ? AND t.data >= ? AND t.data <= ?
       ORDER BY t.data DESC
     `).all([c.nome, c.id, fStart, fEnd]) as Item[]
-    for (const r of rows) add('cartaoAvulso', r)
+    for (const r of rows) add('cartaoAvulso', enrichItem(r))
   }
 
   // Cartão parcelado + recorrente
@@ -104,7 +125,7 @@ export default defineEventHandler((event) => {
       if (effectiveDate < t.data_inicio) continue
       if (t.data_fim && effectiveDate > t.data_fim) continue
       const key = t.parcelas > 0 ? 'cartaoParcelado' : 'cartaoRecorrente'
-      add(key, { descricao: t.descricao, valor: t.valor, data: effectiveDate, origem: t.origem, categoria: t.categoria })
+      add(key, enrichItem({ descricao: t.descricao, valor: t.valor, data: effectiveDate, origem: t.origem, categoria: t.categoria }))
     }
   }
 

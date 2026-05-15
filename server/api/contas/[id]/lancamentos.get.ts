@@ -1,5 +1,6 @@
 import db from '../../../db/index'
 import { getRouterParam, getQuery } from 'h3'
+import { localDateStr } from '../../../utils/localDate'
 
 function parcelaAtual(dataInicio: string, month: string): number {
   const [iy, im] = dataInicio.split('-').map(Number)
@@ -54,7 +55,10 @@ function computeSaldoAtual(contaId: number, today: string, saldoInicial: number)
       WHERE tipo='despesa' AND cartao_id=?
         AND ((fixa=0 AND data>=? AND data<=?) OR (fixa=1 AND data_inicio<=? AND (data_fim IS NULL OR data_fim>=?)))
     `).get([f.cartao_id, fStart, fEnd, fEnd, fStart]) as any).t
-    saldo -= total + f.valor_ajuste
+    const extornos = (db.prepare(`
+      SELECT COALESCE(SUM(valor),0) AS t FROM extornos WHERE cartao_id=? AND mes=?
+    `).get([f.cartao_id, f.mes]) as any).t
+    saldo -= total + f.valor_ajuste - extornos
   }
 
   // Fixas (receita e despesa, não cartão)
@@ -66,9 +70,9 @@ function computeSaldoAtual(contaId: number, today: string, saldoInicial: number)
     const day = t.data_inicio.slice(8, 10)
     const todayMes = today.slice(0, 7)
 
-    // Pagamentos antecipados de meses futuros
+    // Pagamentos/recebimentos antecipados (incluindo dentro do mês atual)
     const earlyFuture = new Set(
-      (db.prepare(`SELECT mes FROM pagamentos_fixas WHERE transacao_id=? AND mes>?`).all([t.id, todayMes]) as any[])
+      (db.prepare(`SELECT mes FROM pagamentos_fixas WHERE transacao_id=? AND mes>=?`).all([t.id, todayMes]) as any[])
         .map((r: any) => r.mes)
     )
 
@@ -110,7 +114,7 @@ export default defineEventHandler((event) => {
   const query = getQuery(event)
   const now = new Date()
   const month = (query.month as string) || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const today = now.toISOString().split('T')[0]
+  const today = localDateStr()
 
   const [year, mon] = month.split('-')
   const startDate = `${year}-${mon}-01`
@@ -121,14 +125,14 @@ export default defineEventHandler((event) => {
 
   // Receitas avulsas
   for (const t of db.prepare(`
-    SELECT t.id, t.descricao, t.valor, t.categoria, t.data, t.notas, t.nome_fatura, 0 AS fixa, 0 AS parcelas,
+    SELECT t.id, t.descricao, t.valor, t.categoria, t.data, t.pago, t.data_pagamento, t.notas, t.nome_fatura, 0 AS fixa, 0 AS parcelas,
       c.cor AS categoria_cor, c.icone AS categoria_icone
     FROM transacoes t
     LEFT JOIN categorias c ON c.nome = t.categoria
     WHERE t.tipo = 'receita' AND t.conta_id = ? AND t.fixa = 0 AND t.data >= ? AND t.data <= ?
     ORDER BY t.data DESC
   `).all([contaId, startDate, endDate]) as any[]) {
-    lancamentos.push({ ...t, tipo: 'receita', pago: t.data <= today ? 1 : 0, data_inicio: null, data_fim: null })
+    lancamentos.push({ ...t, tipo: 'receita', pago: (t.pago || t.data <= today) ? 1 : 0, data_inicio: null, data_fim: null })
   }
 
   // Receitas fixas
@@ -244,10 +248,13 @@ export default defineEventHandler((event) => {
         AND ((fixa = 0 AND data >= ? AND data <= ?)
           OR (fixa = 1 AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)))
     `).get([f.cartao_id, fStart, fEnd, fEnd, fStart]) as { total: number }
+    const extornosFatura = (db.prepare(`
+      SELECT COALESCE(SUM(valor), 0) AS total FROM extornos WHERE cartao_id = ? AND mes = ?
+    `).get([f.cartao_id, f.mes]) as { total: number }).total
     lancamentos.push({
       id: `fatura-${f.id}`,
       descricao: `Fatura ${f.cartao_nome}`,
-      valor: row.total + f.valor_ajuste,
+      valor: row.total + f.valor_ajuste - extornosFatura,
       tipo: 'fatura',
       data: f.data_pagamento,
       mes: f.mes,

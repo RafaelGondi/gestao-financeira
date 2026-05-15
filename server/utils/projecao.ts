@@ -18,13 +18,15 @@ export function calcProjecaoCartao(cartaoId: number): ProjecaoResult {
   const nowM = now.getMonth() + 1
   const thisMonthStr = `${nowY}-${String(nowM).padStart(2, '0')}`
 
+  // Paid months are still shown in the chart (paying a fatura doesn't erase the spend).
+  // We only exclude paid months from mes_quitacao calculation (outstanding balance logic).
   const mesesPagos = new Set<string>(
     (db.prepare(`SELECT mes FROM faturas WHERE cartao_id = ? AND pago = 1`).all([cartaoId]) as any[]).map((r: any) => r.mes)
   )
 
   const faturaMap = new Map<string, number>()
   function add(mes: string, valor: number) {
-    if (!mesesPagos.has(mes)) faturaMap.set(mes, (faturaMap.get(mes) ?? 0) + valor)
+    faturaMap.set(mes, (faturaMap.get(mes) ?? 0) + valor)
   }
 
   let hasInfinite = false

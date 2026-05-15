@@ -3,6 +3,8 @@ import { getQuery } from 'h3'
 import { computeSaldoBancario } from '../../utils/saldo'
 import { faturaDateRange } from '../../utils/fatura'
 import { computeMonthTotals } from '../../utils/month-totals'
+import { localDateStr } from '../../utils/localDate'
+import { getSaldoConta } from '../../utils/getSaldoConta'
 
 interface Transacao {
   id: number
@@ -83,10 +85,11 @@ export default defineEventHandler((event) => {
   const startDate = `${yearStr}-${monStr}-01`
   const lastDay = new Date(year, mon, 0).getDate()
   const endDate = `${yearStr}-${monStr}-${String(lastDay).padStart(2, '0')}`
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = localDateStr()
 
-  // Saldo bancário real hoje
-  const saldoBancario = computeSaldoBancario(todayStr)
+  // Saldo bancário real hoje: soma dos saldos reais de cada conta (mesma lógica da página de Contas)
+  const todasContas = db.prepare(`SELECT id FROM contas`).all() as { id: number }[]
+  const saldoBancario = Math.round(todasContas.reduce((sum, c) => sum + getSaldoConta(c.id), 0) * 100) / 100
 
   // Cartões (necessário antes de computar saldoAnterior)
   const cartoes = db.prepare(
@@ -102,26 +105,27 @@ export default defineEventHandler((event) => {
   // Transações avulsas sem cartão
   const avulsasNormais = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.tipo, t.categoria, t.data, t.cartao_id, 0 AS fixa,
-      CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS pago,
+      CASE WHEN t.pago = 1 OR t.data <= ? THEN 1 ELSE 0 END AS pago,
       cat.icone AS categoria_icone, cat.cor AS categoria_cor
     FROM transacoes t
     LEFT JOIN categorias cat ON cat.nome = t.categoria
     WHERE t.fixa = 0 AND t.cartao_id IS NULL AND t.data >= ? AND t.data <= ?
     ORDER BY t.data DESC
-  `).all([startDate, endDate]) as Transacao[]
+  `).all([todayStr, startDate, endDate]) as Transacao[]
 
   // Fixas sem cartão (receitas e despesas)
   const fixasNormais = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.tipo, t.categoria, t.cartao_id, 1 AS fixa,
       ? || '-' || substr(t.data_inicio, 9, 2) AS data,
-      CASE WHEN ? || '-' || substr(t.data_inicio, 9, 2) <= date('now') THEN 1 ELSE 0 END AS pago,
+      CASE WHEN pf.id IS NOT NULL OR ? || '-' || substr(t.data_inicio, 9, 2) <= ? THEN 1 ELSE 0 END AS pago,
       cat.icone AS categoria_icone, cat.cor AS categoria_cor
     FROM transacoes t
     LEFT JOIN categorias cat ON cat.nome = t.categoria
+    LEFT JOIN pagamentos_fixas pf ON pf.transacao_id = t.id AND pf.mes = ?
     WHERE t.fixa = 1 AND t.cartao_id IS NULL
       AND t.data_inicio <= ?
       AND (t.data_fim IS NULL OR t.data_fim >= ?)
-  `).all([month, month, endDate, startDate]) as Transacao[]
+  `).all([month, month, todayStr, month, endDate, startDate]) as Transacao[]
 
   // Faturas pagas por cartão no mês selecionado
   const faturasPagasNoMes = new Set<number>(
@@ -176,12 +180,26 @@ export default defineEventHandler((event) => {
   const receitas = transacoes.filter(t => t.tipo === 'receita')
   const despesas = transacoes.filter(t => t.tipo === 'despesa')
 
+  // Extornos do mês reduzem o total de despesas de cartão
+  const totalExtornos = r2(
+    (db.prepare(`SELECT COALESCE(SUM(valor), 0) AS total FROM extornos WHERE mes = ?`).get([month]) as any).total
+  )
+
+  // Ajustes de faturas do mês (podem ser positivos ou negativos)
+  const totalAjustes = r2(
+    (db.prepare(`SELECT COALESCE(SUM(valor_ajuste), 0) AS total FROM faturas WHERE mes = ?`).get([month]) as any).total
+  )
+
   const totalReceitas = r2(receitas.reduce((sum, t) => sum + t.valor, 0))
-  const totalDespesas = r2(despesas.reduce((sum, t) => sum + t.valor, 0))
+  const totalDespesas = r2(despesas.reduce((sum, t) => sum + t.valor, 0) + totalAjustes - totalExtornos)
   const recebido = r2(receitas.filter(t => t.pago).reduce((sum, t) => sum + t.valor, 0))
   const aReceber = r2(receitas.filter(t => !t.pago).reduce((sum, t) => sum + t.valor, 0))
-  const pago = r2(despesas.filter(t => t.pago).reduce((sum, t) => sum + t.valor, 0))
-  const aPagar = r2(despesas.filter(t => !t.pago).reduce((sum, t) => sum + t.valor, 0))
+  // For pago: include ajuste only for paid faturas
+  const totalAjustesPagos = r2(
+    (db.prepare(`SELECT COALESCE(SUM(valor_ajuste), 0) AS total FROM faturas WHERE mes = ? AND pago = 1`).get([month]) as any).total
+  )
+  const pago = r2(despesas.filter(t => t.pago).reduce((sum, t) => sum + t.valor, 0) + totalAjustesPagos - totalExtornos)
+  const aPagar = r2(despesas.filter(t => !t.pago).reduce((sum, t) => sum + t.valor, 0) + (totalAjustes - totalAjustesPagos))
 
   const saldo = r2(totalReceitas - totalDespesas)
   const saldoDisponivel = saldoBancario
@@ -210,7 +228,12 @@ export default defineEventHandler((event) => {
 
   const cartoesComFatura = cartoes.map(cartao => {
     const fatura = despesas.filter(t => t.cartao_id === cartao.id).reduce((sum, t) => sum + t.valor, 0)
-    return { id: cartao.id, nome: cartao.nome, banco: cartao.banco, banco_key: cartao.banco_key, cor: cartao.cor ?? null, fatura, vencimento: cartao.vencimento }
+    const extornosCartao = r2(
+      (db.prepare(`SELECT COALESCE(SUM(valor), 0) AS total FROM extornos WHERE cartao_id = ? AND mes = ?`).get([cartao.id, month]) as any).total
+    )
+    const ajusteRow = db.prepare(`SELECT COALESCE(valor_ajuste, 0) AS ajuste FROM faturas WHERE cartao_id = ? AND mes = ?`).get([cartao.id, month]) as { ajuste: number } | undefined
+    const ajuste = ajusteRow?.ajuste ?? 0
+    return { id: cartao.id, nome: cartao.nome, banco: cartao.banco, banco_key: cartao.banco_key, cor: cartao.cor ?? null, fatura: r2(fatura + ajuste - extornosCartao), vencimento: cartao.vencimento }
   })
 
   return {

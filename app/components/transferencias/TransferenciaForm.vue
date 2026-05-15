@@ -36,6 +36,22 @@
       <span class="text-sm font-medium text-blue-700 dark:text-blue-400">{{ nomeDestino }}</span>
     </div>
 
+    <div v-if="form.conta_origem_id && saldoOrigem !== null"
+      class="flex items-center justify-between px-3 py-2 rounded-lg text-sm"
+      :class="saldoInsuficiente
+        ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+        : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400'"
+    >
+      <span class="flex items-center gap-1.5">
+        <UIcon
+          :name="saldoInsuficiente ? 'i-heroicons-exclamation-triangle' : 'i-heroicons-banknotes'"
+          class="w-4 h-4"
+        />
+        {{ saldoInsuficiente ? 'Saldo insuficiente' : 'Saldo disponível' }}
+      </span>
+      <span class="font-medium">{{ format(saldoOrigem) }}</span>
+    </div>
+
     <UFormField label="Valor" required>
       <SharedCurrencyInput v-model="form.valor" />
     </UFormField>
@@ -86,11 +102,23 @@ const emit = defineEmits<{
 }>()
 
 const isEdit = computed(() => !!props.initial?.id)
-const today = new Date().toISOString().split('T')[0]
+const today = useLocalDate().localDateStr()
 
-const { data: contas } = await useFetch<{ id: number; nome: string; banco: string }[]>('/api/contas')
+const { format } = useCurrency()
+
+const { data: contas } = await useFetch<{ id: number; nome: string; banco: string; saldo_atual: number }[]>('/api/contas')
 const contaOptions = computed(() =>
   (contas.value ?? []).map(c => ({ value: c.id, label: `${c.nome} — ${c.banco}` }))
+)
+
+const saldoOrigem = computed(() => {
+  if (!form.conta_origem_id) return null
+  return contas.value?.find(c => c.id === form.conta_origem_id)?.saldo_atual ?? null
+})
+
+const saldoInsuficiente = computed(() =>
+  saldoOrigem.value !== null && form.valor > 0 &&
+  Math.round(form.valor * 100) > Math.round(saldoOrigem.value * 100)
 )
 
 const form = reactive({
@@ -130,7 +158,8 @@ const canSubmit = computed(() =>
   form.conta_origem_id &&
   form.conta_destino_id &&
   form.conta_origem_id !== form.conta_destino_id &&
-  !!form.data
+  !!form.data &&
+  !saldoInsuficiente.value
 )
 
 function handleSubmit() {

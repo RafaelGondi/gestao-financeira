@@ -1,6 +1,7 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
 import { transacaoFaturaMonth } from '../../utils/fatura'
+import { localDateStr } from '../../utils/localDate'
 
 function parcelaAtual(dataInicio: string, month: string): number {
   const [iy, im] = dataInicio.split('-').map(Number)
@@ -11,6 +12,7 @@ function parcelaAtual(dataInicio: string, month: string): number {
 export default defineEventHandler((event) => {
   const query = getQuery(event)
   const month = query.month as string | undefined
+  const today = localDateStr()
 
   if (!month || !/^\d{4}-\d{2}$/.test(month)) {
     return db.prepare(`
@@ -19,8 +21,8 @@ export default defineEventHandler((event) => {
         cat.cor AS categoria_cor, cat.icone AS categoria_icone,
         CASE
           WHEN t.fixa = 1 THEN
-            CASE WHEN t.data_fim IS NOT NULL AND t.data_fim < date('now') THEN 2 ELSE 1 END
-          WHEN t.data <= date('now') THEN 1 ELSE 0
+            CASE WHEN t.data_fim IS NOT NULL AND t.data_fim < ? THEN 2 ELSE 1 END
+          WHEN t.data <= ? THEN 1 ELSE 0
         END AS pago
       FROM transacoes t
       LEFT JOIN contas c ON c.id = t.conta_id
@@ -28,7 +30,7 @@ export default defineEventHandler((event) => {
       LEFT JOIN categorias cat ON cat.nome = t.categoria
       WHERE t.tipo = 'despesa'
       ORDER BY t.fixa DESC, t.data DESC
-    `).all()
+    `).all([today, today])
   }
 
   const [year, mon] = month.split('-')
@@ -41,17 +43,16 @@ export default defineEventHandler((event) => {
     SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas, t.data, NULL AS data_inicio, NULL AS data_fim,
       t.conta_id, t.cartao_id, t.notas, t.nome_fatura, c.nome AS conta_nome, c.banco_key, NULL AS cartao_nome,
       cat.cor AS categoria_cor, cat.icone AS categoria_icone,
-      CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS pago
+      CASE WHEN t.data <= ? THEN 1 ELSE 0 END AS pago
     FROM transacoes t
     LEFT JOIN contas c ON c.id = t.conta_id
     LEFT JOIN categorias cat ON cat.nome = t.categoria
     WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id IS NULL
       AND t.data >= ? AND t.data <= ?
     ORDER BY t.data DESC
-  `).all([startDate, endDate])
+  `).all([today, startDate, endDate])
 
   // Card avulsas: fetch from prev month's cutoff to end of current month, then filter by fatura month
-  // We grab a broad range (prev month start to current month end) and compute fatura month in JS
   const prevYear = Number(mon) === 1 ? Number(year) - 1 : Number(year)
   const prevMon = Number(mon) === 1 ? 12 : Number(mon) - 1
   const broadStart = `${prevYear}-${String(prevMon).padStart(2, '0')}-01`
@@ -61,14 +62,14 @@ export default defineEventHandler((event) => {
       t.conta_id, t.cartao_id, t.notas, t.nome_fatura, NULL AS conta_nome, NULL AS banco_key, cr.nome AS cartao_nome,
       cr.banco_key AS cartao_banco_key, cr.cor AS cartao_cor, cr.melhor_data_compra,
       cat.cor AS categoria_cor, cat.icone AS categoria_icone,
-      CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS pago
+      CASE WHEN t.data <= ? THEN 1 ELSE 0 END AS pago
     FROM transacoes t
     JOIN cartoes cr ON cr.id = t.cartao_id
     LEFT JOIN categorias cat ON cat.nome = t.categoria
     WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id IS NOT NULL
       AND t.data >= ? AND t.data <= ?
     ORDER BY t.data DESC
-  `).all([broadStart, endDate]) as any[]
+  `).all([today, broadStart, endDate]) as any[]
 
   const avulsasCartao = avulsasCartaoRaw.filter(t => {
     const fm = transacaoFaturaMonth(t.data, t.melhor_data_compra)
@@ -76,7 +77,6 @@ export default defineEventHandler((event) => {
   }).map(({ melhor_data_compra: _, ...t }) => t)
 
   const prevMonthStr = `${prevYear}-${String(prevMon).padStart(2, '0')}`
-  const today = new Date().toISOString().split('T')[0]
 
   const fixasRaw = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,

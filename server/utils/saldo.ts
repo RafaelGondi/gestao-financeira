@@ -87,7 +87,10 @@ export function computeSaldoBancario(cutoffStr: string): number {
           AND ((fixa = 0 AND data >= ? AND data <= ?)
             OR (fixa = 1 AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)))
       `).get([f.cartao_id, fStart, fEnd, fEnd, fStart]) as { total: number }
-      mov -= row.total + f.valor_ajuste
+      const extornos = db.prepare(`
+        SELECT COALESCE(SUM(valor), 0) AS total FROM extornos WHERE cartao_id = ? AND mes = ?
+      `).get([f.cartao_id, f.mes]) as { total: number }
+      mov -= row.total + f.valor_ajuste - extornos.total
     }
     total += conta.saldo_inicial + mov
   }

@@ -1,5 +1,6 @@
 import db from '../../db/index'
 import { readBody, getRouterParam } from 'h3'
+import { localDateStr } from '../../utils/localDate'
 
 interface ReceitaBody {
   descricao: string
@@ -81,20 +82,21 @@ export default defineEventHandler(async (event) => {
       UPDATE transacoes
       SET descricao = ?, valor = ?, categoria = ?, conta_id = ?, fixa = 0,
           data = ?, data_inicio = NULL, data_fim = NULL, parcelas = 0,
-          pago = CASE WHEN ? <= date('now') THEN 1 ELSE 0 END, notas = ?, nome_fatura = ?
+          pago = CASE WHEN ? <= ? THEN 1 ELSE 0 END, notas = ?, nome_fatura = ?
       WHERE id = ?
     `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId,
-            body.data, body.data, body.notas?.trim() || null, body.nome_fatura?.trim() || null, id])
+            body.data, body.data, localDateStr(), body.notas?.trim() || null, body.nome_fatura?.trim() || null, id])
   }
 
+  const today = localDateStr()
   return db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data_inicio, t.data_fim, t.data, t.conta_id, t.notas, t.nome_fatura,
       c.nome AS conta_nome, c.banco_key,
       CASE
         WHEN t.fixa = 1 THEN
-          CASE WHEN t.data_fim IS NOT NULL AND t.data_fim < date('now') THEN 2 ELSE 1 END
-        WHEN t.data <= date('now') THEN 1 ELSE 0
+          CASE WHEN t.data_fim IS NOT NULL AND t.data_fim < ? THEN 2 ELSE 1 END
+        WHEN t.data <= ? THEN 1 ELSE 0
       END AS recebido
     FROM transacoes t LEFT JOIN contas c ON c.id = t.conta_id WHERE t.id = ?
-  `).get([id])
+  `).get([today, today, id])
 })

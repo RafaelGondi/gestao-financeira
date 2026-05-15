@@ -1,5 +1,6 @@
 import db from '../../db/index'
 import { faturaDateRange } from '../../utils/fatura'
+import { localDateStr } from '../../utils/localDate'
 
 interface Conta {
   id: number
@@ -35,7 +36,7 @@ interface FaturaPaga {
   melhor_data_compra: number
 }
 
-// Conta quantas ocorrências de uma receita fixa já foram recebidas até hoje
+// Conta quantas ocorrências de uma fixa já aconteceram até hoje (baseado em data)
 function countReceivedOccurrences(dataInicio: string, dataFim: string | null, today: Date): number {
   const inicio = new Date(dataInicio + 'T12:00:00')
   const fim = dataFim ? new Date(dataFim + 'T12:00:00') : null
@@ -46,11 +47,21 @@ function countReceivedOccurrences(dataInicio: string, dataFim: string | null, to
 
   while (current <= end) {
     count++
-    // Avança um mês mantendo o dia original
     current = new Date(inicio.getFullYear(), inicio.getMonth() + count, inicio.getDate())
   }
 
   return count
+}
+
+// Verifica se uma fixa foi marcada antecipadamente no mês atual
+// (ocorrência ainda não chegou, mas já foi marcada em pagamentos_fixas)
+function isMarkedEarlyThisMonth(transacaoId: number, dataInicio: string, todayStr: string): boolean {
+  const todayMes = todayStr.slice(0, 7)
+  const day = dataInicio.slice(8, 10)
+  const occDate = `${todayMes}-${day}`
+  if (occDate <= todayStr) return false // já ocorreu, não precisa de check
+  const row = db.prepare(`SELECT 1 FROM pagamentos_fixas WHERE transacao_id = ? AND mes = ?`).get([transacaoId, todayMes])
+  return row != null
 }
 
 export default defineEventHandler(() => {
@@ -75,9 +86,11 @@ export default defineEventHandler(() => {
 
   return contas.map(conta => {
     const transacoes = db.prepare(`
-      SELECT valor, tipo, fixa, data, data_inicio, data_fim, pago
+      SELECT id, valor, tipo, fixa, data, data_inicio, data_fim, pago
       FROM transacoes WHERE conta_id = ?
-    `).all([conta.id]) as Transacao[]
+    `).all([conta.id]) as (Transacao & { id: number })[]
+
+    const todayStr = localDateStr()
 
     let movimentacao = 0
 
@@ -85,8 +98,9 @@ export default defineEventHandler(() => {
       if (t.tipo === 'receita') {
         if (t.fixa) {
           const n = countReceivedOccurrences(t.data_inicio!, t.data_fim, today)
+            + (isMarkedEarlyThisMonth(t.id, t.data_inicio!, todayStr) ? 1 : 0)
           movimentacao += t.valor * n
-        } else if (new Date(t.data + 'T12:00:00') <= today) {
+        } else if (t.pago || new Date(t.data + 'T12:00:00') <= today) {
           movimentacao += t.valor
         }
       } else if (t.tipo === 'despesa') {
@@ -116,7 +130,10 @@ export default defineEventHandler(() => {
           AND ((fixa = 0 AND data >= ? AND data <= ?)
             OR (fixa = 1 AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)))
       `).get([f.cartao_id, startDate, endDate, endDate, startDate]) as { total: number }
-      movimentacao -= row.total + f.valor_ajuste
+      const extornos = db.prepare(`
+        SELECT COALESCE(SUM(valor), 0) AS total FROM extornos WHERE cartao_id = ? AND mes = ?
+      `).get([f.cartao_id, f.mes]) as { total: number }
+      movimentacao -= row.total + f.valor_ajuste - extornos.total
     }
 
     return {

@@ -1,5 +1,6 @@
 import db from '../../db/index'
 import { readBody } from 'h3'
+import { localDateStr } from '../../utils/localDate'
 
 interface DespesaBody {
   descricao: string
@@ -49,8 +50,8 @@ export default defineEventHandler(async (event) => {
     if (!body.data_inicio || !dateRe.test(body.data_inicio))
       throw createError({ statusCode: 400, statusMessage: 'Data de início inválida' })
     const parcelas = Number(body.parcelas)
-    if (!parcelas || parcelas < 2)
-      throw createError({ statusCode: 400, statusMessage: 'Número de parcelas inválido (mínimo 2)' })
+    if (!parcelas || parcelas < 1)
+      throw createError({ statusCode: 400, statusMessage: 'Número de parcelas inválido (mínimo 1)' })
 
     const dataFim = calcDataFim(body.data_inicio, parcelas)
     const result = db.prepare(`
@@ -79,7 +80,7 @@ export default defineEventHandler(async (event) => {
 
   const result = db.prepare(`
     INSERT INTO transacoes (descricao, valor, tipo, categoria, conta_id, cartao_id, data, pago, fixa, parcelas, notas, nome_fatura)
-    VALUES (?, ?, 'despesa', ?, ?, ?, ?, CASE WHEN ? <= date('now') THEN 1 ELSE 0 END, 0, 0, ?, ?)
-  `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, cartaoId, body.data, body.data, body.notas?.trim() || null, body.nome_fatura?.trim() || null])
+    VALUES (?, ?, 'despesa', ?, ?, ?, ?, CASE WHEN ? <= ? THEN 1 ELSE 0 END, 0, 0, ?, ?)
+  `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, cartaoId, body.data, body.data, localDateStr(), body.notas?.trim() || null, body.nome_fatura?.trim() || null])
   return db.prepare(selectBack).get([result.lastInsertRowid])
 })

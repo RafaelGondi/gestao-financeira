@@ -162,7 +162,7 @@ const emit = defineEmits<{
 
 const { format } = useCurrency()
 const { findBank } = useBanks()
-const today = new Date().toISOString().split('T')[0]
+const today = useLocalDate().localDateStr()
 
 const isEdit = computed(() => !!props.initial?.id)
 

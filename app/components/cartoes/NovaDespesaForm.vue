@@ -77,10 +77,10 @@
           <UInput v-model="form.data_inicio" type="date" class="w-full" />
         </UFormField>
         <UFormField label="Nº de parcelas" required>
-          <UInput v-model.number="form.parcelas" type="number" min="2" max="360" placeholder="Ex: 12" class="w-full" />
+          <UInput v-model.number="form.parcelas" type="number" min="1" max="360" placeholder="Ex: 12" class="w-full" />
         </UFormField>
       </div>
-      <div v-if="form.data_inicio && form.parcelas >= 2" class="flex items-center gap-2 p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-sm font-medium text-purple-700 dark:text-purple-400">
+      <div v-if="form.data_inicio && form.parcelas >= 1" class="flex items-center gap-2 p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg text-sm font-medium text-purple-700 dark:text-purple-400">
         <UIcon name="i-heroicons-queue-list" class="w-4 h-4" />
         {{ form.parcelas }}x de {{ format(form.valor) }} · até {{ fmtDate(dataFimParcelada) }}
       </div>
@@ -141,7 +141,7 @@ const emit = defineEmits<{
 
 const { format } = useCurrency()
 const { findBank } = useBanks()
-const today = new Date().toISOString().split('T')[0]
+const today = useLocalDate().localDateStr()
 
 const tipoOpts = [
   { value: 'avulsa',    label: 'Avulsa',    icon: 'i-heroicons-calendar-days', desc: 'Uma vez' },
@@ -163,7 +163,7 @@ const form = reactive({
 })
 
 const dataFimParcelada = computed(() => {
-  if (!form.data_inicio || form.parcelas < 2) return ''
+  if (!form.data_inicio || form.parcelas < 1) return ''
   const [y, m, d] = form.data_inicio.split('-').map(Number)
   const total = m - 1 + form.parcelas - 1
   const ny = y + Math.floor(total / 12)
@@ -226,7 +226,7 @@ function handleSubmit() {
   }
 
   if (form.tipoLanc === 'parcelada') {
-    if (!form.data_inicio || form.parcelas < 2) return
+    if (!form.data_inicio || form.parcelas < 1) return
     emit('submit', { ...base, data_inicio: form.data_inicio, parcelas: form.parcelas })
   } else if (form.tipoLanc === 'fixa') {
     if (!form.data_inicio) return

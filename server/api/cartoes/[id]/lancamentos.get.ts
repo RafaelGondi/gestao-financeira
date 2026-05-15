@@ -115,5 +115,14 @@ export default defineEventHandler((event) => {
     }
   }
 
-  return { cartao: { ...cartao, gasto_mes, gasto_total: gastoTotal }, lancamentos, fatura }
+  const extornos = db.prepare(`
+    SELECT e.id, e.valor, e.descricao, e.notas, e.transacao_id,
+      t.descricao AS transacao_descricao
+    FROM extornos e
+    LEFT JOIN transacoes t ON t.id = e.transacao_id
+    WHERE e.cartao_id = ? AND e.mes = ?
+    ORDER BY e.created_at ASC
+  `).all([cartaoId, month]) as any[]
+
+  return { cartao: { ...cartao, gasto_mes, gasto_total: gastoTotal }, lancamentos, fatura, extornos }
 })

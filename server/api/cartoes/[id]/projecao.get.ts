@@ -78,6 +78,18 @@ export default defineEventHandler((event) => {
     }
   }
 
+  // Subtract extornos from faturaMap (only for unpaid months, which are the ones in the map)
+  const extornosData = db.prepare(`
+    SELECT mes, COALESCE(SUM(valor), 0) AS total FROM extornos
+    WHERE cartao_id = ? GROUP BY mes
+  `).all([cartaoId]) as { mes: string; total: number }[]
+
+  for (const e of extornosData) {
+    if (faturaMap.has(e.mes)) {
+      faturaMap.set(e.mes, Math.max(0, (faturaMap.get(e.mes) ?? 0) - e.total))
+    }
+  }
+
   // Build the 12-month forward projection (always 12 entries, even if zero)
   const projecao12: { mes: string; valor: number }[] = []
   for (let i = 0; i < 12; i++) {

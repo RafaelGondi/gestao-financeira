@@ -8,15 +8,15 @@
         </div>
         <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ title }}</span>
       </div>
-      <button v-if="showEye" class="text-gray-300 dark:text-gray-600 hover:text-gray-500 transition-colors cursor-pointer" @click="hidden = !hidden">
-        <UIcon :name="hidden ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'" class="w-4 h-4" />
+      <button v-if="showEye" class="text-gray-300 dark:text-gray-600 hover:text-gray-500 transition-colors cursor-pointer" @click="localHidden = !localHidden">
+        <UIcon :name="localHidden ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'" class="w-4 h-4" />
       </button>
     </div>
 
     <!-- Main value -->
     <div class="mt-3">
       <p class="text-2xl font-bold leading-tight" :class="valueColorClass">
-        {{ hidden ? '••••••' : format(value) }}
+        {{ localHidden ? '••••••' : format(value) }}
       </p>
       <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
         <p class="text-xs text-gray-400">{{ period }}</p>
@@ -38,13 +38,13 @@
         <div class="pl-3 border-l-2" :class="subBorderClass(sub1.color)">
           <p class="text-xs text-gray-400 mb-0.5">{{ sub1.label }}</p>
           <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">
-            {{ hidden ? '•••' : format(sub1.value) }}
+            {{ localHidden ? '•••' : format(sub1.value) }}
           </p>
         </div>
         <div class="pl-3 border-l-2" :class="subBorderClass(sub2.color)">
           <p class="text-xs text-gray-400 mb-0.5">{{ sub2.label }}</p>
           <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">
-            {{ hidden ? '•••' : format(sub2.value) }}
+            {{ localHidden ? '•••' : format(sub2.value) }}
           </p>
         </div>
       </div>
@@ -70,13 +70,18 @@ const props = defineProps<{
   period: string
   subtitle2?: string
   showEye?: boolean
+  hidden?: boolean
   sub1: SubCard
   sub2: SubCard
 }>()
 
 const { format } = useCurrency()
 const showDetails = ref(true)
-const hidden = ref(false)
+const localHidden = ref(props.hidden ?? false)
+
+watch(() => props.hidden, (val) => {
+  if (val !== undefined) localHidden.value = val
+})
 
 const valueColorMap: Record<string, string> = {
   green: 'text-green-900 dark:text-green-400',

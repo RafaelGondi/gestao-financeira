@@ -152,11 +152,46 @@ if (!g.__db) {
   `)
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS metas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL,
+      valor_alvo REAL NOT NULL,
+      prazo TEXT NOT NULL,
+      icone TEXT NOT NULL DEFAULT 'i-heroicons-flag',
+      cor TEXT NOT NULL DEFAULT '#6366f1',
+      concluida INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS meta_aportes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      meta_id INTEGER NOT NULL REFERENCES metas(id) ON DELETE CASCADE,
+      valor REAL NOT NULL,
+      data DATE NOT NULL,
+      notas TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS limite_global (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       tipo TEXT NOT NULL CHECK(tipo IN ('fixo', 'porcentagem')),
       valor REAL NOT NULL,
       data_inicio TEXT NOT NULL UNIQUE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS extornos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cartao_id INTEGER NOT NULL REFERENCES cartoes(id) ON DELETE CASCADE,
+      mes TEXT NOT NULL,
+      valor REAL NOT NULL,
+      descricao TEXT,
+      notas TEXT,
+      transacao_id INTEGER REFERENCES transacoes(id) ON DELETE SET NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `)

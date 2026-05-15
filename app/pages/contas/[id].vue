@@ -103,8 +103,11 @@
         v-for="(lanc, i) in lancamentosFiltrados"
         v-else
         :key="`${lanc.tipo}-${lanc.id}`"
-        class="flex items-center gap-4 px-5 py-4"
-        :class="i < lancamentosFiltrados.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
+        class="flex items-center gap-4 px-5 py-4 transition-opacity"
+        :class="[
+          i < lancamentosFiltrados.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : '',
+          lanc.pago && (lanc.tipo === 'receita' || lanc.tipo === 'despesa') ? 'opacity-60' : ''
+        ]"
       >
         <!-- Ícone -->
         <div
@@ -121,7 +124,10 @@
 
         <!-- Info -->
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{{ lanc.descricao }}</p>
+          <p
+            class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate"
+            :class="lanc.tipo === 'despesa' && lanc.pago ? 'line-through' : ''"
+          >{{ lanc.descricao }}</p>
           <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
             <span class="text-xs text-gray-400">{{ descricaoData(lanc) }}</span>
             <template v-if="lanc.tipo === 'fatura' && lanc.mes">
@@ -153,6 +159,13 @@
 
         <!-- Valor + pagar -->
         <div class="flex items-center gap-2 flex-shrink-0">
+          <span
+            v-if="lanc.tipo === 'receita'"
+            class="text-xs px-2 py-0.5 rounded-full"
+            :class="lanc.pago
+              ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-500'"
+          >{{ lanc.pago ? 'Recebido' : 'A receber' }}</span>
           <p class="text-sm font-medium" :class="isPositivo(lanc) ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
             {{ isPositivo(lanc) ? '+' : '-' }} {{ format(lanc.valor) }}
           </p>
@@ -170,6 +183,21 @@
             v-else-if="lanc.tipo === 'despesa' && lanc.pago"
             name="i-heroicons-check-circle-solid"
             class="w-4 h-4 text-green-500 flex-shrink-0"
+          />
+          <UButton
+            v-else-if="lanc.tipo === 'receita' && !lanc.pago"
+            icon="i-heroicons-check-circle"
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            class="text-gray-400 hover:text-emerald-600"
+            title="Marcar como recebido"
+            @click="abrirReceberModal(lanc)"
+          />
+          <UIcon
+            v-else-if="lanc.tipo === 'receita' && lanc.pago"
+            name="i-heroicons-check-circle-solid"
+            class="w-4 h-4 text-emerald-500 flex-shrink-0"
           />
         </div>
 
@@ -207,6 +235,37 @@
           <UButton variant="ghost" color="neutral" @click="showPagarModal = false">Cancelar</UButton>
           <UButton color="primary" :loading="salvandoPagamento" @click="confirmarPagamento">
             Confirmar pagamento
+          </UButton>
+        </div>
+      </div>
+    </template>
+  </UModal>
+
+  <!-- Modal: Marcar como recebido -->
+  <UModal v-model:open="showReceberModal">
+    <template #content>
+      <div class="p-6 space-y-5">
+        <div>
+          <h3 class="text-base font-semibold text-gray-900 dark:text-white">Marcar como recebido</h3>
+          <p class="text-sm text-gray-500 mt-1">
+            {{ receberLanc?.descricao }}
+            <span v-if="receberLanc?.fixa" class="text-gray-400"> · {{ fmtMonth(currentMonth) }}</span>
+          </p>
+        </div>
+
+        <div class="bg-gray-50 dark:bg-gray-800 rounded-lg px-4 py-3 flex items-center justify-between">
+          <span class="text-sm text-gray-600 dark:text-gray-400">Valor</span>
+          <span class="text-sm font-semibold text-emerald-600 dark:text-emerald-400">+ {{ format(receberLanc?.valor ?? 0) }}</span>
+        </div>
+
+        <UFormField label="Data do recebimento">
+          <UInput v-model="receberData" type="date" class="w-full" />
+        </UFormField>
+
+        <div class="flex justify-end gap-2">
+          <UButton variant="ghost" color="neutral" @click="showReceberModal = false">Cancelar</UButton>
+          <UButton color="primary" :loading="salvandoRecebimento" @click="confirmarRecebimento">
+            Confirmar recebimento
           </UButton>
         </div>
       </div>
@@ -564,6 +623,38 @@ async function handleDelete(scope: 'one' | 'all') {
   }
 }
 
+// --- Marcar como recebido ---
+const showReceberModal = ref(false)
+const receberLanc = ref<Lancamento | null>(null)
+const receberData = ref('')
+const salvandoRecebimento = ref(false)
+
+function abrirReceberModal(lanc: Lancamento) {
+  receberLanc.value = lanc
+  receberData.value = useLocalDate().localDateStr()
+  showReceberModal.value = true
+}
+
+async function confirmarRecebimento() {
+  if (!receberLanc.value) return
+  salvandoRecebimento.value = true
+  try {
+    const body: Record<string, string> = { data_recebimento: receberData.value }
+    if (receberLanc.value.fixa) body.mes = currentMonth.value
+    await $fetch(`/api/transacoes/${receberLanc.value.id}/receber`, {
+      method: 'PATCH',
+      body,
+    })
+    showReceberModal.value = false
+    await refresh()
+    toast.add({ title: 'Recebimento registrado', color: 'success', icon: 'i-heroicons-check-circle' })
+  } catch (e: any) {
+    toast.add({ title: 'Erro ao registrar recebimento', description: e?.data?.message ?? e?.message, color: 'error' })
+  } finally {
+    salvandoRecebimento.value = false
+  }
+}
+
 // --- Marcar como pago ---
 const showPagarModal = ref(false)
 const pagarLanc = ref<Lancamento | null>(null)
@@ -573,7 +664,7 @@ const toast = useToast()
 
 function abrirPagarModal(lanc: Lancamento) {
   pagarLanc.value = lanc
-  pagarData.value = new Date().toISOString().split('T')[0]
+  pagarData.value = useLocalDate().localDateStr()
   showPagarModal.value = true
 }
 

@@ -90,9 +90,19 @@
               :key="i"
               class="flex items-center justify-between px-5 py-2.5 border-b border-gray-100 dark:border-gray-800/60 last:border-0"
             >
-              <div class="min-w-0">
-                <p class="text-sm text-gray-700 dark:text-gray-300 truncate">{{ lanc.descricao }}</p>
-                <p class="text-xs text-gray-400 mt-0.5">{{ fmtDate(lanc.data) }} · {{ lanc.origem }}<template v-if="lanc.categoria"> · {{ lanc.categoria }}</template></p>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <p class="text-sm text-gray-700 dark:text-gray-300 truncate">{{ lanc.descricao }}</p>
+                  <span
+                    v-if="lanc.categoria"
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium text-white flex-shrink-0"
+                    :style="{ background: lanc.categoria_cor ?? '#6366f1' }"
+                  >
+                    <UIcon v-if="lanc.categoria_icone" :name="lanc.categoria_icone" class="w-3 h-3" />
+                    {{ lanc.categoria }}
+                  </span>
+                </div>
+                <p class="text-xs text-gray-400 mt-0.5">{{ fmtDate(lanc.data) }} · {{ lanc.origem }}</p>
               </div>
               <p class="text-sm font-medium text-gray-800 dark:text-gray-100 flex-shrink-0 ml-6">{{ format(lanc.valor) }}</p>
             </div>
@@ -109,7 +119,7 @@ import { Chart as ChartJS, ArcElement, Tooltip } from 'chart.js'
 
 ChartJS.register(ArcElement, Tooltip)
 
-interface Item { descricao: string; valor: number; data: string; origem: string; categoria: string | null }
+interface Item { descricao: string; valor: number; data: string; origem: string; categoria: string | null; categoria_cor: string | null; categoria_icone: string | null }
 interface SegData { total: number; itens: Item[] }
 
 const props = defineProps<{

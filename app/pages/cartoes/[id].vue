@@ -88,11 +88,16 @@
           <p class="text-3xl font-bold" :class="data.fatura?.pago ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'">
             {{ format(valorFaturaPago) }}
           </p>
-          <div v-if="data.fatura?.valor_ajuste" class="text-xs text-gray-400 mt-0.5">
-            Calculado: {{ format(data.cartao.gasto_mes) }}
-            <span :class="data.fatura.valor_ajuste > 0 ? 'text-red-500' : 'text-green-600'">
-              {{ data.fatura.valor_ajuste > 0 ? '+' : '' }}{{ format(data.fatura.valor_ajuste) }}
-            </span>
+          <div v-if="data.fatura?.valor_ajuste || totalExtornos > 0" class="text-xs text-gray-400 mt-0.5 space-y-0.5">
+            <div>
+              Calculado: {{ format(data.cartao.gasto_mes) }}
+              <span v-if="data.fatura?.valor_ajuste" :class="data.fatura.valor_ajuste > 0 ? 'text-red-500' : 'text-green-600'">
+                {{ data.fatura.valor_ajuste > 0 ? '+' : '' }}{{ format(data.fatura.valor_ajuste) }} ajuste
+              </span>
+              <span v-if="totalExtornos > 0" class="text-emerald-600 dark:text-emerald-400">
+                − {{ format(totalExtornos) }} extornos
+              </span>
+            </div>
           </div>
           <div class="flex items-center gap-2 mt-2">
             <UBadge
@@ -116,12 +121,21 @@
             Ajuste
           </UButton>
           <UButton
+            icon="i-heroicons-arrow-uturn-left"
+            variant="soft"
+            color="neutral"
+            class="cursor-pointer"
+            @click="abrirExtornoModal"
+          >
+            Extorno
+          </UButton>
+          <UButton
             v-if="!data.fatura?.pago"
             icon="i-heroicons-check-circle"
             color="primary"
             class="cursor-pointer"
             :disabled="data.cartao.gasto_mes === 0"
-            @click="showPagarModal = true"
+            @click="abrirPagarFaturaModal"
           >
             Pagar fatura
           </UButton>
@@ -325,6 +339,34 @@
           <p class="text-sm font-semibold text-green-600 dark:text-green-400 flex-shrink-0">
             + {{ format(Math.abs(data.fatura.valor_ajuste)) }}
           </p>
+        </div>
+
+        <!-- Extornos -->
+        <div
+          v-for="ext in (!busca ? (data.extornos ?? []) : [])"
+          :key="`ext-${ext.id}`"
+          class="group flex items-center gap-4 px-5 py-4 border-b border-gray-100 dark:border-gray-800 bg-emerald-50/40 dark:bg-emerald-900/10"
+        >
+          <div class="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center bg-emerald-100 dark:bg-emerald-900/30">
+            <UIcon name="i-heroicons-arrow-uturn-left" class="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-emerald-700 dark:text-emerald-400">{{ ext.descricao || 'Extorno' }}</p>
+            <p v-if="ext.transacao_descricao" class="text-xs text-emerald-600/70 dark:text-emerald-500/70 mt-0.5">
+              Ref: {{ ext.transacao_descricao }}
+            </p>
+            <p v-if="ext.notas" class="text-xs text-gray-400 mt-0.5 italic">{{ ext.notas }}</p>
+          </div>
+          <p class="text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex-shrink-0">
+            + {{ format(ext.valor) }}
+          </p>
+          <button
+            class="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 cursor-pointer"
+            title="Remover extorno"
+            @click="removerExtorno(ext.id)"
+          >
+            <UIcon name="i-heroicons-trash" class="w-4 h-4" />
+          </button>
         </div>
 
         <div
@@ -555,6 +597,47 @@
       </template>
     </USlideover>
 
+    <!-- Modal extorno -->
+    <USlideover v-model:open="showExtornoModal" title="Registrar extorno" :dismissible="false">
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            Use para registrar créditos da operadora como cancelamento de compra, contestação ou cashback avulso.
+          </p>
+
+          <UFormField label="Valor do extorno" required>
+            <SharedCurrencyInput v-model="extornoForm.valor" />
+          </UFormField>
+
+          <UFormField label="Descrição">
+            <UInput v-model="extornoForm.descricao" placeholder="Ex: Cancelamento Shopee, Contestação iFood..." class="w-full" />
+          </UFormField>
+
+          <UFormField label="Compra associada (opcional)">
+            <USelect
+              v-model="extornoForm.transacao_id"
+              :items="lancamentoOptions"
+              value-key="value"
+              label-key="label"
+              placeholder="Selecione uma compra..."
+              class="w-full"
+            />
+          </UFormField>
+
+          <UFormField label="Notas">
+            <UTextarea v-model="extornoForm.notas" placeholder="Observações adicionais..." :rows="3" class="w-full" />
+          </UFormField>
+
+          <div class="flex justify-end gap-3 pt-2">
+            <UButton variant="ghost" color="neutral" @click="showExtornoModal = false">Cancelar</UButton>
+            <UButton color="primary" :loading="salvandoExtorno" :disabled="!extornoForm.valor" @click="salvarExtorno">
+              Registrar
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </USlideover>
+
     <!-- Modal pagar fatura -->
     <USlideover v-model:open="showPagarModal" title="Pagar fatura" :dismissible="false">
       <template #body>
@@ -577,6 +660,12 @@
               placeholder="Selecione a conta..."
               class="w-full"
             />
+            <div v-if="saldoConta !== null" class="mt-2 flex items-center justify-between px-3 py-1.5 rounded-lg text-xs"
+              :class="saldoInsuficiente ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400'"
+            >
+              <span>{{ saldoInsuficiente ? 'Saldo insuficiente' : 'Saldo disponível' }}</span>
+              <span class="font-medium">{{ format(saldoConta) }}</span>
+            </div>
           </UFormField>
 
           <UFormField label="Data do pagamento" required>
@@ -595,7 +684,7 @@
 
           <div class="flex justify-end gap-3 pt-2">
             <UButton variant="ghost" color="neutral" @click="showPagarModal = false">Cancelar</UButton>
-            <UButton color="primary" :loading="salvandoPagamento" :disabled="!pagamento.conta_id" @click="salvarPagamento">
+            <UButton color="primary" :loading="salvandoPagamento" :disabled="!pagamento.conta_id || saldoInsuficiente" @click="salvarPagamento">
               Confirmar pagamento
             </UButton>
           </div>
@@ -637,6 +726,15 @@ interface Fatura {
   valor_ajuste: number | null
 }
 
+interface Extorno {
+  id: number
+  valor: number
+  descricao: string | null
+  notas: string | null
+  transacao_id: number | null
+  transacao_descricao: string | null
+}
+
 interface CartaoDetalhe {
   id: number
   nome: string
@@ -657,7 +755,7 @@ const { findBank } = useBanks()
 const now = new Date()
 const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 
-const { data, pending, error, refresh } = await useFetch<{ cartao: CartaoDetalhe; lancamentos: Lancamento[]; fatura: Fatura | null }>(
+const { data, pending, error, refresh } = await useFetch<{ cartao: CartaoDetalhe; lancamentos: Lancamento[]; fatura: Fatura | null; extornos: Extorno[] }>(
   `/api/cartoes/${route.params.id}/lancamentos`,
   { query: computed(() => ({ month: currentMonth.value })), watch: [currentMonth] }
 )
@@ -668,14 +766,18 @@ const cardStyle = computed(() => {
   return { background: `linear-gradient(135deg, ${color}dd 0%, ${color}88 100%)` }
 })
 
+const totalExtornos = computed(() =>
+  (data.value?.extornos ?? []).reduce((s, e) => s + e.valor, 0)
+)
+
 const valorFaturaPago = computed(() => {
   const base = data.value?.cartao.gasto_mes ?? 0
   const ajuste = data.value?.fatura?.valor_ajuste ?? 0
-  return base + ajuste
+  return base + ajuste - totalExtornos.value
 })
 
 const ajusteModal = computed(() => Number(pagamento.ajuste) || 0)
-const valorModalFatura = computed(() => (data.value?.cartao.gasto_mes ?? 0) + ajusteModal.value)
+const valorModalFatura = computed(() => (data.value?.cartao.gasto_mes ?? 0) + ajusteModal.value - totalExtornos.value)
 
 const disponivel = computed(() => (data.value?.cartao.limite ?? 0) - (data.value?.cartao.gasto_total ?? 0))
 const usoPct = computed(() => {
@@ -790,17 +892,37 @@ async function executarDeletar() {
 }
 
 // Pagamento
-const { data: contas } = await useFetch<{ id: number; nome: string; banco: string }[]>('/api/contas')
+const { data: contas } = await useFetch<{ id: number; nome: string; banco: string; saldo_atual: number }[]>('/api/contas')
 const contaOptions = computed(() => (contas.value ?? []).map(c => ({ value: c.id, label: `${c.nome} — ${c.banco}` })))
+
+const saldoConta = computed(() => {
+  if (!pagamento.conta_id) return null
+  return contas.value?.find(c => c.id === pagamento.conta_id)?.saldo_atual ?? null
+})
+
+const saldoInsuficiente = computed(() =>
+  saldoConta.value !== null && valorModalFatura.value > 0 &&
+  Math.round(valorModalFatura.value * 100) > Math.round(saldoConta.value * 100)
+)
 
 const showPagarModal = ref(false)
 const salvandoPagamento = ref(false)
 const desfazendoPagamento = ref(false)
 const pagamento = reactive({
   conta_id: null as number | null,
-  data: new Date().toISOString().split('T')[0],
+  data: useLocalDate().localDateStr(),
   ajuste: '' as string
 })
+
+function abrirPagarFaturaModal() {
+  // Pre-fill ajuste with any existing valor_ajuste stored in the fatura
+  const ajusteExistente = data.value?.fatura?.valor_ajuste
+  pagamento.ajuste = ajusteExistente != null && ajusteExistente !== 0
+    ? String(ajusteExistente)
+    : ''
+  pagamento.data = useLocalDate().localDateStr()
+  showPagarModal.value = true
+}
 
 async function salvarPagamento() {
   if (!pagamento.conta_id) return
@@ -822,6 +944,59 @@ async function salvarPagamento() {
     pagamento.ajuste = ''
   } finally {
     salvandoPagamento.value = false
+  }
+}
+
+// Extorno
+const showExtornoModal = ref(false)
+const salvandoExtorno = ref(false)
+const extornoForm = reactive({ valor: 0, descricao: '', notas: '', transacao_id: null as number | null })
+
+const lancamentoOptions = computed(() => [
+  { value: null, label: 'Nenhuma' },
+  ...(data.value?.lancamentos ?? []).map(l => ({ value: l.id, label: l.descricao }))
+])
+
+function abrirExtornoModal() {
+  extornoForm.valor = 0
+  extornoForm.descricao = ''
+  extornoForm.notas = ''
+  extornoForm.transacao_id = null
+  showExtornoModal.value = true
+}
+
+async function salvarExtorno() {
+  if (!extornoForm.valor) return
+  salvandoExtorno.value = true
+  try {
+    await $fetch('/api/extornos', {
+      method: 'POST',
+      body: {
+        cartao_id: cartaoIdNum.value,
+        mes: currentMonth.value,
+        valor: extornoForm.valor,
+        descricao: extornoForm.descricao || null,
+        notas: extornoForm.notas || null,
+        transacao_id: extornoForm.transacao_id || null,
+      }
+    })
+    showExtornoModal.value = false
+    await refresh()
+    toast.add({ title: 'Extorno registrado', color: 'success', icon: 'i-heroicons-check-circle' })
+  } catch (e: any) {
+    toast.add({ title: 'Erro ao salvar', description: e?.data?.message ?? e?.message, color: 'error' })
+  } finally {
+    salvandoExtorno.value = false
+  }
+}
+
+async function removerExtorno(id: number) {
+  try {
+    await $fetch(`/api/extornos/${id}`, { method: 'DELETE' })
+    await refresh()
+    toast.add({ title: 'Extorno removido', color: 'success', icon: 'i-heroicons-check-circle' })
+  } catch (e: any) {
+    toast.add({ title: 'Erro ao remover', description: e?.data?.message ?? e?.message, color: 'error' })
   }
 }
 

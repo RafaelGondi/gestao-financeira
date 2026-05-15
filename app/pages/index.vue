@@ -6,6 +6,16 @@
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
         <p class="text-sm text-gray-500 mt-1">Visão geral das suas finanças</p>
       </div>
+      <button
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors cursor-pointer"
+        :class="globalHidden
+          ? 'border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+          : 'border-gray-200 dark:border-gray-700 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+        @click="globalHidden = !globalHidden"
+      >
+        <UIcon :name="globalHidden ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'" class="w-4 h-4" />
+        {{ globalHidden ? 'Exibir valores' : 'Ocultar valores' }}
+      </button>
     </div>
 
     <!-- Month Navigator -->
@@ -39,6 +49,8 @@
           icon="i-heroicons-arrow-trending-up"
           :period="prevMonthEndLabel"
           subtitle2="(Receita - Despesa + Saldo)"
+          show-eye
+          :hidden="globalHidden"
           :sub1="{ label: 'Pendências', value: 0, color: 'orange' }"
           :sub2="{ label: 'Disponível', value: data.saldoAnterior, color: 'green' }"
         />
@@ -49,6 +61,7 @@
           icon="i-heroicons-arrow-trending-up"
           :period="periodLabel"
           show-eye
+          :hidden="globalHidden"
           :sub1="{ label: 'Recebido', value: data.receitas.recebido, color: 'green' }"
           :sub2="{ label: 'A receber', value: data.receitas.aReceber, color: 'orange' }"
         />
@@ -59,6 +72,7 @@
           icon="i-heroicons-arrow-trending-down"
           :period="periodLabel"
           show-eye
+          :hidden="globalHidden"
           :sub1="{ label: 'Pago', value: data.despesas.pago, color: 'green' }"
           :sub2="{ label: 'A pagar', value: data.despesas.aPagar, color: 'red' }"
         />
@@ -69,6 +83,8 @@
           icon="i-heroicons-arrow-trending-up"
           :period="currentMonthEndLabel"
           subtitle2="(Receita - Despesa + Saldo)"
+          show-eye
+          :hidden="globalHidden"
           :sub1="{ label: 'Disponível', value: data.saldoDisponivel, color: 'blue' }"
           :sub2="{ label: 'Previsto', value: data.saldoPrevisto, color: 'blue' }"
         />
@@ -109,6 +125,8 @@
 </template>
 
 <script setup lang="ts">
+const globalHidden = ref(false)
+
 const now = new Date()
 const currentMonth = ref(
   `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`

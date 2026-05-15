@@ -1,5 +1,6 @@
 import db from '../../db/index'
 import { readBody } from 'h3'
+import { localDateStr } from '../../utils/localDate'
 
 interface ReceitaBody {
   descricao: string
@@ -71,24 +72,25 @@ export default defineEventHandler(async (event) => {
     return db.prepare(`
       SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data_inicio, t.data_fim, t.data, t.conta_id, t.notas, t.nome_fatura,
         c.nome AS conta_nome, c.banco_key,
-        CASE WHEN t.data_fim IS NOT NULL AND t.data_fim < date('now') THEN 2 ELSE 1 END AS recebido
+        CASE WHEN t.data_fim IS NOT NULL AND t.data_fim < ? THEN 2 ELSE 1 END AS recebido
       FROM transacoes t LEFT JOIN contas c ON c.id = t.conta_id WHERE t.id = ?
-    `).get([result.lastInsertRowid])
+    `).get([localDateStr(), result.lastInsertRowid])
   }
 
   // avulsa
   if (!body.data || !dateRe.test(body.data))
     throw createError({ statusCode: 400, statusMessage: 'Data inválida' })
 
+  const today = localDateStr()
   const result = db.prepare(`
     INSERT INTO transacoes (descricao, valor, tipo, categoria, conta_id, data, pago, fixa, parcelas, notas, nome_fatura)
-    VALUES (?, ?, 'receita', ?, ?, ?, CASE WHEN ? <= date('now') THEN 1 ELSE 0 END, 0, 0, ?, ?)
-  `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, body.data, body.data, body.notas?.trim() || null, body.nome_fatura?.trim() || null])
+    VALUES (?, ?, 'receita', ?, ?, ?, CASE WHEN ? <= ? THEN 1 ELSE 0 END, 0, 0, ?, ?)
+  `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, body.data, body.data, today, body.notas?.trim() || null, body.nome_fatura?.trim() || null])
 
   return db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data_inicio, t.data_fim, t.data, t.conta_id, t.notas, t.nome_fatura,
       c.nome AS conta_nome, c.banco_key,
-      CASE WHEN t.data <= date('now') THEN 1 ELSE 0 END AS recebido
+      CASE WHEN t.data <= ? THEN 1 ELSE 0 END AS recebido
     FROM transacoes t LEFT JOIN contas c ON c.id = t.conta_id WHERE t.id = ?
-  `).get([result.lastInsertRowid])
+  `).get([today, result.lastInsertRowid])
 })
