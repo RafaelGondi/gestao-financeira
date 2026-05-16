@@ -6,9 +6,15 @@ SERVER="root@137.184.195.81"
 APP_DIR="/app"
 
 echo "🔨 Buildando aplicação..."
-npm run build
+NUXT_IGNORE_LOCK=1 npm run build
 if [ $? -ne 0 ]; then
   echo "❌ Build falhou. Abortando."
+  exit 1
+fi
+
+echo "🔍 Verificando bundle..."
+if [ ! -f ".output/server/chunks/_/nitro.mjs" ]; then
+  echo "❌ Bundle não encontrado. Abortando."
   exit 1
 fi
 
