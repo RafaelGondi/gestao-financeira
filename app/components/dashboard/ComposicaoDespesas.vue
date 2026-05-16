@@ -30,15 +30,15 @@
     <template v-else>
       <!-- Donut + breakdown -->
       <div
-        class="flex gap-5 items-center"
+        class="flex flex-col sm:flex-row gap-5 items-center"
         :class="compact ? '' : 'px-5 py-5 border-b border-gray-100 dark:border-gray-800'"
       >
-        <div class="w-36 h-36 flex-shrink-0">
+        <div class="w-28 h-28 sm:w-36 sm:h-36 flex-shrink-0">
           <Doughnut :data="chartData" :options="chartOptions" />
         </div>
 
         <!-- grid com barras (ambos os modos) -->
-        <div class="flex-1 grid grid-cols-2 gap-x-8 gap-y-3">
+        <div class="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
           <div v-for="item in segmentos" :key="item.key" class="flex items-center gap-3 min-w-0">
             <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ background: item.cor }" />
             <div class="flex-1 min-w-0">
