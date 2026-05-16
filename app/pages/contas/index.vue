@@ -50,33 +50,37 @@
         <p class="text-xs text-primary-200 mt-1">{{ contas.length }} conta{{ contas.length !== 1 ? 's' : '' }} cadastrada{{ contas.length !== 1 ? 's' : '' }}</p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- Hint reordenação -->
+      <p v-if="reordenando" class="text-xs text-gray-400 text-center mb-3 flex items-center justify-center gap-1.5">
+        <UIcon name="i-heroicons-arrows-up-down" class="w-3.5 h-3.5" />
+        Arraste os cards para reordenar
+      </p>
+
+      <!-- Grid com drag and drop -->
+      <VueDraggable
+        v-model="contasOrdenadas"
+        :animation="200"
+        handle=".drag-handle"
+        ghost-class="opacity-40"
+        drag-class="shadow-xl"
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        :disabled="!reordenando"
+      >
         <div
-          v-for="(conta, index) in contasOrdenadas"
+          v-for="conta in contasOrdenadas"
           :key="conta.id"
           class="bg-white dark:bg-gray-900 rounded-lg border overflow-hidden transition-all"
           :class="reordenando
             ? 'border-primary-200 dark:border-primary-800 shadow-sm'
             : 'border-gray-100 dark:border-gray-800'"
         >
-          <!-- Header -->
           <div class="flex items-center gap-3 p-5" :class="!reordenando && 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors'">
-            <!-- Setas de reordenação -->
-            <div v-if="reordenando" class="flex flex-col gap-0.5 flex-shrink-0">
-              <button
-                class="p-0.5 rounded text-gray-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
-                :disabled="index === 0"
-                @click="moverCima(index)"
-              >
-                <UIcon name="i-heroicons-chevron-up" class="w-4 h-4" />
-              </button>
-              <button
-                class="p-0.5 rounded text-gray-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer"
-                :disabled="index === contasOrdenadas.length - 1"
-                @click="moverBaixo(index)"
-              >
-                <UIcon name="i-heroicons-chevron-down" class="w-4 h-4" />
-              </button>
+            <!-- Handle de drag -->
+            <div
+              v-if="reordenando"
+              class="drag-handle flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 dark:hover:text-gray-400 transition-colors touch-none"
+            >
+              <UIcon name="i-heroicons-bars-2" class="w-5 h-5" />
             </div>
 
             <NuxtLink
@@ -117,7 +121,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </VueDraggable>
     </div>
 
     <!-- Modal Add/Edit -->
@@ -151,6 +155,8 @@
 </template>
 
 <script setup lang="ts">
+import { VueDraggable } from 'vue-draggable-plus'
+
 interface Conta {
   id: number
   nome: string
@@ -184,20 +190,6 @@ function iniciarReordenacao() {
 function cancelarReordenacao() {
   contasOrdenadas.value = [...(contas.value ?? [])]
   reordenando.value = false
-}
-
-function moverCima(index: number) {
-  if (index === 0) return
-  const arr = [...contasOrdenadas.value]
-  ;[arr[index - 1], arr[index]] = [arr[index], arr[index - 1]]
-  contasOrdenadas.value = arr
-}
-
-function moverBaixo(index: number) {
-  if (index === contasOrdenadas.value.length - 1) return
-  const arr = [...contasOrdenadas.value]
-  ;[arr[index], arr[index + 1]] = [arr[index + 1], arr[index]]
-  contasOrdenadas.value = arr
 }
 
 async function salvarOrdem() {
