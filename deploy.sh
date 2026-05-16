@@ -25,11 +25,12 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-echo "🔧 Corrigindo binário do better-sqlite3..."
-ssh "$SERVER" "rm -rf $APP_DIR/.output/server/node_modules/better-sqlite3 && cp -r $APP_DIR/node_modules/better-sqlite3 $APP_DIR/.output/server/node_modules/"
-
-echo "♻️  Reiniciando PM2..."
-ssh "$SERVER" "cd $APP_DIR && pm2 restart financas"
+echo "🔧 Corrigindo binário do better-sqlite3 e reiniciando..."
+ssh "$SERVER" "
+  rm -rf $APP_DIR/.output/server/node_modules/better-sqlite3 &&
+  cp -r $APP_DIR/node_modules/better-sqlite3 $APP_DIR/.output/server/node_modules/ &&
+  cd $APP_DIR && pm2 restart financas
+"
 
 echo ""
 echo "✅ Deploy concluído! http://137.184.195.81"
