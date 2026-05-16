@@ -17,10 +17,10 @@ export function getSaldoConta(contaId: number): number {
     WHERE tipo='receita' AND conta_id=? AND fixa=0 AND (pago=1 OR data<=?)
   `).get([contaId, today]) as any).t
 
-  // Despesas avulsas pagas (sem cartão)
+  // Despesas avulsas pagas (sem cartão) — exclui as explicitamente desmarcadas (despago=1)
   const despAvulsas = (db.prepare(`
     SELECT COALESCE(SUM(valor), 0) AS t FROM transacoes
-    WHERE tipo='despesa' AND conta_id=? AND cartao_id IS NULL AND fixa=0 AND data<=?
+    WHERE tipo='despesa' AND conta_id=? AND cartao_id IS NULL AND fixa=0 AND data<=? AND despago=0
   `).get([contaId, today]) as any).t
 
   // Transferências
@@ -37,18 +37,31 @@ export function getSaldoConta(contaId: number): number {
   for (const t of fixas) {
     const day = t.data_inicio.slice(8, 10)
     let y = Number(t.data_inicio.slice(0, 4)), m = Number(t.data_inicio.slice(5, 7)), count = 0
+
+    // Meses explicitamente marcados como não pagos (apenas despesas)
+    const naoPagoMeses = t.tipo === 'despesa'
+      ? new Set(
+          (db.prepare(`SELECT mes FROM pagamentos_fixas WHERE transacao_id=? AND nao_pago=1`).all([t.id]) as any[])
+            .map((r: any) => r.mes)
+        )
+      : new Set<string>()
+
     while (true) {
       const mes = `${y}-${String(m).padStart(2, '0')}`
       const occDate = `${mes}-${day}`
       if (t.data_fim && occDate > t.data_fim) break
-      // For receitas only: check if marked early in pagamentos_fixas
-      const isEarlyReceipt = t.tipo === 'receita' && occDate > today
-        ? (db.prepare(`SELECT 1 FROM pagamentos_fixas WHERE transacao_id=? AND mes=?`).get([t.id, mes]) != null)
-        : false
-      if (occDate <= today || isEarlyReceipt) {
-        count++
+      if (naoPagoMeses.has(mes)) {
+        // explicitamente não pago — não conta, mas continua iterando
       } else {
-        break
+        // For receitas only: check if marked early in pagamentos_fixas
+        const isEarlyReceipt = t.tipo === 'receita' && occDate > today
+          ? (db.prepare(`SELECT 1 FROM pagamentos_fixas WHERE transacao_id=? AND mes=?`).get([t.id, mes]) != null)
+          : false
+        if (occDate <= today || isEarlyReceipt) {
+          count++
+        } else {
+          break
+        }
       }
       m++; if (m > 12) { m = 1; y++ }
     }

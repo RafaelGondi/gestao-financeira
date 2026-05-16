@@ -19,10 +19,12 @@ export default defineEventHandler(async (event) => {
     if (!mes || !/^\d{4}-\d{2}$/.test(mes))
       throw createError({ statusCode: 400, message: 'Parâmetro "mes" é obrigatório para despesas fixas (YYYY-MM)' })
 
+    // data_pagamento usa date('now') como placeholder pois a coluna é NOT NULL no schema legado.
+    // O flag nao_pago=1 é o que indica que o pagamento foi explicitamente desmarcado.
     db.prepare(`
       INSERT INTO pagamentos_fixas (transacao_id, mes, data_pagamento, nao_pago)
-      VALUES (?, ?, NULL, 1)
-      ON CONFLICT(transacao_id, mes) DO UPDATE SET data_pagamento = NULL, nao_pago = 1
+      VALUES (?, ?, date('now'), 1)
+      ON CONFLICT(transacao_id, mes) DO UPDATE SET nao_pago = 1
     `).run([id, mes])
 
     return { transacao_id: id, mes, nao_pago: true }
