@@ -16,16 +16,10 @@ export default defineEventHandler((event) => {
   const nowM = now.getMonth() + 1
   const thisMonthStr = `${nowY}-${String(nowM).padStart(2, '0')}`
 
-  const mesesPagos = new Set<string>(
-    (db.prepare(`SELECT mes FROM faturas WHERE cartao_id = ? AND pago = 1`).all([cartaoId]) as any[]).map((r: any) => r.mes)
-  )
-
   const faturaMap = new Map<string, number>()
 
   function addToFatura(mes: string, valor: number) {
-    if (!mesesPagos.has(mes)) {
-      faturaMap.set(mes, (faturaMap.get(mes) ?? 0) + valor)
-    }
+    faturaMap.set(mes, (faturaMap.get(mes) ?? 0) + valor)
   }
 
   // One-time purchases: fetch all and resolve to fatura month
