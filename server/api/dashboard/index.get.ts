@@ -105,7 +105,7 @@ export default defineEventHandler((event) => {
   // Transações avulsas sem cartão
   const avulsasNormais = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.tipo, t.categoria, t.data, t.cartao_id, 0 AS fixa,
-      CASE WHEN t.pago = 1 OR t.data <= ? THEN 1 ELSE 0 END AS pago,
+      CASE WHEN t.despago = 1 THEN 0 WHEN t.pago = 1 OR t.data <= ? THEN 1 ELSE 0 END AS pago,
       cat.icone AS categoria_icone, cat.cor AS categoria_cor
     FROM transacoes t
     LEFT JOIN categorias cat ON cat.nome = t.categoria
@@ -117,7 +117,7 @@ export default defineEventHandler((event) => {
   const fixasNormais = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.tipo, t.categoria, t.cartao_id, 1 AS fixa,
       ? || '-' || substr(t.data_inicio, 9, 2) AS data,
-      CASE WHEN pf.id IS NOT NULL OR ? || '-' || substr(t.data_inicio, 9, 2) <= ? THEN 1 ELSE 0 END AS pago,
+      CASE WHEN pf.nao_pago = 1 THEN 0 WHEN pf.id IS NOT NULL OR ? || '-' || substr(t.data_inicio, 9, 2) <= ? THEN 1 ELSE 0 END AS pago,
       cat.icone AS categoria_icone, cat.cor AS categoria_cor
     FROM transacoes t
     LEFT JOIN categorias cat ON cat.nome = t.categoria

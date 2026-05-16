@@ -179,11 +179,14 @@
             title="Marcar como pago"
             @click="abrirPagarModal(lanc)"
           />
-          <UIcon
+          <button
             v-else-if="lanc.tipo === 'despesa' && lanc.pago"
-            name="i-heroicons-check-circle-solid"
-            class="w-4 h-4 text-green-500 flex-shrink-0"
-          />
+            class="text-green-500 hover:text-orange-400 transition-colors cursor-pointer flex-shrink-0"
+            title="Clique para desmarcar pagamento"
+            @click="despagarLanc(lanc)"
+          >
+            <UIcon name="i-heroicons-check-circle-solid" class="w-4 h-4" />
+          </button>
           <UButton
             v-else-if="lanc.tipo === 'receita' && !lanc.pago"
             icon="i-heroicons-check-circle"
@@ -652,6 +655,20 @@ async function confirmarRecebimento() {
     toast.add({ title: 'Erro ao registrar recebimento', description: e?.data?.message ?? e?.message, color: 'error' })
   } finally {
     salvandoRecebimento.value = false
+  }
+}
+
+// --- Desmarcar como pago ---
+async function despagarLanc(lanc: Lancamento) {
+  try {
+    const body: Record<string, string> = {}
+    if (lanc.fixa) body.mes = currentMonth.value
+    await $fetch(`/api/transacoes/${lanc.id}/despagar`, { method: 'PATCH', body })
+    await refresh()
+    refreshNuxtData()
+    toast.add({ title: 'Pagamento desmarcado', color: 'success', icon: 'i-heroicons-check-circle' })
+  } catch (e: any) {
+    toast.add({ title: 'Erro ao desmarcar', description: e?.data?.message ?? e?.message, color: 'error' })
   }
 }
 

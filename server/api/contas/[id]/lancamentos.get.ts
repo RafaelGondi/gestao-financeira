@@ -72,7 +72,13 @@ function computeSaldoAtual(contaId: number, today: string, saldoInicial: number)
 
     // Pagamentos/recebimentos antecipados (incluindo dentro do mês atual)
     const earlyFuture = new Set(
-      (db.prepare(`SELECT mes FROM pagamentos_fixas WHERE transacao_id=? AND mes>=?`).all([t.id, todayMes]) as any[])
+      (db.prepare(`SELECT mes FROM pagamentos_fixas WHERE transacao_id=? AND mes>=? AND nao_pago=0`).all([t.id, todayMes]) as any[])
+        .map((r: any) => r.mes)
+    )
+
+    // Meses explicitamente marcados como não pagos (sobrepõe auto-pagamento)
+    const naoPagoSet = new Set(
+      (db.prepare(`SELECT mes FROM pagamentos_fixas WHERE transacao_id=? AND nao_pago=1`).all([t.id]) as any[])
         .map((r: any) => r.mes)
     )
 
@@ -84,12 +90,14 @@ function computeSaldoAtual(contaId: number, today: string, saldoInicial: number)
       const occDate = `${mes}-${day}`
       if (t.data_fim && occDate > t.data_fim) break
 
-      if (occDate <= today) {
-        count++ // ocorrência passada, sempre paga
+      if (naoPagoSet.has(mes)) {
+        // explicitamente não pago — não conta
+      } else if (occDate <= today) {
+        count++ // ocorrência passada, conta como paga
       } else if (earlyFuture.has(mes)) {
         count++ // pago antecipadamente
       } else {
-        break   // futuro não pago — encerra (improvável ter gaps)
+        break   // futuro não pago — encerra
       }
 
       idx++; m++; if (m > 12) { m = 1; y++ }
@@ -158,7 +166,7 @@ export default defineEventHandler((event) => {
 
   // Despesas avulsas (não cartão)
   for (const t of db.prepare(`
-    SELECT t.id, t.descricao, t.valor, t.categoria, t.data, t.pago, t.data_pagamento, t.notas, t.nome_fatura, 0 AS fixa, 0 AS parcelas,
+    SELECT t.id, t.descricao, t.valor, t.categoria, t.data, t.pago, t.despago, t.data_pagamento, t.notas, t.nome_fatura, 0 AS fixa, 0 AS parcelas,
       c.cor AS categoria_cor, c.icone AS categoria_icone
     FROM transacoes t
     LEFT JOIN categorias c ON c.nome = t.categoria
@@ -166,14 +174,15 @@ export default defineEventHandler((event) => {
       AND t.data >= ? AND t.data <= ?
     ORDER BY t.data DESC
   `).all([contaId, startDate, endDate]) as any[]) {
-    lancamentos.push({ ...t, tipo: 'despesa', data_inicio: null, data_fim: null })
+    const pago = t.despago ? 0 : (t.pago || t.data <= today) ? 1 : 0
+    lancamentos.push({ ...t, tipo: 'despesa', pago, data_inicio: null, data_fim: null })
   }
 
   // Despesas fixas (não cartão)
   for (const t of db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, t.data_inicio, t.data_fim, t.notas, t.nome_fatura, 1 AS fixa, t.parcelas,
       c.cor AS categoria_cor, c.icone AS categoria_icone,
-      pf.data_pagamento AS pago_data
+      pf.data_pagamento AS pago_data, pf.nao_pago AS nao_pago
     FROM transacoes t
     LEFT JOIN categorias c ON c.nome = t.categoria
     LEFT JOIN pagamentos_fixas pf ON pf.transacao_id = t.id AND pf.mes = ?
@@ -181,10 +190,10 @@ export default defineEventHandler((event) => {
       AND t.data_inicio <= ? AND (t.data_fim IS NULL OR t.data_fim >= ?)
   `).all([month, contaId, endDate, startDate]) as any[]) {
     const data = month + '-' + t.data_inicio.slice(8, 10)
-    const pagoAntecipado = t.pago_data != null
+    const pagoAntecipado = t.pago_data != null && !t.nao_pago
+    const pago = t.nao_pago ? 0 : (pagoAntecipado ? 1 : (data <= today ? 1 : 0))
     lancamentos.push({
-      ...t, tipo: 'despesa', data,
-      pago: pagoAntecipado ? 1 : (data <= today ? 1 : 0),
+      ...t, tipo: 'despesa', data, pago,
       pago_antecipado: pagoAntecipado,
       parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null
     })
