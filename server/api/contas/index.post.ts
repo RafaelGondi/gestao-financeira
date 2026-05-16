@@ -11,10 +11,11 @@ export default defineEventHandler(async (event) => {
   if (typeof body.saldo_inicial !== 'number')
     throw createError({ statusCode: 400, statusMessage: 'Saldo inicial inválido' })
 
+  const maxOrdem = (db.prepare(`SELECT COALESCE(MAX(ordem), -1) AS m FROM contas`).get() as any).m
   const result = db.prepare(`
-    INSERT INTO contas (nome, banco, banco_key, saldo_inicial)
-    VALUES (?, ?, ?, ?)
-  `).run([body.nome.trim(), body.banco.trim(), body.banco_key ?? '', body.saldo_inicial])
+    INSERT INTO contas (nome, banco, banco_key, saldo_inicial, ordem)
+    VALUES (?, ?, ?, ?, ?)
+  `).run([body.nome.trim(), body.banco.trim(), body.banco_key ?? '', body.saldo_inicial, maxOrdem + 1])
 
   return db.prepare(`SELECT * FROM contas WHERE id = ?`).get([result.lastInsertRowid])
 })

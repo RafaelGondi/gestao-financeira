@@ -66,7 +66,7 @@ function isMarkedEarlyThisMonth(transacaoId: number, dataInicio: string, todaySt
 
 export default defineEventHandler(() => {
   const contas = db.prepare(`
-    SELECT id, nome, banco, banco_key, saldo_inicial FROM contas ORDER BY nome ASC
+    SELECT id, nome, banco, banco_key, saldo_inicial FROM contas ORDER BY COALESCE(ordem, 999), nome ASC
   `).all() as Conta[]
 
   const today = new Date()

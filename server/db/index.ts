@@ -74,6 +74,12 @@ if (!g.__db) {
   const contaCols = db.prepare(`PRAGMA table_info(contas)`).all() as { name: string }[]
   const contaColNames = contaCols.map(c => c.name)
   if (!contaColNames.includes('banco_key')) db.exec(`ALTER TABLE contas ADD COLUMN banco_key TEXT NOT NULL DEFAULT ''`)
+  if (!contaColNames.includes('ordem')) {
+    db.exec(`ALTER TABLE contas ADD COLUMN ordem INTEGER`)
+    // Inicializa a ordem das contas existentes pela ordem alfabética atual
+    const existentes = db.prepare(`SELECT id FROM contas ORDER BY nome ASC`).all() as { id: number }[]
+    existentes.forEach((c, i) => db.prepare(`UPDATE contas SET ordem = ? WHERE id = ?`).run([i, c.id]))
+  }
 
   const cols = db.prepare(`PRAGMA table_info(transacoes)`).all() as { name: string }[]
   const colNames = cols.map(c => c.name)
