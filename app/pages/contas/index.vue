@@ -43,7 +43,10 @@
         v-model="contasOrdenadas"
         :animation="200"
         ghost-class="opacity-40"
+        chosen-class="drag-chosen"
         drag-class="shadow-xl"
+        :delay="250"
+        :delay-on-touch-only="true"
         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
         @end="salvarOrdem"
       >
@@ -192,3 +195,11 @@ async function handleDelete() {
 
 useHead({ title: 'Contas — Gestão Financeira' })
 </script>
+
+<style scoped>
+.drag-chosen {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  transform: scale(1.02);
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+</style>

@@ -86,9 +86,9 @@ export default defineEventHandler(() => {
 
   return contas.map(conta => {
     const transacoes = db.prepare(`
-      SELECT id, valor, tipo, fixa, data, data_inicio, data_fim, pago
+      SELECT id, valor, tipo, fixa, data, data_inicio, data_fim, pago, despago
       FROM transacoes WHERE conta_id = ?
-    `).all([conta.id]) as (Transacao & { id: number })[]
+    `).all([conta.id]) as (Transacao & { id: number, despago: number })[]
 
     const todayStr = localDateStr()
 
@@ -105,9 +105,24 @@ export default defineEventHandler(() => {
         }
       } else if (t.tipo === 'despesa') {
         if (t.fixa) {
-          const n = countReceivedOccurrences(t.data_inicio!, t.data_fim, today)
-          movimentacao -= t.valor * n
-        } else if (new Date(t.data + 'T12:00:00') <= today) {
+          // Conta mês a mês, pulando os meses explicitamente desmarcados (nao_pago)
+          const naoPagoSet = new Set(
+            (db.prepare(`SELECT mes FROM pagamentos_fixas WHERE transacao_id=? AND nao_pago=1`).all([t.id]) as any[])
+              .map((r: any) => r.mes)
+          )
+          let count = 0
+          const day = t.data_inicio!.slice(8, 10)
+          let y = Number(t.data_inicio!.slice(0, 4)), m = Number(t.data_inicio!.slice(5, 7))
+          while (true) {
+            const mes = `${y}-${String(m).padStart(2, '0')}`
+            const occDate = `${mes}-${day}`
+            if (t.data_fim && new Date(occDate + 'T12:00:00') > new Date(t.data_fim + 'T12:00:00')) break
+            if (new Date(occDate + 'T12:00:00') > today) break
+            if (!naoPagoSet.has(mes)) count++
+            m++; if (m > 12) { m = 1; y++ }
+          }
+          movimentacao -= t.valor * count
+        } else if (!t.despago && new Date(t.data + 'T12:00:00') <= today) {
           movimentacao -= t.valor
         }
       }
