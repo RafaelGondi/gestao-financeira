@@ -153,7 +153,7 @@ export default defineEventHandler(() => {
 
     return {
       ...conta,
-      saldo_atual: conta.saldo_inicial + movimentacao
+      saldo_atual: Math.round((conta.saldo_inicial + movimentacao) * 100) / 100
     }
   })
 })

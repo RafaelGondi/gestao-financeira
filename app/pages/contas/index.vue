@@ -72,7 +72,7 @@
             <div>
               <p class="text-xs text-gray-400">Saldo atual</p>
               <p class="text-xl font-bold"
-                :class="conta.saldo_atual >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                :class="Math.round(conta.saldo_atual * 100) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
                 {{ format(conta.saldo_atual) }}
               </p>
             </div>

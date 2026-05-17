@@ -1,5 +1,7 @@
 export function useCurrency() {
-  const format = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0)
+  const format = (value: number) => {
+    const rounded = Math.round((value || 0) * 100) / 100
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rounded)
+  }
   return { format }
 }
