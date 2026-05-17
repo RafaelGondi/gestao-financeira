@@ -5,20 +5,9 @@
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Contas</h1>
         <p class="text-sm text-gray-500 mt-1">Suas contas bancárias</p>
       </div>
-      <div class="flex items-center gap-2">
-        <template v-if="reordenando">
-          <UButton variant="ghost" color="neutral" @click="cancelarReordenacao">Cancelar</UButton>
-          <UButton icon="i-heroicons-check" color="primary" :loading="salvandoOrdem" @click="salvarOrdem">Salvar ordem</UButton>
-        </template>
-        <template v-else>
-          <UButton v-if="contas && contas.length > 1" icon="i-heroicons-arrows-up-down" variant="ghost" color="neutral" @click="iniciarReordenacao">
-            Reordenar
-          </UButton>
-          <UButton icon="i-heroicons-plus" color="primary" @click="openAddModal">
-            Nova Conta
-          </UButton>
-        </template>
-      </div>
+      <UButton icon="i-heroicons-plus" color="primary" @click="openAddModal">
+        Nova Conta
+      </UButton>
     </div>
 
     <!-- Loading -->
@@ -50,60 +39,31 @@
         <p class="text-xs text-primary-200 mt-1">{{ contas.length }} conta{{ contas.length !== 1 ? 's' : '' }} cadastrada{{ contas.length !== 1 ? 's' : '' }}</p>
       </div>
 
-      <!-- Hint reordenação -->
-      <p v-if="reordenando" class="text-xs text-gray-400 text-center mb-3 flex items-center justify-center gap-1.5">
-        <UIcon name="i-heroicons-arrows-up-down" class="w-3.5 h-3.5" />
-        Arraste os cards para reordenar
-      </p>
-
-      <!-- Grid com drag and drop -->
       <VueDraggable
         v-model="contasOrdenadas"
         :animation="200"
-        handle=".drag-handle"
         ghost-class="opacity-40"
         drag-class="shadow-xl"
         class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-        :disabled="!reordenando"
+        @end="salvarOrdem"
       >
         <div
           v-for="conta in contasOrdenadas"
           :key="conta.id"
-          class="bg-white dark:bg-gray-900 rounded-lg border overflow-hidden transition-all"
-          :class="reordenando
-            ? 'border-primary-200 dark:border-primary-800 shadow-sm'
-            : 'border-gray-100 dark:border-gray-800'"
+          class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden cursor-grab active:cursor-grabbing"
         >
-          <div class="flex items-center gap-3 p-5" :class="!reordenando && 'hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors'">
-            <!-- Handle de drag -->
-            <div
-              v-if="reordenando"
-              class="drag-handle flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 dark:hover:text-gray-400 transition-colors touch-none"
-            >
-              <UIcon name="i-heroicons-bars-2" class="w-5 h-5" />
+          <NuxtLink
+            :to="`/contas/${conta.id}`"
+            class="flex items-center gap-3 p-5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+            draggable="false"
+          >
+            <SharedBankLogo :bank="findBank(conta.banco_key)" :size="44" class="rounded-lg flex-shrink-0" />
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold text-gray-900 dark:text-white truncate">{{ conta.nome }}</p>
+              <p class="text-xs text-gray-400">{{ conta.banco }}</p>
             </div>
-
-            <NuxtLink
-              v-if="!reordenando"
-              :to="`/contas/${conta.id}`"
-              class="flex items-center gap-3 flex-1 min-w-0"
-            >
-              <SharedBankLogo :bank="findBank(conta.banco_key)" :size="44" class="rounded-lg flex-shrink-0" />
-              <div class="flex-1 min-w-0">
-                <p class="font-semibold text-gray-900 dark:text-white truncate">{{ conta.nome }}</p>
-                <p class="text-xs text-gray-400">{{ conta.banco }}</p>
-              </div>
-              <UIcon name="i-heroicons-chevron-right" class="w-4 h-4 text-gray-400 flex-shrink-0" />
-            </NuxtLink>
-
-            <div v-else class="flex items-center gap-3 flex-1 min-w-0">
-              <SharedBankLogo :bank="findBank(conta.banco_key)" :size="44" class="rounded-lg flex-shrink-0" />
-              <div class="flex-1 min-w-0">
-                <p class="font-semibold text-gray-900 dark:text-white truncate">{{ conta.nome }}</p>
-                <p class="text-xs text-gray-400">{{ conta.banco }}</p>
-              </div>
-            </div>
-          </div>
+            <UIcon name="i-heroicons-chevron-right" class="w-4 h-4 text-gray-400 flex-shrink-0" />
+          </NuxtLink>
 
           <div class="px-5 py-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
             <div>
@@ -113,7 +73,7 @@
                 {{ format(conta.saldo_atual) }}
               </p>
             </div>
-            <div v-if="!reordenando" class="flex gap-1">
+            <div class="flex gap-1">
               <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
                 @click.prevent="openEditModal(conta)" />
               <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
@@ -173,39 +133,21 @@ const { data: contas, pending, error, refresh } = await useFetch<Conta[]>('/api/
 
 const saldoTotal = computed(() => contas.value?.reduce((s, c) => s + c.saldo_atual, 0) ?? 0)
 
-// --- Reordenação ---
-const reordenando = ref(false)
 const contasOrdenadas = ref<Conta[]>([])
-const salvandoOrdem = ref(false)
 
 watch(contas, (val) => {
   if (val) contasOrdenadas.value = [...val]
 }, { immediate: true })
 
-function iniciarReordenacao() {
-  contasOrdenadas.value = [...(contas.value ?? [])]
-  reordenando.value = true
-}
-
-function cancelarReordenacao() {
-  contasOrdenadas.value = [...(contas.value ?? [])]
-  reordenando.value = false
-}
-
 async function salvarOrdem() {
-  salvandoOrdem.value = true
   try {
     await $fetch('/api/contas/ordem', {
       method: 'PATCH',
       body: { ids: contasOrdenadas.value.map(c => c.id) },
     })
     await refresh()
-    reordenando.value = false
-    useToast().add({ title: 'Ordem salva', color: 'success', icon: 'i-heroicons-check-circle' })
   } catch (e: any) {
     useToast().add({ title: 'Erro ao salvar ordem', description: e?.data?.message ?? e?.message, color: 'error' })
-  } finally {
-    salvandoOrdem.value = false
   }
 }
 
