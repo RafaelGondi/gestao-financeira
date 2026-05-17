@@ -5,12 +5,12 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16">
           <!-- Logo -->
-          <div class="flex items-center gap-3">
+          <NuxtLink to="/" class="flex items-center gap-3">
             <div class="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
               <UIcon name="i-heroicons-banknotes" class="w-5 h-5 text-white" />
             </div>
             <span class="text-lg font-bold text-gray-900 dark:text-white">Controle Financeiro</span>
-          </div>
+          </NuxtLink>
 
           <!-- Navigation Links — desktop only -->
           <nav class="hidden lg:flex items-center gap-1">
