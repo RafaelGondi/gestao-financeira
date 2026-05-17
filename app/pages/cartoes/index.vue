@@ -113,12 +113,13 @@
       <div
         class="grid pb-2"
         @touchstart.passive="onTouchStart"
+        @touchmove.passive="onTouchMove"
         @touchend.passive="onTouchEnd"
       >
         <div
           v-for="(cartao, i) in cartoes"
           :key="cartao.id"
-          class="col-start-1 row-start-1 rounded-2xl overflow-hidden transition-all duration-300"
+          class="col-start-1 row-start-1 rounded-2xl overflow-hidden"
           :class="i === activeCard ? 'bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800' : ''"
           :style="getDeckStyle(i)"
           @click="i !== activeCard && (activeCard = i)"
@@ -358,6 +359,8 @@ const pctTotal = computed(() => limiteTotal.value > 0 ? (utilizadoTotal.value / 
 // --- Deck mobile ---
 const activeCard = ref(0)
 const colorMode = useColorMode()
+const dragX = ref(0)
+const isDragging = ref(false)
 
 watch(cartoes, (val) => {
   if (val && activeCard.value >= val.length)
@@ -371,37 +374,58 @@ const DECK_OFFSETS = [0, 10, 17, 24] // translateX por posição no stack
 function getDeckStyle(i: number) {
   const total = cartoes.value?.length ?? 0
   const offset = ((i - activeCard.value) % total + total) % total
+  const drag = isDragging.value ? dragX.value : 0
 
   if (offset >= DECK_OFFSETS.length) {
-    return { width: `calc(100% - ${DECK_GAP}px)`, transform: `translateX(${DECK_OFFSETS.at(-1)}px)`, zIndex: 0, opacity: 0, pointerEvents: 'none' }
+    return { width: `calc(100% - ${DECK_GAP}px)`, transform: `translateX(${DECK_OFFSETS.at(-1)}px)`, zIndex: 0, opacity: 0, pointerEvents: 'none', transition: 'none' }
   }
+
+  // Durante o drag, só o card ativo se move — os outros ficam estáticos
+  const tx = offset === 0 ? drag : DECK_OFFSETS[offset]
 
   return {
     width: `calc(100% - ${DECK_GAP}px)`,
-    transform: `translateX(${DECK_OFFSETS[offset]}px)`,
+    transform: `translateX(${tx}px)`,
     zIndex: 10 - offset,
     boxShadow: offset === 0 ? '0 4px 16px rgba(0,0,0,0.10)' : undefined,
     border: offset > 0 ? `2px solid rgba(255,255,255,${colorMode.value === 'dark' ? 0.2 : 0.5})` : undefined,
+    backgroundColor: isDragging.value && offset === 1
+      ? (colorMode.value === 'dark' ? '#111827' : '#ffffff')
+      : undefined,
     pointerEvents: offset <= 1 ? 'auto' : 'none',
+    transition: isDragging.value ? 'none' : 'transform 0.3s ease, opacity 0.3s ease',
   }
 }
 
 let touchStartX = 0
 let touchStartY = 0
+let isHorizontal = false
 
 function onTouchStart(e: TouchEvent) {
   touchStartX = e.touches[0].clientX
   touchStartY = e.touches[0].clientY
+  dragX.value = 0
+  isDragging.value = false
+  isHorizontal = false
+}
+
+function onTouchMove(e: TouchEvent) {
+  const dx = e.touches[0].clientX - touchStartX
+  const dy = Math.abs(e.touches[0].clientY - touchStartY)
+  if (!isHorizontal && dy > Math.abs(dx)) return // scroll vertical
+  isHorizontal = true
+  isDragging.value = true
+  dragX.value = dx
 }
 
 function onTouchEnd(e: TouchEvent) {
-  const dx = touchStartX - e.changedTouches[0].clientX
-  const dy = Math.abs(touchStartY - e.changedTouches[0].clientY)
-  if (dy > Math.abs(dx)) return
+  const dx = dragX.value
+  isDragging.value = false
+  dragX.value = 0
   const total = cartoes.value?.length ?? 0
-  if (total === 0) return
-  if (dx > 40) activeCard.value = (activeCard.value + 1) % total
-  if (dx < -40) activeCard.value = (activeCard.value - 1 + total) % total
+  if (total === 0 || !isHorizontal) return
+  if (dx < -60) activeCard.value = (activeCard.value + 1) % total
+  else if (dx > 60) activeCard.value = (activeCard.value - 1 + total) % total
 }
 
 const showModal = ref(false)
