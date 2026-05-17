@@ -106,36 +106,101 @@
       </div>
     </div>
 
-    <!-- Gráfico de projeção 12 meses -->
-    <div v-if="projecao?.projecao12?.length" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-5">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Projeção consolidada de faturas</p>
-          <p class="text-xs text-gray-400 mt-0.5">Próximos 12 meses · todos os cartões · barras claras = residuais</p>
+    <!-- Cards: deck no mobile, grid no desktop -->
+
+    <!-- Mobile: stacked deck -->
+    <div class="md:hidden space-y-3">
+      <div
+        class="grid pb-2"
+        @touchstart.passive="onTouchStart"
+        @touchend.passive="onTouchEnd"
+      >
+        <div
+          v-for="(cartao, i) in cartoes"
+          :key="cartao.id"
+          class="col-start-1 row-start-1 rounded-2xl overflow-hidden transition-all duration-300"
+          :class="i === activeCard ? 'bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800' : ''"
+          :style="getDeckStyle(i)"
+          @click="i !== activeCard && (activeCard = i)"
+        >
+          <!-- Header colorido -->
+          <div
+            class="h-28 p-4 relative"
+            :style="cardStyle(cartao)"
+            @click.stop="i === activeCard && navigateTo(`/cartoes/${cartao.id}`)"
+          >
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-white/70 text-xs font-medium">{{ cartao.banco }}</p>
+                <p class="text-white text-lg font-bold mt-1">{{ cartao.nome }}</p>
+              </div>
+              <SharedBankLogo :bank="findBank(cartao.banco_key)" :size="36" class="rounded-lg opacity-90" />
+            </div>
+            <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+              <div>
+                <p class="text-white/60 text-xs">Limite</p>
+                <p class="text-white text-sm font-semibold">{{ format(cartao.limite) }}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-white/60 text-xs">Vencimento</p>
+                <p class="text-white text-sm font-semibold">Dia {{ cartao.vencimento }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Body -->
+          <div class="p-4 space-y-3">
+            <div>
+              <div class="flex items-center justify-between text-xs mb-1.5">
+                <span class="text-gray-500">Limite comprometido</span>
+                <span class="font-medium" :class="usoPct(cartao) >= 90 ? 'text-red-500' : usoPct(cartao) >= 70 ? 'text-yellow-500' : 'text-gray-500'">
+                  {{ format(cartao.gasto_total) }} / {{ format(cartao.limite) }}
+                </span>
+              </div>
+              <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                <div
+                  class="h-1.5 rounded-full transition-all"
+                  :class="usoPct(cartao) >= 90 ? 'bg-red-500' : usoPct(cartao) >= 70 ? 'bg-yellow-400' : 'bg-green-500'"
+                  :style="{ width: Math.min(usoPct(cartao), 100) + '%' }"
+                />
+              </div>
+              <p class="text-right text-xs mt-1" :class="usoPct(cartao) >= 90 ? 'text-red-500' : 'text-gray-400'">
+                {{ usoPct(cartao).toFixed(0) }}% utilizado
+              </p>
+            </div>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5 text-xs text-gray-500">
+                <UIcon name="i-heroicons-calendar-days" class="w-4 h-4" />
+                <span>Melhor compra: dia {{ cartao.melhor_data_compra }}</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs" @click.stop="openEditModal(cartao)" />
+                <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs" @click.stop="confirmDelete(cartao)" />
+              </div>
+            </div>
+          </div>
         </div>
-        <p class="text-xs text-gray-400">
-          Total: <span class="font-medium text-gray-700 dark:text-gray-300">
-            {{ format(projecao.projecao12.reduce((s, p) => s + p.valor, 0)) }}
-          </span>
-        </p>
       </div>
-      <div class="h-52">
-        <CartoesFaturaChart
-          :dados="projecao.projecao12"
-          :mes-residual="projecao.mes_inicio_residual"
-          card-color="#6366f1"
+
+      <!-- Dots indicator -->
+      <div class="flex justify-center items-center gap-1.5">
+        <button
+          v-for="(_, i) in cartoes"
+          :key="i"
+          class="h-1.5 rounded-full transition-all duration-200"
+          :class="i === activeCard ? 'bg-primary-500 w-4' : 'bg-gray-300 dark:bg-gray-600 w-1.5'"
+          @click="activeCard = i"
         />
       </div>
     </div>
 
-    <!-- Cards Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <!-- Desktop: grid -->
+    <div class="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
       <div
         v-for="cartao in cartoes"
         :key="cartao.id"
         class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden"
       >
-        <!-- Card visual header -->
         <NuxtLink :to="`/cartoes/${cartao.id}`" class="block h-28 p-4 relative" :style="cardStyle(cartao)">
           <div class="flex items-start justify-between">
             <div>
@@ -155,10 +220,7 @@
             </div>
           </div>
         </NuxtLink>
-
-        <!-- Card body -->
         <div class="p-4 space-y-3">
-          <!-- Barra de uso -->
           <div>
             <div class="flex items-center justify-between text-xs mb-1.5">
               <span class="text-gray-500">Limite comprometido</span>
@@ -177,31 +239,39 @@
               {{ usoPct(cartao).toFixed(0) }}% utilizado
             </p>
           </div>
-
-          <!-- Melhor data + Actions -->
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-1.5 text-xs text-gray-500">
               <UIcon name="i-heroicons-calendar-days" class="w-4 h-4" />
               <span>Melhor compra: dia {{ cartao.melhor_data_compra }}</span>
             </div>
             <div class="flex items-center gap-1">
-              <UButton
-                icon="i-heroicons-pencil-square"
-                variant="ghost"
-                color="neutral"
-                size="xs"
-                @click="openEditModal(cartao)"
-              />
-              <UButton
-                icon="i-heroicons-trash"
-                variant="ghost"
-                color="red"
-                size="xs"
-                @click="confirmDelete(cartao)"
-              />
+              <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs" @click="openEditModal(cartao)" />
+              <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs" @click="confirmDelete(cartao)" />
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Gráfico de projeção 12 meses -->
+    <div v-if="projecao?.projecao12?.length" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-5">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Projeção consolidada de faturas</p>
+          <p class="text-xs text-gray-400 mt-0.5">Próximos 12 meses · todos os cartões · barras claras = residuais</p>
+        </div>
+        <p class="text-xs text-gray-400">
+          Total: <span class="font-medium text-gray-700 dark:text-gray-300">
+            {{ format(projecao.projecao12.reduce((s, p) => s + p.valor, 0)) }}
+          </span>
+        </p>
+      </div>
+      <div class="h-52">
+        <CartoesFaturaChart
+          :dados="projecao.projecao12"
+          :mes-residual="projecao.mes_inicio_residual"
+          card-color="#6366f1"
+        />
       </div>
     </div>
     </template>
@@ -285,6 +355,55 @@ const utilizadoTotal = computed(() => cartoes.value?.reduce((s, c) => s + c.gast
 const disponivelTotal = computed(() => limiteTotal.value - utilizadoTotal.value)
 const pctTotal = computed(() => limiteTotal.value > 0 ? (utilizadoTotal.value / limiteTotal.value) * 100 : 0)
 
+// --- Deck mobile ---
+const activeCard = ref(0)
+const colorMode = useColorMode()
+
+watch(cartoes, (val) => {
+  if (val && activeCard.value >= val.length)
+    activeCard.value = Math.max(0, val.length - 1)
+})
+
+// Cada card ocupa calc(100% - 24px); os 24px restantes mostram as tiras dos próximos
+const DECK_GAP = 24
+const DECK_OFFSETS = [0, 10, 17, 24] // translateX por posição no stack
+
+function getDeckStyle(i: number) {
+  const total = cartoes.value?.length ?? 0
+  const offset = ((i - activeCard.value) % total + total) % total
+
+  if (offset >= DECK_OFFSETS.length) {
+    return { width: `calc(100% - ${DECK_GAP}px)`, transform: `translateX(${DECK_OFFSETS.at(-1)}px)`, zIndex: 0, opacity: 0, pointerEvents: 'none' }
+  }
+
+  return {
+    width: `calc(100% - ${DECK_GAP}px)`,
+    transform: `translateX(${DECK_OFFSETS[offset]}px)`,
+    zIndex: 10 - offset,
+    boxShadow: offset === 0 ? '0 4px 16px rgba(0,0,0,0.10)' : undefined,
+    border: offset > 0 ? `2px solid rgba(255,255,255,${colorMode.value === 'dark' ? 0.2 : 0.5})` : undefined,
+    pointerEvents: offset <= 1 ? 'auto' : 'none',
+  }
+}
+
+let touchStartX = 0
+let touchStartY = 0
+
+function onTouchStart(e: TouchEvent) {
+  touchStartX = e.touches[0].clientX
+  touchStartY = e.touches[0].clientY
+}
+
+function onTouchEnd(e: TouchEvent) {
+  const dx = touchStartX - e.changedTouches[0].clientX
+  const dy = Math.abs(touchStartY - e.changedTouches[0].clientY)
+  if (dy > Math.abs(dx)) return
+  const total = cartoes.value?.length ?? 0
+  if (total === 0) return
+  if (dx > 40) activeCard.value = (activeCard.value + 1) % total
+  if (dx < -40) activeCard.value = (activeCard.value - 1 + total) % total
+}
+
 const showModal = ref(false)
 const editingCartao = ref<Cartao | null>(null)
 const saving = ref(false)
@@ -347,3 +466,4 @@ async function handleDelete() {
 
 useHead({ title: 'Cartões — Gestão Financeira' })
 </script>
+

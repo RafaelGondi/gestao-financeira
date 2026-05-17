@@ -26,7 +26,7 @@
 - [ ] Undo após deletar — toast com botão "Desfazer" por ~5 segundos
 
 ### Funcionalidades maiores
-- [ ] Metas de economia — "quero juntar R$5.000 até dezembro", com progresso visual
+- [x] Metas de economia — criação com ícone/cor, aportes manuais, progresso, ritmo médio e previsão de conclusão
 - [ ] Importação de OFX/CSV — importar extrato do banco automaticamente
 
 ### Requer infra (fora do escopo local)
