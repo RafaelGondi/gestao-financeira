@@ -111,6 +111,11 @@ if (!g.__db) {
   const cartaoColNames = cartaoCols.map(c => c.name)
   if (!cartaoColNames.includes('banco_key')) db.exec(`ALTER TABLE cartoes ADD COLUMN banco_key TEXT NOT NULL DEFAULT ''`)
   if (!cartaoColNames.includes('cor')) db.exec(`ALTER TABLE cartoes ADD COLUMN cor TEXT`)
+  if (!cartaoColNames.includes('ordem')) {
+    db.exec(`ALTER TABLE cartoes ADD COLUMN ordem INTEGER`)
+    const existentes = db.prepare(`SELECT id FROM cartoes ORDER BY nome ASC`).all() as { id: number }[]
+    existentes.forEach((c, i) => db.prepare(`UPDATE cartoes SET ordem = ? WHERE id = ?`).run([i, c.id]))
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS supercategorias (
