@@ -393,7 +393,7 @@ function getDeckStyle(i: number) {
       ? (colorMode.value === 'dark' ? '#111827' : '#ffffff')
       : undefined,
     pointerEvents: offset <= 1 ? 'auto' : 'none',
-    transition: isDragging.value ? 'none' : 'transform 0.3s ease, opacity 0.3s ease',
+    transition: isDragging.value ? 'none' : 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.45s ease-out',
   }
 }
 
