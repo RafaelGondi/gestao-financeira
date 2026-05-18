@@ -373,27 +373,48 @@ const DECK_OFFSETS = [0, 10, 17, 24] // translateX por posição no stack
 
 function getDeckStyle(i: number) {
   const total = cartoes.value?.length ?? 0
+  if (total <= 1) return { width: '100%' }
+
   const offset = ((i - activeCard.value) % total + total) % total
   const drag = isDragging.value ? dragX.value : 0
+  const isPrev = offset === total - 1
+  const transition = isDragging.value ? 'none' : 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.6s ease-out'
+  const w = `calc(100% - ${DECK_GAP}px)`
 
-  if (offset >= DECK_OFFSETS.length) {
-    return { width: `calc(100% - ${DECK_GAP}px)`, transform: `translateX(${DECK_OFFSETS.at(-1)}px)`, zIndex: 0, opacity: 0, pointerEvents: 'none', transition: 'none' }
+  // Card anterior (entra pela esquerda ao arrastar para a direita)
+  if (isPrev) {
+    if (drag <= 0) {
+      return { width: w, transform: 'translateX(-110%)', zIndex: 1, opacity: 0, pointerEvents: 'none', transition }
+    }
+    const progress = Math.min(1, drag / 300)
+    return {
+      width: w,
+      transform: `translateX(${-300 + progress * 300}px)`,
+      zIndex: 9,
+      opacity: progress,
+      backgroundColor: colorMode.value === 'dark' ? '#111827' : '#ffffff',
+      pointerEvents: 'none',
+      transition,
+    }
   }
 
-  // Durante o drag, só o card ativo se move — os outros ficam estáticos
+  // Cards muito atrás no stack — esconder
+  if (offset >= DECK_OFFSETS.length) {
+    return { width: w, transform: `translateX(${DECK_OFFSETS.at(-1)}px)`, zIndex: 0, opacity: 0, pointerEvents: 'none', transition: 'none' }
+  }
+
+  // Card ativo segue o dedo; os demais ficam estáticos
   const tx = offset === 0 ? drag : DECK_OFFSETS[offset]
 
   return {
-    width: `calc(100% - ${DECK_GAP}px)`,
+    width: w,
     transform: `translateX(${tx}px)`,
     zIndex: 10 - offset,
     boxShadow: offset === 0 ? '0 4px 16px rgba(0,0,0,0.10)' : undefined,
     border: offset > 0 ? `2px solid rgba(255,255,255,${colorMode.value === 'dark' ? 0.2 : 0.5})` : undefined,
-    backgroundColor: isDragging.value && offset === 1
-      ? (colorMode.value === 'dark' ? '#111827' : '#ffffff')
-      : undefined,
+    backgroundColor: isDragging.value && offset === 1 ? (colorMode.value === 'dark' ? '#111827' : '#ffffff') : undefined,
     pointerEvents: offset <= 1 ? 'auto' : 'none',
-    transition: isDragging.value ? 'none' : 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.45s ease-out',
+    transition,
   }
 }
 
