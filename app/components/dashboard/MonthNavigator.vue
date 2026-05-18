@@ -1,20 +1,20 @@
 <template>
   <div class="flex items-center justify-between gap-4">
     <!-- Navegação com setas à esquerda -->
-    <div class="flex items-center gap-1">
+    <div class="flex items-center gap-1 min-w-0">
       <button
         type="button"
-        class="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+        class="w-7 h-7 shrink-0 flex items-center justify-center rounded-md text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
         @click="prev"
       >
         <UIcon name="i-heroicons-chevron-left" class="w-4 h-4" />
       </button>
-      <span class="text-base font-semibold text-gray-800 dark:text-gray-100 capitalize px-1">
+      <span class="text-base font-semibold text-gray-800 dark:text-gray-100 capitalize px-1 truncate">
         {{ displayLabel }}
       </span>
       <button
         type="button"
-        class="w-7 h-7 flex items-center justify-center rounded-md text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
+        class="w-7 h-7 shrink-0 flex items-center justify-center rounded-md text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
         @click="next"
       >
         <UIcon name="i-heroicons-chevron-right" class="w-4 h-4" />
@@ -22,7 +22,7 @@
     </div>
 
     <!-- Seletor rápido à direita -->
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 shrink-0">
       <select
         :value="selectedMonth"
         class="text-sm bg-gray-100 dark:bg-gray-800 border-0 rounded-lg px-2 py-1.5 text-gray-700 dark:text-gray-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500"
