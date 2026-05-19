@@ -7,7 +7,7 @@
     </div>
 
     <!-- Month Navigator (hidden on tabs with their own period control) -->
-    <div v-if="abaAtiva !== 'evolution' && abaAtiva !== 'comparacao' && abaAtiva !== 'orcamento'" class="bg-white dark:bg-gray-900 rounded-lg px-6 py-4 border border-gray-100 dark:border-gray-800">
+    <div v-if="abaAtiva !== 'evolution' && abaAtiva !== 'comparacao'" class="bg-white dark:bg-gray-900 rounded-lg px-6 py-4 border border-gray-100 dark:border-gray-800">
       <DashboardMonthNavigator v-model="currentMonth" />
     </div>
 
@@ -24,7 +24,7 @@
       >{{ aba.label }}</button>
     </div>
 
-    <!-- Loading (comparacao has its own loading state) -->
+    <!-- Loading (comparacao/evolution have their own loading state) -->
     <div v-if="(abaAtiva === 'categoria' && pending) || (abaAtiva === 'composicao' && pendingComposicao) || (abaAtiva === 'orcamento' && pendingBudget)" class="space-y-3">
       <USkeleton class="h-64 rounded-lg" />
     </div>
@@ -193,7 +193,10 @@ const { data: composicaoData, pending: pendingComposicao } = await useFetch('/ap
 
 const { data: evolutionData, pending: pendingEvolution } = await useFetch('/api/reports/monthly-evolution')
 
-const { data: budgetData, pending: pendingBudget } = await useFetch('/api/reports/budget-status')
+const { data: budgetData, pending: pendingBudget } = await useFetch('/api/reports/budget-status', {
+  query: computed(() => ({ month: currentMonth.value })),
+  watch: [currentMonth],
+})
 
 const expanded = ref<string | null>(null)
 const modo = ref<'categoria' | 'supercategoria'>('categoria')

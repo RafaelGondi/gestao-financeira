@@ -74,14 +74,25 @@ function getMonthIncome(year: number, mon: number): number {
   return r1.t + r2.t
 }
 
-export default defineEventHandler(() => {
+export default defineEventHandler((event) => {
+  const query = getQuery(event)
   const now = new Date()
-  const year = now.getFullYear()
-  const mon = now.getMonth() + 1
-  const daysElapsed = now.getDate()
+  const nowMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const month = (typeof query.month === 'string' && query.month) ? query.month : nowMonth
+
+  const [year, mon] = month.split('-').map(Number)
   const daysTotal = new Date(year, mon, 0).getDate()
+
+  let daysElapsed: number
+  if (month < nowMonth) {
+    daysElapsed = daysTotal // mês passado — já encerrado
+  } else if (month > nowMonth) {
+    daysElapsed = 0 // mês futuro — nada gasto ainda
+  } else {
+    daysElapsed = now.getDate() // mês atual
+  }
+
   const daysRemaining = daysTotal - daysElapsed
-  const month = `${year}-${String(mon).padStart(2, '0')}`
 
   const spent = getMonthSpending(year, mon)
   const income = getMonthIncome(year, mon)
