@@ -117,13 +117,13 @@ export default defineEventHandler((event) => {
     }
   }
 
+  const isCurrentMonth = month === nowMonth
   const remaining = limit !== null ? limit - spent : null
   const spentPct = limit !== null && limit > 0 ? (spent / limit) * 100 : null
   const daysPct = (daysElapsed / daysTotal) * 100
 
-  // Ritmo: se gastasse uniformemente, estaria em daysPct% do limite
-  // Acima disso = ritmo acelerado
-  const pace = spentPct !== null ? spentPct - daysPct : null
+  // Ritmo só faz sentido no mês atual — para meses passados/futuros é null
+  const pace = isCurrentMonth && spentPct !== null ? spentPct - daysPct : null
 
   const dailyAllowance = remaining !== null && daysRemaining > 0
     ? remaining / daysRemaining
@@ -131,6 +131,7 @@ export default defineEventHandler((event) => {
 
   return {
     month,
+    isCurrentMonth,
     daysElapsed,
     daysTotal,
     daysRemaining,

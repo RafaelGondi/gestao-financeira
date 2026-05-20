@@ -21,64 +21,130 @@
     <template v-else>
       <!-- Card principal -->
       <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
-        <div class="px-5 pt-5 pb-4">
+        <div class="px-5 pt-5 pb-5">
+
           <!-- Cabeçalho -->
-          <div class="flex items-start justify-between mb-5">
+          <div class="flex items-center justify-between mb-5">
             <div>
-              <p class="text-xs text-gray-400 mb-0.5">Dia {{ data.daysElapsed }} de {{ data.daysTotal }} — {{ monthLabel }}</p>
+              <p class="text-xs text-gray-400 mb-0.5">{{ monthLabel }} · Dia {{ data.daysElapsed }} de {{ data.daysTotal }}</p>
               <h2 class="font-semibold text-gray-800 dark:text-gray-100">
                 {{ data.limitType === 'porcentagem'
                   ? `Meta: poupar ${data.savingsPct}% da receita`
                   : 'Teto de gastos mensais' }}
               </h2>
             </div>
-            <!-- Progresso dos dias -->
             <div class="text-right flex-shrink-0 ml-4">
-              <p class="text-xs text-gray-400 mb-1.5">{{ data.daysPct.toFixed(0) }}% do mês</p>
-              <div class="w-28 bg-gray-100 dark:bg-gray-800 rounded-full h-1.5">
+              <p class="text-xs text-gray-400 mb-1">{{ data.daysPct.toFixed(0) }}% do mês</p>
+              <div class="w-24 bg-gray-100 dark:bg-gray-800 rounded-full h-1.5">
                 <div class="h-1.5 rounded-full bg-gray-300 dark:bg-gray-600 transition-all" :style="{ width: data.daysPct + '%' }" />
               </div>
             </div>
           </div>
 
-          <!-- Valores principais -->
-          <div class="flex items-end gap-2 mb-4">
+          <!-- Valores: três referências visíveis -->
+          <div class="flex items-end gap-3 mb-5">
+            <!-- Gasto -->
             <div>
-              <p class="text-xs text-gray-400 mb-1">Gasto até hoje</p>
-              <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ format(data.spent) }}</p>
+              <p class="text-xs text-gray-400 mb-1">
+                {{ data.isCurrentMonth ? 'Gasto até hoje' : data.daysElapsed === data.daysTotal ? 'Total gasto' : 'Previsão de gasto' }}
+              </p>
+              <p class="text-3xl font-bold" :class="spentColor">{{ format(data.spent) }}</p>
             </div>
-            <p class="text-lg text-gray-300 dark:text-gray-600 mb-0.5">de</p>
-            <div class="mb-0.5">
-              <p class="text-xl font-semibold text-gray-400 dark:text-gray-500">{{ format(data.limit!) }}</p>
+            <div class="flex items-end gap-3 mb-1 text-gray-300 dark:text-gray-600">
+              <!-- Limite -->
+              <div class="text-right">
+                <p class="text-xs text-gray-400 mb-1">Limite</p>
+                <p class="text-base font-semibold text-gray-500 dark:text-gray-400">{{ format(data.limit!) }}</p>
+              </div>
+              <!-- Receita (só para porcentagem) -->
+              <template v-if="isBullet">
+                <span class="text-gray-200 dark:text-gray-700 mb-0.5">·</span>
+                <div class="text-right">
+                  <p class="text-xs text-gray-400 mb-1">Receita</p>
+                  <p class="text-base font-semibold text-gray-500 dark:text-gray-400">{{ format(data.income) }}</p>
+                </div>
+              </template>
             </div>
           </div>
 
-          <!-- Barra de progresso de gastos -->
-          <div class="mb-1.5">
-            <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-3 relative overflow-hidden">
-              <!-- Marcador do ritmo esperado (linha do dia) -->
-              <div
-                class="absolute top-0 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600 z-10"
-                :style="{ left: data.daysPct + '%' }"
-              />
-              <!-- Barra de gasto -->
-              <div
-                class="h-3 rounded-full transition-all"
-                :class="barColor"
-                :style="{ width: Math.min(data.spentPct!, 100) + '%' }"
-              />
+          <!-- Bullet chart (tipo porcentagem com receita) -->
+          <div v-if="isBullet" class="mb-2">
+            <!-- Wrapper sem overflow-hidden para tooltips aparecerem -->
+            <div class="relative h-4">
+              <!-- Fills dentro de overflow-hidden (para respeitar border-radius) -->
+              <div class="absolute inset-0 rounded-lg overflow-hidden">
+                <!-- Fundo: zona de gastos (0 → limite) -->
+                <div class="absolute top-0 left-0 h-full bg-gray-100 dark:bg-gray-800"
+                  :style="{ width: limitPct + '%' }" />
+                <!-- Fundo: zona de poupança (limite → receita) -->
+                <div class="absolute top-0 right-0 h-full bg-gray-50 dark:bg-gray-700/40"
+                  :style="{ width: (100 - limitPct) + '%' }" />
+                <!-- Barra de gasto -->
+                <div class="absolute top-1 bottom-1 left-0 rounded-md transition-all"
+                  :class="spentBarBg"
+                  :style="{ width: spentBulletWidth + '%' }" />
+              </div>
+              <!-- Marcadores fora do overflow-hidden (tooltips não cortados) -->
+              <!-- Marcador do limite (área de hover larga, linha fina visual) -->
+              <div class="absolute top-0 bottom-0 w-5 -translate-x-1/2 z-10 group/limit cursor-default flex items-stretch justify-center"
+                :style="{ left: limitPct + '%' }">
+                <div class="w-0.5 bg-gray-400 dark:bg-gray-500 h-full" />
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-gray-800 dark:bg-gray-700 text-white text-xs whitespace-nowrap opacity-0 group-hover/limit:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                  Limite de gastos · {{ format(data.limit!) }} ({{ limitPct.toFixed(0) }}% da receita)
+                  <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800 dark:border-t-gray-700" />
+                </div>
+              </div>
+              <!-- Marcador do dia (área de hover larga, linha fina visual) -->
+              <div v-if="data.isCurrentMonth"
+                class="absolute top-0 bottom-0 w-5 -translate-x-1/2 z-20 group/day cursor-default flex items-stretch justify-center"
+                :style="{ left: dayMarkerBullet + '%' }">
+                <div class="w-px bg-blue-400 dark:bg-blue-500 h-full" />
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded bg-gray-800 dark:bg-gray-700 text-white text-xs whitespace-nowrap opacity-0 group-hover/day:opacity-100 transition-opacity pointer-events-none z-50 shadow-lg">
+                  Hoje · Dia {{ data.daysElapsed }} de {{ data.daysTotal }} ({{ data.daysPct.toFixed(0) }}% do mês)
+                  <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800 dark:border-t-gray-700" />
+                </div>
+              </div>
+            </div>
+            <!-- Labels da barra -->
+            <div class="flex items-center justify-between mt-1.5 text-xs text-gray-400">
+              <div class="flex items-center gap-3">
+                <p :class="statusTextColor">{{ statusLabel }}</p>
+                <span class="flex items-center gap-1">
+                  <span class="inline-block w-0.5 h-3 bg-gray-400 dark:bg-gray-500" />
+                  Limite ({{ limitPct.toFixed(0) }}%)
+                </span>
+                <span v-if="data.isCurrentMonth" class="flex items-center gap-1">
+                  <span class="inline-block w-px h-3 bg-blue-400 dark:bg-blue-500" />
+                  Hoje
+                </span>
+              </div>
+              <span>{{ spentOfIncomePct.toFixed(1) }}% da receita</span>
             </div>
           </div>
-          <div class="flex items-center justify-between">
-            <p class="text-xs" :class="statusTextColor">{{ statusLabel }}</p>
-            <p class="text-xs text-gray-400">{{ data.spentPct!.toFixed(1) }}% do limite</p>
+
+          <!-- Barra simples (tipo fixo) -->
+          <div v-else class="mb-2">
+            <div class="w-full bg-gray-100 dark:bg-gray-800 rounded-full h-3 relative overflow-hidden">
+              <div v-if="data.isCurrentMonth"
+                class="absolute top-0 bottom-0 w-0.5 bg-white/60 dark:bg-gray-900/60 z-10"
+                :style="{ left: data.daysPct + '%' }" />
+              <div class="h-3 rounded-full transition-all" :class="barColor"
+                :style="{ width: Math.min(data.spentPct!, 100) + '%' }" />
+            </div>
+            <div class="flex items-center justify-between mt-1.5 text-xs">
+              <p :class="data.isCurrentMonth ? statusTextColor : 'text-gray-400'">
+                {{ data.isCurrentMonth ? statusLabel : (data.daysElapsed === data.daysTotal ? 'Mês encerrado' : 'Mês futuro') }}
+              </p>
+              <p class="text-gray-400">{{ data.spentPct!.toFixed(1) }}% do limite</p>
+            </div>
           </div>
+
         </div>
       </div>
 
       <!-- Cards de detalhe -->
       <div class="grid grid-cols-3 gap-4">
-        <!-- Restante -->
+        <!-- Saldo disponível -->
         <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
           <p class="text-xs text-gray-400 mb-1">Saldo disponível</p>
           <p class="text-xl font-bold" :class="data.remaining! >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-900 dark:text-rose-400'">
@@ -87,13 +153,11 @@
           <p class="text-xs text-gray-400 mt-1">para {{ data.daysRemaining }} dias restantes</p>
         </div>
 
-        <!-- Ritmo diário disponível -->
+        <!-- Pode gastar por dia -->
         <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
           <p class="text-xs text-gray-400 mb-1">Pode gastar por dia</p>
-          <p
-            class="text-xl font-bold"
-            :class="(data.dailyAllowance ?? 0) >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-900 dark:text-rose-400'"
-          >
+          <p class="text-xl font-bold"
+            :class="(data.dailyAllowance ?? 0) >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-900 dark:text-rose-400'">
             {{ data.dailyAllowance !== null && data.dailyAllowance >= 0
               ? format(data.dailyAllowance)
               : data.daysRemaining === 0 ? '—' : 'Estourado' }}
@@ -101,17 +165,19 @@
           <p class="text-xs text-gray-400 mt-1">nos dias restantes</p>
         </div>
 
-        <!-- Ritmo vs esperado -->
+        <!-- Ritmo / Resultado / Projeção -->
         <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
-          <p class="text-xs text-gray-400 mb-1">Ritmo de gasto</p>
-          <p class="text-xl font-bold" :class="paceColor">
-            {{ paceLabel }}
+          <p class="text-xs text-gray-400 mb-1">
+            {{ data.isCurrentMonth ? 'Ritmo de gasto' : data.daysElapsed === data.daysTotal ? 'Resultado' : 'Projeção' }}
           </p>
-          <p class="text-xs text-gray-400 mt-1">vs ritmo uniforme esperado</p>
+          <p class="text-xl font-bold" :class="paceColor">{{ paceLabel }}</p>
+          <p class="text-xs text-gray-400 mt-1">
+            {{ data.isCurrentMonth ? 'vs ritmo uniforme esperado' : data.daysElapsed === data.daysTotal ? 'do orçamento do mês' : 'do limite do mês' }}
+          </p>
         </div>
       </div>
 
-      <!-- Info porcentagem -->
+      <!-- Info porcentagem: receita → meta → teto → poupança efetiva -->
       <div v-if="data.limitType === 'porcentagem'" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 px-5 py-4 flex items-center justify-between gap-4">
         <div>
           <p class="text-xs text-gray-400 mb-1">Receita do mês</p>
@@ -131,18 +197,19 @@
         <div>
           <p class="text-xs text-gray-400 mb-1">Poupança efetiva</p>
           <div class="flex items-baseline gap-1.5">
-            <p class="text-base font-semibold" :class="actualSavingsPctColor">
+            <p class="text-xl font-bold" :class="actualSavingsPctColor">
               {{ actualSavingsPct !== null ? actualSavingsPct.toFixed(1) + '%' : '—' }}
             </p>
             <p v-if="actualSavingsPct !== null" class="text-xs" :class="actualSavingsPctColor">
               (meta: {{ data.savingsPct }}%)
             </p>
           </div>
-          <p v-if="actualSavingsPct !== null" class="text-xs text-gray-400 mt-0.5">
+          <p v-if="actualSavingsPct !== null" class="text-sm font-medium text-gray-600 dark:text-gray-300 mt-0.5">
             {{ format(data.income - data.spent) }} poupados até agora
           </p>
         </div>
       </div>
+
     </template>
   </div>
 </template>
@@ -150,6 +217,7 @@
 <script setup lang="ts">
 interface BudgetData {
   month: string
+  isCurrentMonth: boolean
   daysElapsed: number
   daysTotal: number
   daysRemaining: number
@@ -174,34 +242,96 @@ const monthLabel = computed(() => {
   return `${mesesPt[m - 1]} de ${y}`
 })
 
-// Cores e labels baseados em quanto do limite já foi consumido vs posição no mês
+// Bullet chart: só quando tipo=porcentagem e há receita
+const isBullet = computed(() => props.data.limitType === 'porcentagem' && props.data.income > 0)
+
+// Percentuais relativos à receita (para bullet chart)
+const limitPct = computed(() =>
+  props.data.income > 0 ? (props.data.limit! / props.data.income) * 100 : 100
+)
+const spentBulletWidth = computed(() =>
+  Math.min((props.data.spent / props.data.income) * 100, 100)
+)
+const spentOfIncomePct = computed(() =>
+  props.data.income > 0 ? (props.data.spent / props.data.income) * 100 : 0
+)
+// Marcador do dia dentro da zona de gastos (0 → limite)
+const dayMarkerBullet = computed(() =>
+  (props.data.daysPct / 100) * limitPct.value
+)
+
+// Cor do valor gasto principal — só destaca quando estourar
+const spentColor = computed(() => {
+  const pct = props.data.spentPct ?? 0
+  if (pct >= 100) return 'text-rose-600 dark:text-rose-400'
+  return 'text-gray-900 dark:text-white'
+})
+
+// Cor da barra de gasto no bullet chart — primária normalmente, vermelha se estourar
+const spentBarBg = computed(() => {
+  const pct = props.data.spentPct ?? 0
+  if (pct >= 100) return 'bg-rose-400 dark:bg-rose-500'
+  return 'bg-primary-400 dark:bg-primary-500'
+})
+
+// Cor da barra simples (tipo fixo)
 const barColor = computed(() => {
   const pct = props.data.spentPct ?? 0
-  if (pct >= 100) return 'bg-rose-400 dark:bg-rose-600'
-  if (pct > props.data.daysPct + 10) return 'bg-orange-300 dark:bg-orange-500'
-  return 'bg-emerald-400 dark:bg-emerald-600'
+  if (pct >= 100) return 'bg-rose-400 dark:bg-rose-500'
+  return 'bg-primary-400 dark:bg-primary-500'
 })
 
 const statusLabel = computed(() => {
+  if (!props.data.isCurrentMonth) {
+    return props.data.daysElapsed === props.data.daysTotal ? 'Mês encerrado' : 'Mês futuro'
+  }
   const pct = props.data.spentPct ?? 0
   if (pct >= 100) return 'Limite estourado'
-  if (pct > props.data.daysPct + 10) return 'Acima do ritmo esperado'
+  if (pct > props.data.daysPct + 15) return 'Acima do ritmo esperado'
   if (pct > props.data.daysPct) return 'Levemente acima do esperado'
   return 'Dentro do esperado'
 })
 
 const statusTextColor = computed(() => {
+  if (!props.data.isCurrentMonth) return 'text-gray-400'
   const pct = props.data.spentPct ?? 0
-  if (pct >= 100) return 'text-rose-900 dark:text-rose-400'
-  if (pct > props.data.daysPct + 10) return 'text-orange-900 dark:text-orange-400'
-  return 'text-emerald-900 dark:text-emerald-400'
+  if (pct >= 100) return 'text-rose-600 dark:text-rose-400'
+  if (pct > props.data.daysPct + 15) return 'text-orange-600 dark:text-orange-400'
+  return 'text-gray-500 dark:text-gray-400'
 })
 
 const paceLabel = computed(() => {
-  const p = props.data.pace
-  if (p === null) return '—'
-  if (Math.abs(p) < 2) return 'No ritmo'
-  return (p > 0 ? '+' : '') + p.toFixed(1) + '%'
+  const { pace, isCurrentMonth, daysElapsed, daysTotal, spentPct } = props.data
+  if (isCurrentMonth) {
+    if (pace === null) return '—'
+    if (Math.abs(pace) < 2) return 'No ritmo'
+    return (pace > 0 ? '+' : '') + pace.toFixed(1) + '%'
+  }
+  if (daysElapsed === daysTotal) {
+    if (spentPct === null) return '—'
+    if (spentPct >= 100) return 'Estourou ' + (spentPct - 100).toFixed(0) + '%'
+    return 'Dentro do limite'
+  }
+  if (spentPct === null) return '—'
+  return spentPct.toFixed(0) + '% previsto'
+})
+
+const paceColor = computed(() => {
+  const { pace, isCurrentMonth, daysElapsed, daysTotal, spentPct } = props.data
+  if (isCurrentMonth) {
+    if (pace === null || Math.abs(pace) < 2) return 'text-gray-900 dark:text-white'
+    if (pace > 15) return 'text-rose-600 dark:text-rose-400'
+    if (pace > 0) return 'text-gray-900 dark:text-white'
+    return 'text-gray-900 dark:text-white'
+  }
+  if (daysElapsed === daysTotal) {
+    if (spentPct === null) return 'text-gray-400'
+    if (spentPct >= 100) return 'text-rose-600 dark:text-rose-400'
+    return 'text-gray-900 dark:text-white'
+  }
+  if (spentPct === null) return 'text-gray-400'
+  if (spentPct >= 95) return 'text-orange-600 dark:text-orange-400'
+  return 'text-gray-900 dark:text-white'
 })
 
 const actualSavingsPct = computed(() => {
@@ -212,16 +342,8 @@ const actualSavingsPct = computed(() => {
 const actualSavingsPctColor = computed(() => {
   const pct = actualSavingsPct.value
   if (pct === null) return 'text-gray-400'
-  if (pct >= (props.data.savingsPct ?? 0)) return 'text-emerald-900 dark:text-emerald-400'
-  if (pct >= 0) return 'text-orange-900 dark:text-orange-400'
-  return 'text-rose-900 dark:text-rose-400'
-})
-
-const paceColor = computed(() => {
-  const p = props.data.pace
-  if (p === null || Math.abs(p) < 2) return 'text-gray-900 dark:text-white'
-  if (p > 10) return 'text-rose-900 dark:text-rose-400'
-  if (p > 0) return 'text-orange-900 dark:text-orange-400'
-  return 'text-emerald-900 dark:text-emerald-400'
+  if (pct >= (props.data.savingsPct ?? 0)) return 'text-emerald-600 dark:text-emerald-400'
+  if (pct >= 0) return 'text-orange-600 dark:text-orange-400'
+  return 'text-rose-600 dark:text-rose-400'
 })
 </script>
