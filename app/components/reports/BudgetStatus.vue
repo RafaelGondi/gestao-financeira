@@ -19,8 +19,10 @@
     </div>
 
     <template v-else>
-      <!-- Card principal -->
+      <!-- Card único unificado -->
       <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
+
+        <!-- Seção 1: Cabeçalho + valores + barra -->
         <div class="px-5 pt-5 pb-5">
 
           <!-- Cabeçalho -->
@@ -139,89 +141,92 @@
           </div>
 
         </div>
-      </div>
 
-      <!-- Cards de detalhe -->
-      <div class="grid grid-cols-3 gap-3">
-        <!-- Saldo disponível -->
-        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-3 sm:p-4">
-          <p class="text-xs text-gray-400 mb-1">Saldo disponível</p>
-          <p class="text-base sm:text-xl font-bold" :class="data.remaining! >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-600 dark:text-rose-400'">
-            {{ data.remaining! >= 0 ? format(data.remaining!) : '−' + format(Math.abs(data.remaining!)) }}
-          </p>
-          <p class="text-xs text-gray-400 mt-1 hidden sm:block">para {{ data.daysRemaining }} dias restantes</p>
-          <p class="text-xs text-gray-400 mt-1 sm:hidden">{{ data.daysRemaining }}d restantes</p>
-        </div>
-
-        <!-- Pode gastar por dia -->
-        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-3 sm:p-4">
-          <p class="text-xs text-gray-400 mb-1">Gasto/dia</p>
-          <p class="text-base sm:text-xl font-bold"
-            :class="(data.dailyAllowance ?? 0) >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-600 dark:text-rose-400'">
-            {{ data.dailyAllowance !== null && data.dailyAllowance >= 0
-              ? format(data.dailyAllowance)
-              : data.daysRemaining === 0 ? '—' : 'Estourado' }}
-          </p>
-          <p class="text-xs text-gray-400 mt-1 hidden sm:block">nos dias restantes</p>
-          <p class="text-xs text-gray-400 mt-1 sm:hidden">disponível/dia</p>
-        </div>
-
-        <!-- Ritmo / Resultado / Projeção -->
-        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-3 sm:p-4">
-          <p class="text-xs text-gray-400 mb-1">
-            {{ data.isCurrentMonth ? 'Ritmo' : data.daysElapsed === data.daysTotal ? 'Resultado' : 'Projeção' }}
-          </p>
-          <p class="text-base sm:text-xl font-bold" :class="paceColor">{{ paceLabel }}</p>
-          <p class="text-xs text-gray-400 mt-1 hidden sm:block">
-            {{ data.isCurrentMonth ? 'vs ritmo uniforme esperado' : data.daysElapsed === data.daysTotal ? 'do orçamento do mês' : 'do limite do mês' }}
-          </p>
-        </div>
-      </div>
-
-      <!-- Info porcentagem: receita → meta → teto → poupança efetiva -->
-      <div v-if="data.limitType === 'porcentagem'" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 px-4 sm:px-5 py-4">
-        <!-- Mobile: grade 2x2 + poupança separada -->
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <!-- Receita → Meta → Teto -->
-          <div class="flex items-center gap-3 sm:gap-4">
-            <div>
-              <p class="text-xs text-gray-400 mb-1">Receita</p>
-              <p class="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100">{{ format(data.income) }}</p>
-            </div>
-            <UIcon name="i-heroicons-arrow-right" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" />
-            <div>
-              <p class="text-xs text-gray-400 mb-1">Meta poupança</p>
-              <p class="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100">{{ data.savingsPct }}%</p>
-            </div>
-            <UIcon name="i-heroicons-arrow-right" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" />
-            <div>
-              <p class="text-xs text-gray-400 mb-1">Teto</p>
-              <p class="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100">{{ format(data.limit!) }}</p>
-            </div>
+        <!-- Seção 2: Saldo disponível · Gasto/dia · Ritmo -->
+        <div class="border-t border-gray-100 dark:border-gray-800 grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800">
+          <!-- Saldo disponível -->
+          <div class="p-3 sm:p-4">
+            <p class="text-xs text-gray-400 mb-1">Disponível para gastar</p>
+            <p class="text-base sm:text-xl font-bold" :class="data.remaining! >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-600 dark:text-rose-400'">
+              {{ data.remaining! >= 0 ? format(data.remaining!) : '−' + format(Math.abs(data.remaining!)) }}
+            </p>
+            <p class="text-xs text-gray-400 mt-1 hidden sm:block">para {{ data.daysRemaining }} dias restantes</p>
+            <p class="text-xs text-gray-400 mt-1 sm:hidden">{{ data.daysRemaining }}d restantes</p>
           </div>
 
-          <!-- Divider -->
-          <div class="hidden sm:block w-px h-8 bg-gray-100 dark:bg-gray-800 flex-shrink-0" />
-          <div class="sm:hidden h-px bg-gray-100 dark:bg-gray-800" />
+          <!-- Gasto/dia -->
+          <div class="p-3 sm:p-4">
+            <p class="text-xs text-gray-400 mb-1">Gasto/dia</p>
+            <p class="text-base sm:text-xl font-bold"
+              :class="(data.dailyAllowance ?? 0) >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-600 dark:text-rose-400'">
+              {{ data.dailyAllowance !== null && data.dailyAllowance >= 0
+                ? format(data.dailyAllowance)
+                : data.daysRemaining === 0 ? '—' : 'Estourado' }}
+            </p>
+            <p class="text-xs text-gray-400 mt-1 hidden sm:block">nos dias restantes</p>
+            <p class="text-xs text-gray-400 mt-1 sm:hidden">disponível/dia</p>
+          </div>
 
-          <!-- Poupança efetiva -->
-          <div>
-            <p class="text-xs text-gray-400 mb-1">Poupança efetiva</p>
-            <div class="flex items-baseline gap-1.5">
-              <p class="text-xl font-bold" :class="actualSavingsPctColor">
-                {{ actualSavingsPct !== null ? actualSavingsPct.toFixed(1) + '%' : '—' }}
-              </p>
-              <p v-if="actualSavingsPct !== null" class="text-xs" :class="actualSavingsPctColor">
-                (meta: {{ data.savingsPct }}%)
-              </p>
-            </div>
-            <p v-if="actualSavingsPct !== null" class="text-sm font-medium text-gray-600 dark:text-gray-300 mt-0.5">
-              {{ format(data.income - data.spent) }} poupados até agora
+          <!-- Ritmo / Resultado / Projeção -->
+          <div class="p-3 sm:p-4">
+            <p class="text-xs text-gray-400 mb-1">
+              {{ data.isCurrentMonth
+                ? ((data.spentPct ?? 0) >= 100 ? 'Resultado' : 'Ritmo')
+                : data.daysElapsed === data.daysTotal ? 'Resultado' : 'Projeção' }}
+            </p>
+            <p class="text-base sm:text-xl font-bold" :class="paceColor">{{ paceLabel }}</p>
+            <p class="text-xs text-gray-400 mt-1 hidden sm:block">
+              {{ data.isCurrentMonth
+                ? ((data.spentPct ?? 0) >= 100 ? 'do orçamento do mês' : 'vs ritmo uniforme esperado')
+                : data.daysElapsed === data.daysTotal ? 'do orçamento do mês' : 'do limite do mês' }}
             </p>
           </div>
         </div>
-      </div>
 
+        <!-- Seção 3: Poupança efetiva + Receita → Meta → Teto (só tipo porcentagem) -->
+        <div v-if="data.limitType === 'porcentagem'" class="border-t border-gray-100 dark:border-gray-800 px-4 sm:px-5 py-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <!-- Poupança efetiva (esquerda) -->
+            <div>
+              <p class="text-xs text-gray-400 mb-1">Poupança efetiva</p>
+              <div class="flex items-baseline gap-1.5">
+                <p class="text-xl font-bold" :class="actualSavingsPctColor">
+                  {{ actualSavingsPct !== null ? actualSavingsPct.toFixed(1) + '%' : '—' }}
+                </p>
+                <p v-if="actualSavingsPct !== null" class="text-xs" :class="actualSavingsPctColor">
+                  (meta: {{ data.savingsPct }}%)
+                </p>
+              </div>
+              <p v-if="actualSavingsPct !== null" class="text-sm font-medium text-gray-600 dark:text-gray-300 mt-0.5">
+                {{ format(data.income - data.spent) }} poupados até agora
+              </p>
+            </div>
+
+            <!-- Divider -->
+            <div class="hidden sm:block w-px h-8 bg-gray-100 dark:bg-gray-800 flex-shrink-0" />
+            <div class="sm:hidden h-px bg-gray-100 dark:bg-gray-800" />
+
+            <!-- Receita → Meta → Teto (direita) -->
+            <div class="flex items-center gap-3 sm:gap-4">
+              <div>
+                <p class="text-xs text-gray-400 mb-1">Receita</p>
+                <p class="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100">{{ format(data.income) }}</p>
+              </div>
+              <UIcon name="i-heroicons-arrow-right" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" />
+              <div>
+                <p class="text-xs text-gray-400 mb-1">Meta poupança</p>
+                <p class="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100">{{ data.savingsPct }}%</p>
+              </div>
+              <UIcon name="i-heroicons-arrow-right" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" />
+              <div>
+                <p class="text-xs text-gray-400 mb-1">A poupar</p>
+                <p class="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100">{{ format(data.income * (data.savingsPct! / 100)) }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
     </template>
   </div>
 </template>
@@ -315,6 +320,7 @@ const statusTextColor = computed(() => {
 const paceLabel = computed(() => {
   const { pace, isCurrentMonth, daysElapsed, daysTotal, spentPct } = props.data
   if (isCurrentMonth) {
+    if (spentPct !== null && spentPct >= 100) return 'Limite estourado'
     if (pace === null) return '—'
     if (Math.abs(pace) < 2) return 'No ritmo'
     return (pace > 0 ? '+' : '') + pace.toFixed(1) + '%'
@@ -331,9 +337,9 @@ const paceLabel = computed(() => {
 const paceColor = computed(() => {
   const { pace, isCurrentMonth, daysElapsed, daysTotal, spentPct } = props.data
   if (isCurrentMonth) {
+    if (spentPct !== null && spentPct >= 100) return 'text-rose-600 dark:text-rose-400'
     if (pace === null || Math.abs(pace) < 2) return 'text-gray-900 dark:text-white'
     if (pace > 15) return 'text-rose-600 dark:text-rose-400'
-    if (pace > 0) return 'text-gray-900 dark:text-white'
     return 'text-gray-900 dark:text-white'
   }
   if (daysElapsed === daysTotal) {

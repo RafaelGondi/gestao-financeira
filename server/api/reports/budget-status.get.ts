@@ -52,7 +52,17 @@ function getMonthSpending(year: number, mon: number): number {
     }
   }
 
-  return total
+  // Ajustes de faturas (positivos ou negativos) e extornos — mesma lógica do dashboard
+  const monthStr = `${yearStr}-${monStr}`
+  const totalAjustes = (db.prepare(
+    `SELECT COALESCE(SUM(valor_ajuste), 0) AS t FROM faturas WHERE mes = ?`
+  ).get([monthStr]) as { t: number }).t
+
+  const totalExtornos = (db.prepare(
+    `SELECT COALESCE(SUM(valor), 0) AS t FROM extornos WHERE mes = ?`
+  ).get([monthStr]) as { t: number }).t
+
+  return total + totalAjustes - totalExtornos
 }
 
 function getMonthIncome(year: number, mon: number): number {
