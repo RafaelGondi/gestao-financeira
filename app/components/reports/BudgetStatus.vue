@@ -41,27 +41,26 @@
             </div>
           </div>
 
-          <!-- Valores: três referências visíveis -->
-          <div class="flex items-end gap-3 mb-5">
-            <!-- Gasto -->
+          <!-- Valores: gasto em destaque + limite/receita como referência -->
+          <div class="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3 mb-5">
+            <!-- Gasto principal -->
             <div>
               <p class="text-xs text-gray-400 mb-1">
                 {{ data.isCurrentMonth ? 'Gasto até hoje' : data.daysElapsed === data.daysTotal ? 'Total gasto' : 'Previsão de gasto' }}
               </p>
               <p class="text-3xl font-bold" :class="spentColor">{{ format(data.spent) }}</p>
             </div>
-            <div class="flex items-end gap-3 mb-1 text-gray-300 dark:text-gray-600">
-              <!-- Limite -->
-              <div class="text-right">
-                <p class="text-xs text-gray-400 mb-1">Limite</p>
-                <p class="text-base font-semibold text-gray-500 dark:text-gray-400">{{ format(data.limit!) }}</p>
+            <!-- Limite + Receita -->
+            <div class="flex items-center gap-3 sm:mb-1">
+              <div>
+                <p class="text-xs text-gray-400 mb-0.5">Limite</p>
+                <p class="text-sm sm:text-base font-semibold text-gray-500 dark:text-gray-400">{{ format(data.limit!) }}</p>
               </div>
-              <!-- Receita (só para porcentagem) -->
               <template v-if="isBullet">
-                <span class="text-gray-200 dark:text-gray-700 mb-0.5">·</span>
-                <div class="text-right">
-                  <p class="text-xs text-gray-400 mb-1">Receita</p>
-                  <p class="text-base font-semibold text-gray-500 dark:text-gray-400">{{ format(data.income) }}</p>
+                <span class="text-gray-200 dark:text-gray-700">·</span>
+                <div>
+                  <p class="text-xs text-gray-400 mb-0.5">Receita</p>
+                  <p class="text-sm sm:text-base font-semibold text-gray-500 dark:text-gray-400">{{ format(data.income) }}</p>
                 </div>
               </template>
             </div>
@@ -107,18 +106,18 @@
             </div>
             <!-- Labels da barra -->
             <div class="flex items-center justify-between mt-1.5 text-xs text-gray-400">
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
                 <p :class="statusTextColor">{{ statusLabel }}</p>
-                <span class="flex items-center gap-1">
+                <span class="hidden sm:flex items-center gap-1">
                   <span class="inline-block w-0.5 h-3 bg-gray-400 dark:bg-gray-500" />
                   Limite ({{ limitPct.toFixed(0) }}%)
                 </span>
-                <span v-if="data.isCurrentMonth" class="flex items-center gap-1">
+                <span v-if="data.isCurrentMonth" class="hidden sm:flex items-center gap-1">
                   <span class="inline-block w-px h-3 bg-blue-400 dark:bg-blue-500" />
                   Hoje
                 </span>
               </div>
-              <span>{{ spentOfIncomePct.toFixed(1) }}% da receita</span>
+              <span class="shrink-0">{{ spentOfIncomePct.toFixed(1) }}% da receita</span>
             </div>
           </div>
 
@@ -143,70 +142,83 @@
       </div>
 
       <!-- Cards de detalhe -->
-      <div class="grid grid-cols-3 gap-4">
+      <div class="grid grid-cols-3 gap-3">
         <!-- Saldo disponível -->
-        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
+        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-3 sm:p-4">
           <p class="text-xs text-gray-400 mb-1">Saldo disponível</p>
-          <p class="text-xl font-bold" :class="data.remaining! >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-900 dark:text-rose-400'">
+          <p class="text-base sm:text-xl font-bold" :class="data.remaining! >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-600 dark:text-rose-400'">
             {{ data.remaining! >= 0 ? format(data.remaining!) : '−' + format(Math.abs(data.remaining!)) }}
           </p>
-          <p class="text-xs text-gray-400 mt-1">para {{ data.daysRemaining }} dias restantes</p>
+          <p class="text-xs text-gray-400 mt-1 hidden sm:block">para {{ data.daysRemaining }} dias restantes</p>
+          <p class="text-xs text-gray-400 mt-1 sm:hidden">{{ data.daysRemaining }}d restantes</p>
         </div>
 
         <!-- Pode gastar por dia -->
-        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
-          <p class="text-xs text-gray-400 mb-1">Pode gastar por dia</p>
-          <p class="text-xl font-bold"
-            :class="(data.dailyAllowance ?? 0) >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-900 dark:text-rose-400'">
+        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-3 sm:p-4">
+          <p class="text-xs text-gray-400 mb-1">Gasto/dia</p>
+          <p class="text-base sm:text-xl font-bold"
+            :class="(data.dailyAllowance ?? 0) >= 0 ? 'text-gray-900 dark:text-white' : 'text-rose-600 dark:text-rose-400'">
             {{ data.dailyAllowance !== null && data.dailyAllowance >= 0
               ? format(data.dailyAllowance)
               : data.daysRemaining === 0 ? '—' : 'Estourado' }}
           </p>
-          <p class="text-xs text-gray-400 mt-1">nos dias restantes</p>
+          <p class="text-xs text-gray-400 mt-1 hidden sm:block">nos dias restantes</p>
+          <p class="text-xs text-gray-400 mt-1 sm:hidden">disponível/dia</p>
         </div>
 
         <!-- Ritmo / Resultado / Projeção -->
-        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
+        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-3 sm:p-4">
           <p class="text-xs text-gray-400 mb-1">
-            {{ data.isCurrentMonth ? 'Ritmo de gasto' : data.daysElapsed === data.daysTotal ? 'Resultado' : 'Projeção' }}
+            {{ data.isCurrentMonth ? 'Ritmo' : data.daysElapsed === data.daysTotal ? 'Resultado' : 'Projeção' }}
           </p>
-          <p class="text-xl font-bold" :class="paceColor">{{ paceLabel }}</p>
-          <p class="text-xs text-gray-400 mt-1">
+          <p class="text-base sm:text-xl font-bold" :class="paceColor">{{ paceLabel }}</p>
+          <p class="text-xs text-gray-400 mt-1 hidden sm:block">
             {{ data.isCurrentMonth ? 'vs ritmo uniforme esperado' : data.daysElapsed === data.daysTotal ? 'do orçamento do mês' : 'do limite do mês' }}
           </p>
         </div>
       </div>
 
       <!-- Info porcentagem: receita → meta → teto → poupança efetiva -->
-      <div v-if="data.limitType === 'porcentagem'" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 px-5 py-4 flex items-center justify-between gap-4">
-        <div>
-          <p class="text-xs text-gray-400 mb-1">Receita do mês</p>
-          <p class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ format(data.income) }}</p>
-        </div>
-        <UIcon name="i-heroicons-arrow-right" class="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" />
-        <div>
-          <p class="text-xs text-gray-400 mb-1">Meta de poupança</p>
-          <p class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ data.savingsPct }}%</p>
-        </div>
-        <UIcon name="i-heroicons-arrow-right" class="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" />
-        <div>
-          <p class="text-xs text-gray-400 mb-1">Teto de gastos</p>
-          <p class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ format(data.limit!) }}</p>
-        </div>
-        <div class="w-px h-8 bg-gray-100 dark:bg-gray-800 flex-shrink-0" />
-        <div>
-          <p class="text-xs text-gray-400 mb-1">Poupança efetiva</p>
-          <div class="flex items-baseline gap-1.5">
-            <p class="text-xl font-bold" :class="actualSavingsPctColor">
-              {{ actualSavingsPct !== null ? actualSavingsPct.toFixed(1) + '%' : '—' }}
-            </p>
-            <p v-if="actualSavingsPct !== null" class="text-xs" :class="actualSavingsPctColor">
-              (meta: {{ data.savingsPct }}%)
+      <div v-if="data.limitType === 'porcentagem'" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 px-4 sm:px-5 py-4">
+        <!-- Mobile: grade 2x2 + poupança separada -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <!-- Receita → Meta → Teto -->
+          <div class="flex items-center gap-3 sm:gap-4">
+            <div>
+              <p class="text-xs text-gray-400 mb-1">Receita</p>
+              <p class="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100">{{ format(data.income) }}</p>
+            </div>
+            <UIcon name="i-heroicons-arrow-right" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" />
+            <div>
+              <p class="text-xs text-gray-400 mb-1">Meta poupança</p>
+              <p class="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100">{{ data.savingsPct }}%</p>
+            </div>
+            <UIcon name="i-heroicons-arrow-right" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" />
+            <div>
+              <p class="text-xs text-gray-400 mb-1">Teto</p>
+              <p class="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100">{{ format(data.limit!) }}</p>
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="hidden sm:block w-px h-8 bg-gray-100 dark:bg-gray-800 flex-shrink-0" />
+          <div class="sm:hidden h-px bg-gray-100 dark:bg-gray-800" />
+
+          <!-- Poupança efetiva -->
+          <div>
+            <p class="text-xs text-gray-400 mb-1">Poupança efetiva</p>
+            <div class="flex items-baseline gap-1.5">
+              <p class="text-xl font-bold" :class="actualSavingsPctColor">
+                {{ actualSavingsPct !== null ? actualSavingsPct.toFixed(1) + '%' : '—' }}
+              </p>
+              <p v-if="actualSavingsPct !== null" class="text-xs" :class="actualSavingsPctColor">
+                (meta: {{ data.savingsPct }}%)
+              </p>
+            </div>
+            <p v-if="actualSavingsPct !== null" class="text-sm font-medium text-gray-600 dark:text-gray-300 mt-0.5">
+              {{ format(data.income - data.spent) }} poupados até agora
             </p>
           </div>
-          <p v-if="actualSavingsPct !== null" class="text-sm font-medium text-gray-600 dark:text-gray-300 mt-0.5">
-            {{ format(data.income - data.spent) }} poupados até agora
-          </p>
         </div>
       </div>
 

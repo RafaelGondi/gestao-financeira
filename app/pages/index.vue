@@ -90,6 +90,9 @@
         />
       </div>
 
+      <!-- Orçamento -->
+      <ReportsBudgetStatus v-if="budgetData" :data="budgetData" />
+
       <!-- Contas a Pagar / Entradas -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <DashboardContasPagar :total="data.contasPagar.total" :items="data.contasPagar.items" :cartoes="data.cartoes" :month="currentMonth" />
@@ -139,6 +142,12 @@ const { data, pending, error } = await useFetch('/api/dashboard', {
 })
 
 const { data: composicaoData } = await useFetch('/api/dashboard/composicao', {
+  query: computed(() => ({ month: currentMonth.value })),
+  watch: [currentMonth],
+  getCachedData: () => null,
+})
+
+const { data: budgetData } = await useFetch('/api/reports/budget-status', {
   query: computed(() => ({ month: currentMonth.value })),
   watch: [currentMonth],
   getCachedData: () => null,
