@@ -151,9 +151,10 @@
     <template v-else-if="data">
       <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
         <!-- Card header -->
-        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+          <!-- Título -->
           <div class="flex items-center gap-2">
-            <div class="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+            <div class="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
               <UIcon name="i-heroicons-chart-bar" class="w-5 h-5 text-gray-500 dark:text-gray-400" />
             </div>
             <div>
@@ -161,7 +162,8 @@
               <p class="text-xs text-gray-400 mt-0.5">{{ periodLabel }}</p>
             </div>
           </div>
-          <div class="flex items-center gap-4">
+          <!-- Toggle + Gasto/Limite -->
+          <div class="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
             <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
               <button
                 class="px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer"
@@ -174,11 +176,11 @@
                 @click="setModo('supercategoria')"
               >Supercategoria</button>
             </div>
-            <div class="text-right">
+            <div class="text-right flex-shrink-0">
               <p class="text-xs text-gray-400">Gasto / Limite</p>
-              <p class="text-lg font-bold text-gray-900 dark:text-white">
+              <p class="text-base sm:text-lg font-bold text-gray-900 dark:text-white whitespace-nowrap">
                 {{ format(data.totalGastoLimitado) }}
-                <span class="text-sm font-normal text-gray-400"> / {{ format(data.totalLimitado) }}</span>
+                <span class="text-xs sm:text-sm font-normal text-gray-400"> / {{ format(data.totalLimitado) }}</span>
               </p>
             </div>
           </div>
@@ -209,7 +211,7 @@
         <!-- Items -->
         <div v-for="(item, idx) in data.itens" :key="item.referencia">
           <div
-            class="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
+            class="flex items-center gap-2 sm:gap-3 px-3 sm:px-5 py-3 sm:py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors"
             :class="idx > 0 ? 'border-t border-gray-100 dark:border-gray-800' : ''"
           >
             <!-- Icon -->

@@ -1,13 +1,13 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div>
+    <div class="flex items-center justify-between gap-2">
+      <div class="min-w-0">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Categorias</h1>
         <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Gerencie categorias e supercategorias</p>
       </div>
-      <UButton leading-icon="i-heroicons-plus" @click="abaAtiva === 'categorias' ? openCreate() : openCreateSuper()">
-        {{ abaAtiva === 'categorias' ? 'Nova Categoria' : 'Nova Supercategoria' }}
+      <UButton leading-icon="i-heroicons-plus" class="flex-shrink-0" @click="abaAtiva === 'categorias' ? openCreate() : openCreateSuper()">
+        <span class="hidden sm:inline">{{ abaAtiva === 'categorias' ? 'Nova Categoria' : 'Nova Supercategoria' }}</span>
       </UButton>
     </div>
 
@@ -38,7 +38,7 @@
         placeholder="Buscar categoria..."
         leading-icon="i-heroicons-magnifying-glass"
         :trailing="busca ? true : false"
-        class="max-w-xs"
+        class="w-full sm:max-w-xs"
       >
         <template v-if="busca" #trailing>
           <button type="button" class="cursor-pointer" @click="busca = ''">
@@ -48,20 +48,21 @@
       </UInput>
 
       <!-- Filtros por tipo + toggle de visualização -->
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex gap-2">
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <div class="flex gap-1.5 flex-wrap">
           <button
             v-for="f in filtros"
             :key="f.value"
             type="button"
-            class="px-3 py-1.5 rounded-lg text-sm font-medium border transition-all cursor-pointer"
+            class="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium border transition-all cursor-pointer"
             :class="filtroAtivo === f.value
               ? 'border-transparent text-white'
               : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-gray-300'"
             :style="filtroAtivo === f.value ? { background: f.color } : {}"
             @click="filtroAtivo = f.value"
           >
-            {{ f.label }}
+            <span class="sm:hidden">{{ f.labelCurto ?? f.label }}</span>
+            <span class="hidden sm:inline">{{ f.label }}</span>
           </button>
         </div>
         <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 flex-shrink-0">
@@ -396,7 +397,7 @@ const filtros = [
   { value: 'todos',         label: 'Todos',          color: '#6B7280' },
   { value: 'despesa',       label: 'Despesas',        color: '#EF4444' },
   { value: 'receita',       label: 'Receitas',        color: '#22C55E' },
-  { value: 'transferencia', label: 'Transferências',  color: '#6366F1' },
+  { value: 'transferencia', label: 'Transferências',  labelCurto: 'Transfer.', color: '#6366F1' },
 ]
 
 const categoriasFiltradas = computed(() => {
