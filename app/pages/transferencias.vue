@@ -1,12 +1,12 @@
 <template>
   <div class="space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
+    <div class="flex items-center justify-between gap-2">
+      <div class="min-w-0">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Transferências</h1>
         <p class="text-sm text-gray-500 mt-1">Movimentações entre contas</p>
       </div>
-      <UButton icon="i-heroicons-plus" color="primary" @click="openAddModal">
-        Nova Transferência
+      <UButton icon="i-heroicons-plus" color="primary" class="flex-shrink-0" @click="openAddModal">
+        <span class="hidden sm:inline">Nova Transferência</span>
       </UButton>
     </div>
 
@@ -67,7 +67,7 @@
       <div
         v-for="(tr, i) in transferencias"
         :key="tr.id"
-        class="flex items-center gap-4 px-5 py-4"
+        class="flex items-start sm:items-center gap-2 sm:gap-4 px-3 sm:px-5 py-3 sm:py-4"
         :class="i < transferencias.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
       >
         <!-- Ícone -->
@@ -77,32 +77,30 @@
 
         <!-- Info -->
         <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ tr.conta_origem_nome }}</span>
-            <UIcon name="i-heroicons-arrow-right" class="w-4 h-4 text-gray-400 flex-shrink-0" />
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ tr.conta_destino_nome }}</span>
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{{ tr.conta_origem_nome }}</span>
+            <UIcon name="i-heroicons-arrow-right" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{{ tr.conta_destino_nome }}</span>
           </div>
-          <div class="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span class="text-xs text-gray-400">{{ fmtDate(tr.data) }}</span>
-            <span v-if="tr.descricao" class="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full">
+          <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+            <span class="text-xs text-gray-400 whitespace-nowrap">{{ fmtDate(tr.data) }}</span>
+            <span v-if="tr.descricao" class="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded-full truncate max-w-[160px] sm:max-w-xs">
               {{ tr.descricao }}
             </span>
           </div>
         </div>
 
-        <!-- Valor -->
-        <div class="flex items-center gap-3 flex-shrink-0">
-          <p class="text-base font-semibold text-blue-600 dark:text-blue-400">
+        <!-- Valor + ações (empilhados no mobile) -->
+        <div class="flex flex-col sm:flex-row sm:items-center items-end gap-1 sm:gap-3 flex-shrink-0">
+          <p class="text-sm sm:text-base font-semibold text-blue-600 dark:text-blue-400 whitespace-nowrap">
             {{ format(tr.valor) }}
           </p>
-        </div>
-
-        <!-- Ações -->
-        <div class="flex items-center gap-1 flex-shrink-0">
-          <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
-            @click="openEditModal(tr)" />
-          <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
-            @click="confirmDelete(tr)" />
+          <div class="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+            <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
+              @click="openEditModal(tr)" />
+            <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
+              @click="confirmDelete(tr)" />
+          </div>
         </div>
       </div>
     </div>
