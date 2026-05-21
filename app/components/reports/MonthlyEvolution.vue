@@ -1,26 +1,26 @@
 <template>
   <div class="space-y-4">
     <!-- Summary stats -->
-    <div class="grid grid-cols-4 gap-4">
-      <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+      <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-3 sm:p-4">
         <p class="text-xs text-gray-400 mb-1">Média de receitas</p>
-        <p class="text-lg font-bold text-emerald-900 dark:text-emerald-400">{{ format(avgIncome) }}</p>
+        <p class="text-sm sm:text-lg font-bold text-emerald-900 dark:text-emerald-400 truncate">{{ format(avgIncome) }}</p>
         <p class="text-xs text-gray-400 mt-1">por mês</p>
       </div>
-      <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
+      <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-3 sm:p-4">
         <p class="text-xs text-gray-400 mb-1">Média de despesas</p>
-        <p class="text-lg font-bold text-rose-900 dark:text-rose-400">{{ format(avgExpenses) }}</p>
+        <p class="text-sm sm:text-lg font-bold text-rose-900 dark:text-rose-400 truncate">{{ format(avgExpenses) }}</p>
         <p class="text-xs text-gray-400 mt-1">por mês</p>
       </div>
-      <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
+      <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-3 sm:p-4">
         <p class="text-xs text-gray-400 mb-1">Saldo médio</p>
-        <p class="text-lg font-bold text-blue-900 dark:text-blue-400">{{ format(avgBalance) }}</p>
+        <p class="text-sm sm:text-lg font-bold text-blue-900 dark:text-blue-400 truncate">{{ format(avgBalance) }}</p>
         <p class="text-xs text-gray-400 mt-1">por mês</p>
       </div>
-      <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
+      <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-3 sm:p-4">
         <p class="text-xs text-gray-400 mb-1">Taxa de poupança</p>
         <p
-          class="text-lg font-bold"
+          class="text-sm sm:text-lg font-bold"
           :class="avgSavingsRate >= 0 ? 'text-emerald-900 dark:text-emerald-400' : 'text-rose-900 dark:text-rose-400'"
         >
           {{ avgSavingsRate.toFixed(1) }}%
@@ -31,9 +31,9 @@
 
     <!-- Chart card -->
     <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
-      <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-5 py-4 border-b border-gray-100 dark:border-gray-800">
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+          <div class="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
             <UIcon name="i-heroicons-chart-bar" class="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </div>
           <div>
@@ -42,7 +42,7 @@
           </div>
         </div>
         <!-- Legend -->
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-4 pl-10 sm:pl-0">
           <div class="flex items-center gap-1.5">
             <div class="w-3 h-3 rounded-sm bg-emerald-500" />
             <span class="text-xs text-gray-400">Receitas</span>
@@ -58,10 +58,20 @@
         </div>
       </div>
 
-      <div class="px-5 py-5">
-        <div class="h-72">
-          <Bar :data="chartData" :options="chartOptions" />
+      <!-- Mobile: Y axis fixo + barras com scroll horizontal -->
+      <div class="flex sm:hidden px-2 py-5" style="height: 320px">
+        <div class="flex-shrink-0 w-14">
+          <Bar :data="yAxisChartData" :options="yAxisOnlyOptions" />
         </div>
+        <div ref="chartScroll" class="overflow-x-auto flex-1">
+          <div class="h-full w-[600px]">
+            <Bar :data="chartData" :options="chartOptionsMobile" />
+          </div>
+        </div>
+      </div>
+      <!-- Desktop: gráfico normal -->
+      <div class="hidden sm:block px-5 py-5 h-72">
+        <Bar :data="chartData" :options="chartOptions" />
       </div>
     </div>
 
@@ -74,32 +84,32 @@
         <div
           v-for="row in [...data].reverse()"
           :key="row.month"
-          class="flex items-center px-5 py-3 gap-4"
+          class="flex items-center px-3 sm:px-5 py-3 gap-2 sm:gap-4"
           :class="row.month === currentMonth ? 'bg-gray-50 dark:bg-gray-800/40' : ''"
         >
-          <p class="text-sm font-medium text-gray-700 dark:text-gray-300 w-20 flex-shrink-0 capitalize">
+          <p class="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 w-14 sm:w-20 flex-shrink-0 capitalize">
             {{ formatMonthLabel(row.month) }}
-            <span v-if="row.month === currentMonth" class="ml-1 text-xs text-gray-400">(atual)</span>
+            <span v-if="row.month === currentMonth" class="ml-1 text-xs text-gray-400 hidden sm:inline">(atual)</span>
           </p>
-          <div class="flex-1 flex items-center min-w-0">
+          <div class="flex-1 hidden sm:flex items-center min-w-0">
             <div
               class="h-1 rounded-full bg-emerald-400 dark:bg-emerald-500 flex-shrink-0"
               :style="{ width: barWidth(row.income, maxValue) }"
             />
           </div>
-          <p class="text-sm font-medium text-emerald-900 dark:text-emerald-400 w-28 text-right flex-shrink-0">{{ format(row.income) }}</p>
-          <div class="flex-1 flex items-center min-w-0">
+          <p class="text-xs sm:text-sm font-medium text-emerald-900 dark:text-emerald-400 w-20 sm:w-28 text-right flex-shrink-0">{{ format(row.income) }}</p>
+          <div class="flex-1 hidden sm:flex items-center min-w-0">
             <div
               class="h-1 rounded-full bg-rose-300 dark:bg-rose-400 flex-shrink-0"
               :style="{ width: barWidth(row.expenses, maxValue) }"
             />
           </div>
-          <p class="text-sm font-medium text-rose-900 dark:text-rose-400 w-28 text-right flex-shrink-0">{{ format(row.expenses) }}</p>
-          <p class="text-sm font-medium text-blue-900 dark:text-blue-400 w-28 text-right flex-shrink-0">
+          <p class="text-xs sm:text-sm font-medium text-rose-900 dark:text-rose-400 w-20 sm:w-28 text-right flex-shrink-0">{{ format(row.expenses) }}</p>
+          <p class="text-xs sm:text-sm font-medium text-blue-900 dark:text-blue-400 w-20 sm:w-28 text-right flex-shrink-0">
             {{ format(row.balance) }}
           </p>
           <p
-            class="text-sm font-medium w-16 text-right flex-shrink-0"
+            class="text-xs sm:text-sm font-medium w-12 sm:w-16 text-right flex-shrink-0"
             :class="savingsRate(row) === null ? 'text-gray-300 dark:text-gray-600' : savingsRate(row)! >= 0 ? 'text-emerald-900 dark:text-emerald-400' : 'text-rose-900 dark:text-rose-400'"
           >
             {{ savingsRate(row) === null ? '—' : savingsRate(row)!.toFixed(1) + '%' }}
@@ -134,6 +144,68 @@ interface MonthData {
 
 const props = defineProps<{ data: MonthData[] }>()
 const { format } = useCurrency()
+
+const chartScroll = ref<HTMLElement | null>(null)
+onMounted(() => {
+  if (chartScroll.value) chartScroll.value.scrollLeft = chartScroll.value.scrollWidth
+})
+
+// Dados para o canvas do eixo Y (mesmo dataset mas invisível)
+const yAxisChartData = computed(() => ({
+  labels: props.data.map(d => formatMonthLabel(d.month)),
+  datasets: chartData.value.datasets.map(ds => ({
+    ...ds,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    pointBackgroundColor: 'transparent',
+    pointBorderColor: 'transparent',
+  })),
+}))
+
+const yAxisOnlyOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  animation: { duration: 0 },
+  plugins: { legend: { display: false }, tooltip: { enabled: false } },
+  layout: { padding: { top: 4, bottom: 28, left: 0, right: 0 } },
+  scales: {
+    x: { display: false },
+    y: {
+      grid: { color: 'rgba(156, 163, 175, 0.08)' },
+      ticks: {
+        color: '#9ca3af',
+        font: { size: 10 },
+        maxTicksLimit: 6,
+        callback: (val: any) => `R$${(val / 1000).toFixed(0)}k`,
+      },
+    },
+  },
+} as const
+
+const chartOptionsMobile = {
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: { mode: 'index' as const, intersect: false },
+  layout: { padding: { top: 4, bottom: 0, left: 0, right: 8 } },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      callbacks: {
+        label: (ctx: any) => {
+          const val = ctx.raw as number
+          return ` ${ctx.dataset.label}: R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+        },
+      },
+    },
+  },
+  scales: {
+    x: {
+      grid: { display: false },
+      ticks: { color: '#9ca3af', font: { size: 11 } },
+    },
+    y: { display: false },
+  },
+} as const
 
 const now = new Date()
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
