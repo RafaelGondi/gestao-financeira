@@ -1,14 +1,14 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex items-center gap-4">
+    <div class="flex items-center gap-2 sm:gap-4">
       <UButton icon="i-heroicons-arrow-left" variant="ghost" color="neutral" to="/contas" />
-      <div class="flex-1">
-        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ data?.conta.nome }}</h1>
-        <p class="text-sm text-gray-500 mt-0.5">{{ data?.conta.banco }}</p>
+      <div class="flex-1 min-w-0">
+        <h1 class="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white truncate">{{ data?.conta.nome }}</h1>
+        <p class="text-xs sm:text-sm text-gray-500 mt-0.5 truncate">{{ data?.conta.banco }}</p>
       </div>
-      <UButton icon="i-heroicons-plus" color="primary" @click="abrirLancamentoModal">
-        Novo Lançamento
+      <UButton icon="i-heroicons-plus" color="primary" class="flex-shrink-0" @click="abrirLancamentoModal">
+        <span class="hidden sm:inline">Novo Lançamento</span>
       </UButton>
     </div>
 
@@ -33,18 +33,18 @@
     </div>
 
     <!-- Resumo do mês -->
-    <div v-if="data" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 px-6 py-4 grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800">
-      <div class="pr-6">
+    <div v-if="data" class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 px-3 sm:px-6 py-3 sm:py-4 grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800">
+      <div class="pr-2 sm:pr-6 min-w-0">
         <p class="text-xs text-gray-400 mb-1">Entradas</p>
-        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(data.resumo.entradas) }}</p>
+        <p class="text-sm sm:text-xl font-bold text-gray-900 dark:text-white truncate">{{ format(data.resumo.entradas) }}</p>
       </div>
-      <div class="px-6">
+      <div class="px-2 sm:px-6 min-w-0">
         <p class="text-xs text-gray-400 mb-1">Saídas</p>
-        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(data.resumo.saidas) }}</p>
+        <p class="text-sm sm:text-xl font-bold text-gray-900 dark:text-white truncate">{{ format(data.resumo.saidas) }}</p>
       </div>
-      <div class="pl-6">
+      <div class="pl-2 sm:pl-6 min-w-0">
         <p class="text-xs text-gray-400 mb-1">Saldo do mês</p>
-        <p class="text-xl font-bold" :class="data.resumo.saldo_mes >= 0 ? 'text-gray-900 dark:text-white' : 'text-red-600 dark:text-red-400'">
+        <p class="text-sm sm:text-xl font-bold truncate" :class="data.resumo.saldo_mes >= 0 ? 'text-gray-900 dark:text-white' : 'text-red-600 dark:text-red-400'">
           {{ format(data.resumo.saldo_mes) }}
         </p>
       </div>
@@ -103,7 +103,7 @@
         v-for="(lanc, i) in lancamentosFiltrados"
         v-else
         :key="`${lanc.tipo}-${lanc.id}`"
-        class="flex items-center gap-4 px-5 py-4 transition-opacity"
+        class="flex items-start sm:items-center gap-2 sm:gap-4 px-3 sm:px-5 py-3 sm:py-4 transition-opacity"
         :class="[
           i < lancamentosFiltrados.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : '',
           lanc.pago && (lanc.tipo === 'receita' || lanc.tipo === 'despesa') ? 'opacity-60' : ''
@@ -157,57 +157,60 @@
           <p v-if="lanc.notas" class="text-xs text-gray-400 mt-0.5 truncate italic">{{ lanc.notas }}</p>
         </div>
 
-        <!-- Valor + pagar -->
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <span
-            v-if="lanc.tipo === 'receita'"
-            class="text-xs px-2 py-0.5 rounded-full"
-            :class="lanc.pago
-              ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-500'"
-          >{{ lanc.pago ? 'Recebido' : 'A receber' }}</span>
-          <p class="text-sm font-medium" :class="isPositivo(lanc) ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-            {{ isPositivo(lanc) ? '+' : '-' }} {{ format(lanc.valor) }}
-          </p>
-          <UButton
-            v-if="lanc.tipo === 'despesa' && !lanc.pago"
-            icon="i-heroicons-check-circle"
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            class="text-gray-400 hover:text-green-600"
-            title="Marcar como pago"
-            @click="abrirPagarModal(lanc)"
-          />
-          <button
-            v-else-if="lanc.tipo === 'despesa' && lanc.pago"
-            class="text-green-500 hover:text-orange-400 transition-colors cursor-pointer flex-shrink-0"
-            title="Clique para desmarcar pagamento"
-            @click="despagarLanc(lanc)"
-          >
-            <UIcon name="i-heroicons-check-circle-solid" class="w-4 h-4" />
-          </button>
-          <UButton
-            v-else-if="lanc.tipo === 'receita' && !lanc.pago"
-            icon="i-heroicons-check-circle"
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            class="text-gray-400 hover:text-emerald-600"
-            title="Marcar como recebido"
-            @click="abrirReceberModal(lanc)"
-          />
-          <UIcon
-            v-else-if="lanc.tipo === 'receita' && lanc.pago"
-            name="i-heroicons-check-circle-solid"
-            class="w-4 h-4 text-emerald-500 flex-shrink-0"
-          />
-        </div>
+        <!-- Lado direito: valor + ações (empilhados no mobile) -->
+        <div class="flex flex-col sm:flex-row sm:items-center items-end gap-1 sm:gap-2 flex-shrink-0">
+          <!-- Valor + status -->
+          <div class="flex items-center gap-1.5 sm:gap-2">
+            <span
+              v-if="lanc.tipo === 'receita'"
+              class="hidden sm:inline text-xs px-2 py-0.5 rounded-full"
+              :class="lanc.pago
+                ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-500'"
+            >{{ lanc.pago ? 'Recebido' : 'A receber' }}</span>
+            <p class="text-sm font-medium whitespace-nowrap" :class="isPositivo(lanc) ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+              {{ isPositivo(lanc) ? '+' : '-' }} {{ format(lanc.valor) }}
+            </p>
+            <UButton
+              v-if="lanc.tipo === 'despesa' && !lanc.pago"
+              icon="i-heroicons-check-circle"
+              size="xs"
+              variant="ghost"
+              color="neutral"
+              class="text-gray-400 hover:text-green-600"
+              title="Marcar como pago"
+              @click="abrirPagarModal(lanc)"
+            />
+            <button
+              v-else-if="lanc.tipo === 'despesa' && lanc.pago"
+              class="text-green-500 hover:text-orange-400 transition-colors cursor-pointer flex-shrink-0"
+              title="Clique para desmarcar pagamento"
+              @click="despagarLanc(lanc)"
+            >
+              <UIcon name="i-heroicons-check-circle-solid" class="w-4 h-4" />
+            </button>
+            <UButton
+              v-else-if="lanc.tipo === 'receita' && !lanc.pago"
+              icon="i-heroicons-check-circle"
+              size="xs"
+              variant="ghost"
+              color="neutral"
+              class="text-gray-400 hover:text-emerald-600"
+              title="Marcar como recebido"
+              @click="abrirReceberModal(lanc)"
+            />
+            <UIcon
+              v-else-if="lanc.tipo === 'receita' && lanc.pago"
+              name="i-heroicons-check-circle-solid"
+              class="w-4 h-4 text-emerald-500 flex-shrink-0"
+            />
+          </div>
 
-        <!-- Ações: editar e excluir (não disponível para faturas) -->
-        <div v-if="lanc.tipo !== 'fatura'" class="flex items-center gap-1 flex-shrink-0">
-          <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs" @click="abrirEditModal(lanc)" />
-          <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs" @click="abrirDeleteModal(lanc)" />
+          <!-- Ações: editar e excluir (não disponível para faturas) -->
+          <div v-if="lanc.tipo !== 'fatura'" class="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+            <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs" @click="abrirEditModal(lanc)" />
+            <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs" @click="abrirDeleteModal(lanc)" />
+          </div>
         </div>
       </div>
     </div>
