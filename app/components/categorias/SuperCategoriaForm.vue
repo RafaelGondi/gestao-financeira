@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="space-y-5">
     <!-- Nome -->
     <UFormField label="Nome" required>
@@ -51,9 +51,9 @@
       <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ form.nome || 'Nome da supercategoria' }}</p>
     </div>
 
-    <div class="flex justify-end gap-3 pt-1">
-      <UButton type="button" variant="ghost" color="neutral" @click="emit('cancel')">Cancelar</UButton>
-      <UButton :loading="loading" color="primary" @click="handleSubmit">
+    <div class="flex gap-3 pt-4">
+      <UButton type="button" variant="ghost" color="neutral" size="lg" class="flex-1 justify-center" @click="emit('cancel')">Cancelar</UButton>
+      <UButton :loading="loading" color="primary" size="lg" class="flex-1 justify-center" @click="handleSubmit">
         {{ isEdit ? 'Salvar' : 'Criar Supercategoria' }}
       </UButton>
     </div>

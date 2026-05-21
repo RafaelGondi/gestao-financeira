@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="space-y-4">
     <div class="grid grid-cols-2 gap-4">
       <UFormField label="Conta de origem" required>
@@ -69,9 +69,9 @@
       <NuxtLink to="/contas" class="underline">Cadastre uma conta</NuxtLink>.
     </p>
 
-    <div class="flex justify-end gap-3 pt-2">
-      <UButton type="button" variant="ghost" color="neutral" @click="emit('cancel')">Cancelar</UButton>
-      <UButton :loading="loading" color="primary" :disabled="!canSubmit" @click="handleSubmit">
+    <div class="flex gap-3 pt-4">
+      <UButton type="button" variant="ghost" color="neutral" size="lg" class="flex-1 justify-center" @click="emit('cancel')">Cancelar</UButton>
+      <UButton :loading="loading" color="primary" size="lg" class="flex-1 justify-center" :disabled="!canSubmit" @click="handleSubmit">
         {{ isEdit ? 'Salvar Alterações' : 'Transferir' }}
       </UButton>
     </div>

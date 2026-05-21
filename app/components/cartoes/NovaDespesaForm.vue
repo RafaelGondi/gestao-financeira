@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="space-y-4">
     <!-- Cartão travado -->
     <div class="flex items-center gap-3 px-3 py-2.5 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -102,9 +102,9 @@
       </div>
     </template>
 
-    <div class="flex justify-end gap-2 pt-1">
-      <UButton variant="ghost" color="neutral" @click="emit('cancel')">Cancelar</UButton>
-      <UButton color="primary" :loading="loading" @click="handleSubmit">
+    <div class="flex gap-3 pt-4">
+      <UButton variant="ghost" color="neutral" size="lg" class="flex-1 justify-center" @click="emit('cancel')">Cancelar</UButton>
+      <UButton color="primary" :loading="loading" size="lg" class="flex-1 justify-center" @click="handleSubmit">
         {{ editMode ? 'Salvar alterações' : 'Adicionar despesa' }}
       </UButton>
     </div>

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="space-y-5">
     <!-- Seletor de banco -->
     <UFormField label="Banco" required>
@@ -37,9 +37,9 @@
       <p class="text-xs text-gray-400 mt-1">Saldo atual na conta no momento do cadastro</p>
     </UFormField>
 
-    <div class="flex justify-end gap-3 pt-2">
-      <UButton type="button" variant="ghost" color="neutral" @click="emit('cancel')">Cancelar</UButton>
-      <UButton :loading="loading" color="primary" @click="handleSubmit">
+    <div class="flex gap-3 pt-4">
+      <UButton type="button" variant="ghost" color="neutral" size="lg" class="flex-1 justify-center" @click="emit('cancel')">Cancelar</UButton>
+      <UButton :loading="loading" color="primary" size="lg" class="flex-1 justify-center" @click="handleSubmit">
         {{ isEdit ? 'Salvar Alterações' : 'Adicionar Conta' }}
       </UButton>
     </div>
