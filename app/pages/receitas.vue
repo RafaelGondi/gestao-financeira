@@ -1,12 +1,12 @@
 <template>
   <div class="space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
+    <div class="flex items-center justify-between gap-2">
+      <div class="min-w-0">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Receitas</h1>
         <p class="text-sm text-gray-500 mt-1">Entradas de dinheiro por mês</p>
       </div>
-      <UButton icon="i-heroicons-plus" color="primary" @click="openAddModal">
-        Nova Receita
+      <UButton icon="i-heroicons-plus" color="primary" class="flex-shrink-0" @click="openAddModal">
+        <span class="hidden sm:inline">Nova Receita</span>
       </UButton>
     </div>
 
@@ -16,18 +16,18 @@
     </div>
 
     <!-- Resumo do mês -->
-    <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 px-6 py-4 grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800">
-      <div class="pr-6">
+    <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 px-3 sm:px-6 py-3 sm:py-4 grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800">
+      <div class="pr-2 sm:pr-6 min-w-0">
         <p class="text-xs text-gray-400 mb-1">Total do mês</p>
-        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(totalGeral) }}</p>
+        <p class="text-sm sm:text-xl font-bold text-gray-900 dark:text-white truncate">{{ format(totalGeral) }}</p>
       </div>
-      <div class="px-6">
+      <div class="px-2 sm:px-6 min-w-0">
         <p class="text-xs text-gray-400 mb-1">Já recebido</p>
-        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(totalRecebido) }}</p>
+        <p class="text-sm sm:text-xl font-bold text-gray-900 dark:text-white truncate">{{ format(totalRecebido) }}</p>
       </div>
-      <div class="pl-6">
+      <div class="pl-2 sm:pl-6 min-w-0">
         <p class="text-xs text-gray-400 mb-1">A receber</p>
-        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(totalAReceber) }}</p>
+        <p class="text-sm sm:text-xl font-bold text-gray-900 dark:text-white truncate">{{ format(totalAReceber) }}</p>
       </div>
     </div>
 
@@ -57,7 +57,7 @@
       <div
         v-for="(receita, i) in receitas"
         :key="`${receita.id}-${receita.fixa}`"
-        class="flex items-center gap-4 px-5 py-4"
+        class="flex items-start sm:items-center gap-2 sm:gap-4 px-3 sm:px-5 py-3 sm:py-4"
         :class="i < receitas.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
       >
         <!-- Ícone -->
@@ -77,40 +77,29 @@
         <div class="flex-1 min-w-0">
           <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{{ receita.descricao }}</p>
           <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
-            <span class="text-xs text-gray-400">{{ descricaoData(receita) }}</span>
-            <template v-if="receita.conta_nome">
-              <span class="text-gray-300 dark:text-gray-700">·</span>
-              <span class="text-xs text-gray-400">{{ receita.conta_nome }}</span>
-            </template>
-            <template v-if="receita.parcelas > 0">
-              <span class="text-gray-300 dark:text-gray-700">·</span>
-              <span class="text-xs text-gray-400">{{ receita.parcela_atual }}/{{ receita.parcelas }}</span>
-            </template>
-            <template v-else-if="receita.fixa">
-              <span class="text-gray-300 dark:text-gray-700">·</span>
-              <span class="text-xs text-gray-400">Fixa</span>
-            </template>
+            <span class="text-xs text-gray-400 whitespace-nowrap">{{ descricaoData(receita) }}</span>
+            <span v-if="receita.conta_nome" class="text-xs text-gray-400 whitespace-nowrap">· {{ receita.conta_nome }}</span>
+            <span v-if="receita.parcelas > 0" class="text-xs text-gray-400 whitespace-nowrap">· {{ receita.parcela_atual }}/{{ receita.parcelas }}</span>
+            <span v-else-if="receita.fixa" class="text-xs text-gray-400 whitespace-nowrap">· Fixa</span>
           </div>
           <p v-if="receita.nome_fatura" class="text-xs text-gray-400 mt-0.5 truncate font-mono">{{ receita.nome_fatura }}</p>
           <p v-if="receita.notas" class="text-xs text-gray-400 mt-0.5 truncate italic">{{ receita.notas }}</p>
         </div>
 
-        <!-- Valor e status -->
-        <div class="flex items-center gap-3 flex-shrink-0">
-          <p class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ format(receita.valor) }}</p>
-          <span
-            class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500"
-          >
-            {{ receita.recebido === 1 ? 'Recebido' : 'A receber' }}
-          </span>
-        </div>
-
-        <!-- Ações -->
-        <div class="flex items-center gap-1 flex-shrink-0">
-          <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
-            @click="openEditModal(receita)" />
-          <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
-            @click="confirmDelete(receita)" />
+        <!-- Valor + status + ações (empilhados no mobile) -->
+        <div class="flex flex-col sm:flex-row sm:items-center items-end gap-1 sm:gap-3 flex-shrink-0">
+          <div class="flex items-center gap-1.5 sm:gap-3">
+            <p class="text-sm font-medium text-gray-800 dark:text-gray-100 whitespace-nowrap">{{ format(receita.valor) }}</p>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 whitespace-nowrap">
+              {{ receita.recebido === 1 ? 'Recebido' : 'A receber' }}
+            </span>
+          </div>
+          <div class="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+            <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
+              @click="openEditModal(receita)" />
+            <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
+              @click="confirmDelete(receita)" />
+          </div>
         </div>
       </div>
     </div>

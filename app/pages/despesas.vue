@@ -1,12 +1,12 @@
 <template>
   <div class="space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
+    <div class="flex items-center justify-between gap-2">
+      <div class="min-w-0">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Despesas</h1>
         <p class="text-sm text-gray-500 mt-1">Saídas de dinheiro por mês</p>
       </div>
-      <UButton icon="i-heroicons-plus" color="primary" @click="openAddModal">
-        Nova Despesa
+      <UButton icon="i-heroicons-plus" color="primary" class="flex-shrink-0" @click="openAddModal">
+        <span class="hidden sm:inline">Nova Despesa</span>
       </UButton>
     </div>
 
@@ -16,18 +16,18 @@
     </div>
 
     <!-- Resumo do mês -->
-    <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 px-6 py-4 grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800">
-      <div class="pr-6">
+    <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 px-3 sm:px-6 py-3 sm:py-4 grid grid-cols-3 divide-x divide-gray-100 dark:divide-gray-800">
+      <div class="pr-2 sm:pr-6 min-w-0">
         <p class="text-xs text-gray-400 mb-1">Total do mês</p>
-        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(totalGeral) }}</p>
+        <p class="text-sm sm:text-xl font-bold text-gray-900 dark:text-white truncate">{{ format(totalGeral) }}</p>
       </div>
-      <div class="px-6">
+      <div class="px-2 sm:px-6 min-w-0">
         <p class="text-xs text-gray-400 mb-1">Já pago</p>
-        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(totalPago) }}</p>
+        <p class="text-sm sm:text-xl font-bold text-gray-900 dark:text-white truncate">{{ format(totalPago) }}</p>
       </div>
-      <div class="pl-6">
+      <div class="pl-2 sm:pl-6 min-w-0">
         <p class="text-xs text-gray-400 mb-1">A pagar</p>
-        <p class="text-xl font-bold text-gray-900 dark:text-white">{{ format(totalAPagar) }}</p>
+        <p class="text-sm sm:text-xl font-bold text-gray-900 dark:text-white truncate">{{ format(totalAPagar) }}</p>
       </div>
     </div>
 
@@ -96,7 +96,7 @@
         <div
           v-for="(despesa, i) in despesasNormais"
           :key="`${despesa.id}-${despesa.fixa}`"
-          class="flex items-center gap-4 px-5 py-4"
+          class="flex items-start sm:items-center gap-2 sm:gap-4 px-3 sm:px-5 py-3 sm:py-4"
           :class="i < despesasNormais.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
         >
           <!-- Ícone -->
@@ -116,43 +116,29 @@
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{{ despesa.descricao }}</p>
             <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
-              <span class="text-xs text-gray-400">{{ descricaoData(despesa) }}</span>
-              <template v-if="despesa.conta_nome">
-                <span class="text-gray-300 dark:text-gray-700">·</span>
-                <span class="text-xs text-gray-400">{{ despesa.conta_nome }}</span>
-              </template>
-              <template v-if="despesa.parcelas > 0">
-                <span class="text-gray-300 dark:text-gray-700">·</span>
-                <span class="text-xs text-gray-400">{{ despesa.parcela_atual }}/{{ despesa.parcelas }}</span>
-              </template>
-              <template v-else-if="despesa.fixa">
-                <span class="text-gray-300 dark:text-gray-700">·</span>
-                <span class="text-xs text-gray-400">Fixa</span>
-              </template>
+              <span class="text-xs text-gray-400 whitespace-nowrap">{{ descricaoData(despesa) }}</span>
+              <span v-if="despesa.conta_nome" class="text-xs text-gray-400 whitespace-nowrap">· {{ despesa.conta_nome }}</span>
+              <span v-if="despesa.parcelas > 0" class="text-xs text-gray-400 whitespace-nowrap">· {{ despesa.parcela_atual }}/{{ despesa.parcelas }}</span>
+              <span v-else-if="despesa.fixa" class="text-xs text-gray-400 whitespace-nowrap">· Fixa</span>
             </div>
             <p v-if="despesa.nome_fatura" class="text-xs text-gray-400 mt-0.5 truncate font-mono">{{ despesa.nome_fatura }}</p>
             <p v-if="despesa.notas" class="text-xs text-gray-400 mt-0.5 truncate italic">{{ despesa.notas }}</p>
           </div>
 
-          <!-- Valor e status -->
-          <div class="flex items-center gap-3 flex-shrink-0">
-            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ format(despesa.valor) }}</p>
-            <span
-              class="text-xs px-2 py-0.5 rounded-full"
-              :class="despesa.pago === 1
-                ? 'bg-gray-100 dark:bg-gray-800 text-gray-500'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-500'"
-            >
-              {{ despesa.pago === 1 ? 'Pago' : 'A pagar' }}
-            </span>
-          </div>
-
-          <!-- Ações -->
-          <div class="flex items-center gap-1 flex-shrink-0">
-            <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
-              @click="openEditModal(despesa)" />
-            <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
-              @click="confirmDelete(despesa)" />
+          <!-- Valor + status + ações (empilhados no mobile) -->
+          <div class="flex flex-col sm:flex-row sm:items-center items-end gap-1 sm:gap-3 flex-shrink-0">
+            <div class="flex items-center gap-1.5 sm:gap-3">
+              <p class="text-sm font-medium text-gray-800 dark:text-gray-100 whitespace-nowrap">{{ format(despesa.valor) }}</p>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 whitespace-nowrap">
+                {{ despesa.pago === 1 ? 'Pago' : 'A pagar' }}
+              </span>
+            </div>
+            <div class="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+              <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
+                @click="openEditModal(despesa)" />
+              <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
+                @click="confirmDelete(despesa)" />
+            </div>
           </div>
         </div>
       </div>
@@ -165,7 +151,7 @@
       >
         <!-- Header do grupo -->
         <div
-          class="flex items-center gap-4 px-5 py-4 cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+          class="flex items-center gap-2 sm:gap-4 px-3 sm:px-5 py-3 sm:py-4 cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
           @click="toggleGrupo(grupo.cartao_id)"
         >
           <div class="flex-shrink-0 w-10 h-7 rounded-lg flex items-center justify-center" :style="cartaoStyle(grupo)">
@@ -210,7 +196,7 @@
           <div
             v-for="(despesa, i) in grupo.despesas"
             :key="`${despesa.id}-${despesa.fixa}`"
-            class="flex items-center gap-4 px-5 py-3 pl-16"
+            class="flex items-start sm:items-center gap-2 sm:gap-4 px-3 sm:px-5 py-2 sm:py-3 pl-8 sm:pl-16"
             :class="i < grupo.despesas.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
           >
             <div
@@ -226,24 +212,20 @@
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-sm text-gray-800 dark:text-gray-100 truncate">{{ despesa.descricao }}</p>
-              <div class="flex items-center gap-1.5 mt-0.5">
-                <span class="text-xs text-gray-400">{{ descricaoData(despesa) }}</span>
-                <template v-if="despesa.parcelas > 0">
-                  <span class="text-gray-300 dark:text-gray-700">·</span>
-                  <span class="text-xs text-gray-400">{{ despesa.parcela_atual }}/{{ despesa.parcelas }}</span>
-                </template>
-                <template v-else-if="despesa.fixa">
-                  <span class="text-gray-300 dark:text-gray-700">·</span>
-                  <span class="text-xs text-gray-400">Fixa</span>
-                </template>
+              <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                <span class="text-xs text-gray-400 whitespace-nowrap">{{ descricaoData(despesa) }}</span>
+                <span v-if="despesa.parcelas > 0" class="text-xs text-gray-400 whitespace-nowrap">· {{ despesa.parcela_atual }}/{{ despesa.parcelas }}</span>
+                <span v-else-if="despesa.fixa" class="text-xs text-gray-400 whitespace-nowrap">· Fixa</span>
               </div>
             </div>
-            <p class="text-sm font-medium text-gray-800 dark:text-gray-100 flex-shrink-0">{{ format(despesa.valor) }}</p>
-            <div class="flex items-center gap-1 flex-shrink-0">
-              <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
-                @click="openEditModal(despesa)" />
-              <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
-                @click="confirmDelete(despesa)" />
+            <div class="flex flex-col sm:flex-row sm:items-center items-end gap-1 sm:gap-2 flex-shrink-0">
+              <p class="text-sm font-medium text-gray-800 dark:text-gray-100 whitespace-nowrap">{{ format(despesa.valor) }}</p>
+              <div class="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
+                <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs"
+                  @click="openEditModal(despesa)" />
+                <UButton icon="i-heroicons-trash" variant="ghost" color="red" size="xs"
+                  @click="confirmDelete(despesa)" />
+              </div>
             </div>
           </div>
         </div>
