@@ -42,7 +42,7 @@
 
     <!-- Nome na fatura (não transferência) -->
     <UFormField v-if="tipo !== 'transferencia'" label="Nome na fatura">
-      <UInput v-model="form.nome_fatura" placeholder="Ex: AMZN*MKTP BR 7K9QP2..." class="w-full" />
+      <SharedNomeFaturaInput v-model="form.nome_fatura" />
     </UFormField>
 
     <!-- Notas (não transferência) -->
