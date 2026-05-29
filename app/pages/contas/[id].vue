@@ -71,10 +71,20 @@
     <!-- Lista de lançamentos -->
     <div v-else class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
       <div class="px-5 pt-3 pb-2.5 border-b border-gray-100 dark:border-gray-800 space-y-2.5">
-        <div class="flex items-center justify-between">
-          <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Lançamentos</p>
-          <p class="text-sm font-semibold text-gray-900 dark:text-white">
-            {{ busca ? `${lancamentosFiltrados.length} de ${data?.lancamentos.length}` : `${data?.lancamentos.length}` }} item(s)
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+            <button
+              v-for="op in filtroOpcoes"
+              :key="op.value"
+              class="px-2.5 py-1 text-xs font-medium rounded-md transition-all cursor-pointer whitespace-nowrap"
+              :class="filtroTipo === op.value
+                ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+              @click="filtroTipo = op.value"
+            >{{ op.label }}</button>
+          </div>
+          <p class="text-xs font-medium text-gray-400 flex-shrink-0">
+            {{ lancamentosFiltrados.length }} item(s)
           </p>
         </div>
         <UInput
@@ -490,12 +500,32 @@ function iconColor(l: Lancamento) {
   return 'text-red-600 dark:text-red-400'
 }
 
+// --- Filtro tipo ---
+type FiltroTipo = 'todos' | 'entradas' | 'saidas'
+const filtroTipo = ref<FiltroTipo>('todos')
+const filtroOpcoes: { value: FiltroTipo; label: string }[] = [
+  { value: 'todos',    label: 'Todos' },
+  { value: 'entradas', label: 'Entradas' },
+  { value: 'saidas',   label: 'Saídas' },
+]
+watch(currentMonth, () => { filtroTipo.value = 'todos' })
+
+function isEntrada(l: Lancamento) {
+  if (l.tipo === 'receita') return true
+  if (l.tipo === 'transferencia') return l.direcao === 'entrada'
+  return false
+}
+
 // --- Busca ---
 const busca = ref('')
 watch(currentMonth, () => { busca.value = '' })
 
 const lancamentosFiltrados = computed(() => {
-  const list = data.value?.lancamentos ?? []
+  let list = data.value?.lancamentos ?? []
+
+  if (filtroTipo.value === 'entradas') list = list.filter(l => isEntrada(l))
+  else if (filtroTipo.value === 'saidas') list = list.filter(l => !isEntrada(l))
+
   const q = busca.value.trim().toLowerCase()
   if (!q) return list
   return list.filter(l => {
