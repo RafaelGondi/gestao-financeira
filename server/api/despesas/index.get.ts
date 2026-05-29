@@ -98,14 +98,14 @@ export default defineEventHandler((event) => {
     const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
     const cutoffT: number = t.cartao_id && t.melhor_data_compra > 1 ? t.melhor_data_compra : 1
     const calcMonth = (cutoffT > 1 && dayP >= cutoffT) ? prevMonthStr : month
-    const effectiveDate = calcMonth + '-' + t.data_inicio.slice(8, 10)
-    if (effectiveDate < t.data_inicio) return []
-    if (t.data_fim && effectiveDate > t.data_fim) return []
+    const effDate = effectiveDate(calcMonth, t.data_inicio)
+    if (effDate < t.data_inicio) return []
+    if (t.data_fim && effDate > t.data_fim) return []
     const { melhor_data_compra: _, ...rest } = t
     return [{
       ...rest,
-      data: effectiveDate,
-      pago: effectiveDate <= today ? 1 : 2,
+      data: effDate,
+      pago: effDate <= today ? 1 : 2,
       parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, calcMonth) : null
     }]
   })

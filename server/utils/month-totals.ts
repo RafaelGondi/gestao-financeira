@@ -1,5 +1,6 @@
 import db from '../db/index'
 import { faturaDateRange } from './fatura'
+import { effectiveDate } from './dateUtils'
 
 interface Cartao {
   id: number
@@ -61,9 +62,9 @@ export function computeMonthTotals(year: number, mon: number, cartoes: Cartao[])
     for (const t of fixasCartao) {
       const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
       const calcMonth = c.melhor_data_compra > 1 && dayP >= c.melhor_data_compra ? prevMonStr : monthStr
-      const effectiveDate = calcMonth + '-' + t.data_inicio.slice(8, 10)
-      if (effectiveDate < t.data_inicio) continue
-      if (t.data_fim && effectiveDate > t.data_fim) continue
+      const effDate = effectiveDate(calcMonth, t.data_inicio)
+      if (effDate < t.data_inicio) continue
+      if (t.data_fim && effDate > t.data_fim) continue
       totalDespesas += t.valor
     }
 

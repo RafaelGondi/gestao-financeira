@@ -81,17 +81,16 @@ export default defineEventHandler((event) => {
   for (const r of avulsasConta) add('contaAvulso', enrichItem(r))
 
   // Conta parcelado + recorrente
-  const fixasConta = db.prepare(`
-    SELECT t.descricao, t.valor, t.parcelas, t.categoria,
-      ? || '-' || substr(t.data_inicio, 9, 2) AS data,
+  const fixasContaRaw = db.prepare(`
+    SELECT t.descricao, t.valor, t.parcelas, t.categoria, t.data_inicio,
       COALESCE(c.nome, 'Fixo') AS origem
     FROM transacoes t
     LEFT JOIN contas c ON c.id = t.conta_id
     WHERE t.tipo = 'despesa' AND t.fixa = 1 AND t.cartao_id IS NULL
       AND t.data_inicio <= ? AND (t.data_fim IS NULL OR t.data_fim >= ?)
-  `).all([month, endDate, startDate]) as (Item & { parcelas: number })[]
-  for (const r of fixasConta) {
-    add(r.parcelas > 0 ? 'contaParcelado' : 'contaRecorrente', enrichItem(r))
+  `).all([endDate, startDate]) as (Item & { parcelas: number; data_inicio: string })[]
+  for (const r of fixasContaRaw) {
+    add(r.parcelas > 0 ? 'contaParcelado' : 'contaRecorrente', enrichItem({ ...r, data: effectiveDate(month, r.data_inicio) }))
   }
 
   const cartoes = db.prepare(`SELECT id, nome, melhor_data_compra FROM cartoes`).all() as { id: number; nome: string; melhor_data_compra: number }[]
@@ -121,11 +120,11 @@ export default defineEventHandler((event) => {
     for (const t of rows) {
       const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
       const calcMonth = cutoff > 1 && dayP >= cutoff ? prevMonStr : month
-      const effectiveDate = calcMonth + '-' + t.data_inicio.slice(8, 10)
-      if (effectiveDate < t.data_inicio) continue
-      if (t.data_fim && effectiveDate > t.data_fim) continue
+      const effDate = effectiveDate(calcMonth, t.data_inicio)
+      if (effDate < t.data_inicio) continue
+      if (t.data_fim && effDate > t.data_fim) continue
       const key = t.parcelas > 0 ? 'cartaoParcelado' : 'cartaoRecorrente'
-      add(key, enrichItem({ descricao: t.descricao, valor: t.valor, data: effectiveDate, origem: t.origem, categoria: t.categoria }))
+      add(key, enrichItem({ descricao: t.descricao, valor: t.valor, data: effDate, origem: t.origem, categoria: t.categoria }))
     }
   }
 

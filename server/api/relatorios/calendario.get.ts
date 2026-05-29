@@ -52,16 +52,16 @@ export default defineEventHandler((event) => {
   itens.push(...avulsas.map(t => ({ ...t, tipo: 'avulsa' as const })))
 
   // Fixas sem cartão
-  const fixas = db.prepare(`
+  const fixasRaw = db.prepare(`
     SELECT
-      ? || '-' || substr(t.data_inicio, 9, 2) AS data,
       t.valor, t.categoria, t.parcelas, t.data_inicio,
       t.descricao, COALESCE(c.nome, 'Fixo') AS origem
     FROM transacoes t
     LEFT JOIN contas c ON c.id = t.conta_id
     WHERE t.tipo = 'despesa' AND t.fixa = 1 AND t.cartao_id IS NULL
       AND t.data_inicio <= ? AND (t.data_fim IS NULL OR t.data_fim >= ?)
-  `).all([month, endDate, startDate]) as DayItem[]
+  `).all([endDate, startDate]) as DayItem[]
+  const fixas = fixasRaw.map(t => ({ ...t, data: effectiveDate(month, t.data_inicio!) }))
 
   for (const t of fixas) {
     if (t.data > today) continue
@@ -95,13 +95,13 @@ export default defineEventHandler((event) => {
     for (const t of rows) {
       const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
       const calcMonth = cutoff > 1 && dayP >= cutoff ? prevMonStr : month
-      const effectiveDate = calcMonth + '-' + t.data_inicio.slice(8, 10)
-      if (effectiveDate < t.data_inicio) continue
-      if (t.data_fim && effectiveDate > t.data_fim) continue
-      if (effectiveDate > today) continue
-      if (t.parcelas > 0 && t.data_inicio.slice(0, 7) !== effectiveDate.slice(0, 7)) continue
-      if (effectiveDate.slice(0, 7) !== month) continue
-      itens.push({ data: effectiveDate, valor: t.valor, categoria: t.categoria, parcelas: t.parcelas ?? 0, data_inicio: t.data_inicio, descricao: t.descricao, origem: t.origem, tipo: (t.parcelas ?? 0) > 0 ? 'parcelada' : 'fixa' })
+      const effDate = effectiveDate(calcMonth, t.data_inicio)
+      if (effDate < t.data_inicio) continue
+      if (t.data_fim && effDate > t.data_fim) continue
+      if (effDate > today) continue
+      if (t.parcelas > 0 && t.data_inicio.slice(0, 7) !== effDate.slice(0, 7)) continue
+      if (effDate.slice(0, 7) !== month) continue
+      itens.push({ data: effDate, valor: t.valor, categoria: t.categoria, parcelas: t.parcelas ?? 0, data_inicio: t.data_inicio, descricao: t.descricao, origem: t.origem, tipo: (t.parcelas ?? 0) > 0 ? 'parcelada' : 'fixa' })
     }
   }
 

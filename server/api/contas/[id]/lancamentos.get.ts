@@ -67,7 +67,6 @@ function computeSaldoAtual(contaId: number, today: string, saldoInicial: number)
     WHERE conta_id=? AND fixa=1 AND cartao_id IS NULL
   `).all([contaId]) as any[]) {
     const [iy, im] = t.data_inicio.split('-').map(Number)
-    const day = t.data_inicio.slice(8, 10)
     const todayMes = today.slice(0, 7)
 
     // Pagamentos/recebimentos antecipados (incluindo dentro do mês atual)
@@ -87,7 +86,7 @@ function computeSaldoAtual(contaId: number, today: string, saldoInicial: number)
     while (true) {
       if (t.parcelas > 0 && idx >= t.parcelas) break
       const mes = `${y}-${String(m).padStart(2,'0')}`
-      const occDate = `${mes}-${day}`
+      const occDate = effectiveDate(mes, t.data_inicio)
       if (t.data_fim && occDate > t.data_fim) break
 
       if (naoPagoSet.has(mes)) {
@@ -154,7 +153,7 @@ export default defineEventHandler((event) => {
     WHERE t.tipo = 'receita' AND t.conta_id = ? AND t.fixa = 1
       AND t.data_inicio <= ? AND (t.data_fim IS NULL OR t.data_fim >= ?)
   `).all([month, contaId, endDate, startDate]) as any[]) {
-    const data = month + '-' + t.data_inicio.slice(8, 10)
+    const data = effectiveDate(month, t.data_inicio)
     const pagoAntecipado = t.pago_data != null
     lancamentos.push({
       ...t, tipo: 'receita', data,
@@ -189,7 +188,7 @@ export default defineEventHandler((event) => {
     WHERE t.tipo = 'despesa' AND t.conta_id = ? AND t.cartao_id IS NULL AND t.fixa = 1
       AND t.data_inicio <= ? AND (t.data_fim IS NULL OR t.data_fim >= ?)
   `).all([month, contaId, endDate, startDate]) as any[]) {
-    const data = month + '-' + t.data_inicio.slice(8, 10)
+    const data = effectiveDate(month, t.data_inicio)
     const pagoAntecipado = t.pago_data != null && !t.nao_pago
     const pago = t.nao_pago ? 0 : (pagoAntecipado ? 1 : (data <= today ? 1 : 0))
     lancamentos.push({

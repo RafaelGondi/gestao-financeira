@@ -68,9 +68,9 @@ export default defineEventHandler((event) => {
     for (const t of rows) {
       const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
       const calcMonth = cutoff > 1 && dayP >= cutoff ? prevMonStr : month
-      const effectiveDate = calcMonth + '-' + t.data_inicio.slice(8, 10)
-      if (effectiveDate < t.data_inicio) continue
-      if (t.data_fim && effectiveDate > t.data_fim) continue
+      const effDate = effectiveDate(calcMonth, t.data_inicio)
+      if (effDate < t.data_inicio) continue
+      if (t.data_fim && effDate > t.data_fim) continue
       itens.push({ id: t.id, valor: t.valor, categoria: t.categoria })
     }
   }

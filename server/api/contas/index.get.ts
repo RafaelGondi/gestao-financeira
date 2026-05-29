@@ -111,11 +111,10 @@ export default defineEventHandler(() => {
               .map((r: any) => r.mes)
           )
           let count = 0
-          const day = t.data_inicio!.slice(8, 10)
           let y = Number(t.data_inicio!.slice(0, 4)), m = Number(t.data_inicio!.slice(5, 7))
           while (true) {
             const mes = `${y}-${String(m).padStart(2, '0')}`
-            const occDate = `${mes}-${day}`
+            const occDate = effectiveDate(mes, t.data_inicio!)
             if (t.data_fim && new Date(occDate + 'T12:00:00') > new Date(t.data_fim + 'T12:00:00')) break
             if (new Date(occDate + 'T12:00:00') > today) break
             if (!naoPagoSet.has(mes)) count++

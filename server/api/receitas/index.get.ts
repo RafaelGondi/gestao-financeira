@@ -48,11 +48,9 @@ export default defineEventHandler((event) => {
 
   const fixas = (db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,
-      ? || '-' || substr(t.data_inicio, 9, 2) AS data,
       t.data_inicio, t.data_fim, t.conta_id, t.notas, t.nome_fatura,
       c.nome AS conta_nome, c.banco_key,
-      cat.cor AS categoria_cor, cat.icone AS categoria_icone,
-      CASE WHEN ? || '-' || substr(t.data_inicio, 9, 2) <= ? THEN 1 ELSE 2 END AS recebido
+      cat.cor AS categoria_cor, cat.icone AS categoria_icone
     FROM transacoes t
     LEFT JOIN contas c ON c.id = t.conta_id
     LEFT JOIN categorias cat ON cat.nome = t.categoria
@@ -60,10 +58,15 @@ export default defineEventHandler((event) => {
       AND t.data_inicio <= ?
       AND (t.data_fim IS NULL OR t.data_fim >= ?)
     ORDER BY t.data_inicio ASC
-  `).all([month, month, today, endDate, startDate]) as any[]).map(t => ({
-    ...t,
-    parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null
-  }))
+  `).all([endDate, startDate]) as any[]).map(t => {
+    const data = effectiveDate(month, t.data_inicio)
+    return {
+      ...t,
+      data,
+      recebido: data <= today ? 1 : 2,
+      parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null,
+    }
+  })
 
   return [...fixas, ...avulsas]
 })

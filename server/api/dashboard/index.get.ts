@@ -114,10 +114,10 @@ export default defineEventHandler((event) => {
   `).all([todayStr, startDate, endDate]) as Transacao[]
 
   // Fixas sem cartão (receitas e despesas)
-  const fixasNormais = db.prepare(`
+  const fixasNormaisRaw = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.tipo, t.categoria, t.cartao_id, 1 AS fixa,
-      ? || '-' || substr(t.data_inicio, 9, 2) AS data,
-      CASE WHEN pf.nao_pago = 1 THEN 0 WHEN pf.id IS NOT NULL OR ? || '-' || substr(t.data_inicio, 9, 2) <= ? THEN 1 ELSE 0 END AS pago,
+      t.data_inicio,
+      pf.nao_pago, pf.id AS pf_id,
       cat.icone AS categoria_icone, cat.cor AS categoria_cor
     FROM transacoes t
     LEFT JOIN categorias cat ON cat.nome = t.categoria
@@ -125,7 +125,12 @@ export default defineEventHandler((event) => {
     WHERE t.fixa = 1 AND t.cartao_id IS NULL
       AND t.data_inicio <= ?
       AND (t.data_fim IS NULL OR t.data_fim >= ?)
-  `).all([month, month, todayStr, month, endDate, startDate]) as Transacao[]
+  `).all([month, endDate, startDate]) as any[]
+  const fixasNormais: Transacao[] = fixasNormaisRaw.map(t => {
+    const data = effectiveDate(month, t.data_inicio)
+    const pago = t.nao_pago ? 0 : (t.pf_id != null || data <= todayStr) ? 1 : 0
+    return { ...t, data, pago }
+  })
 
   // Faturas pagas por cartão no mês selecionado
   const faturasPagasNoMes = new Set<number>(
@@ -164,12 +169,12 @@ export default defineEventHandler((event) => {
     for (const t of rows) {
       const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
       const calcMonth = cutoff > 1 && dayP >= cutoff ? prevMonStr : month
-      const effectiveDate = calcMonth + '-' + t.data_inicio.slice(8, 10)
-      if (effectiveDate < t.data_inicio) continue
-      if (t.data_fim && effectiveDate > t.data_fim) continue
+      const effDate = effectiveDate(calcMonth, t.data_inicio)
+      if (effDate < t.data_inicio) continue
+      if (t.data_fim && effDate > t.data_fim) continue
       cartaoFixas.push({
         id: t.id, descricao: t.descricao, valor: t.valor, tipo: 'despesa',
-        categoria: t.categoria, data: effectiveDate, cartao_id: t.cartao_id, fixa: 1,
+        categoria: t.categoria, data: effDate, cartao_id: t.cartao_id, fixa: 1,
         pago: fatPago,
       })
     }

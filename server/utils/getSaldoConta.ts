@@ -1,5 +1,6 @@
 import db from '../db/index'
 import { localDateStr } from './localDate'
+import { effectiveDate } from './dateUtils'
 
 /**
  * Computes the current real balance of a conta, accounting for all received
@@ -35,7 +36,6 @@ export function getSaldoConta(contaId: number): number {
 
   let fixasSaldo = 0
   for (const t of fixas) {
-    const day = t.data_inicio.slice(8, 10)
     let y = Number(t.data_inicio.slice(0, 4)), m = Number(t.data_inicio.slice(5, 7)), count = 0
 
     // Meses explicitamente marcados como não pagos (apenas despesas)
@@ -48,7 +48,7 @@ export function getSaldoConta(contaId: number): number {
 
     while (true) {
       const mes = `${y}-${String(m).padStart(2, '0')}`
-      const occDate = `${mes}-${day}`
+      const occDate = effectiveDate(mes, t.data_inicio)
       if (t.data_fim && occDate > t.data_fim) break
       if (naoPagoMeses.has(mes)) {
         // explicitamente não pago — não conta, mas continua iterando

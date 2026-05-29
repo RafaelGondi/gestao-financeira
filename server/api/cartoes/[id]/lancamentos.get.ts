@@ -56,13 +56,13 @@ export default defineEventHandler((event) => {
   const fixas = fixasRaw.flatMap((t: any) => {
     const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
     const calcMonth = (cutoff > 1 && dayP >= cutoff) ? prevMonthStr : month
-    const effectiveDate = calcMonth + '-' + t.data_inicio.slice(8, 10)
+    const effDate = effectiveDate(calcMonth, t.data_inicio)
     // Exclude if before first installment or after last
-    if (effectiveDate < t.data_inicio) return []
-    if (t.data_fim && effectiveDate > t.data_fim) return []
+    if (effDate < t.data_inicio) return []
+    if (t.data_fim && effDate > t.data_fim) return []
     return [{
       ...t,
-      data: effectiveDate,
+      data: effDate,
       parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, calcMonth) : null,
       categoria_icone: t.categoria_icone ?? null,
       categoria_cor: t.categoria_cor ?? null,
