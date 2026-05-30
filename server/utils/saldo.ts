@@ -53,8 +53,7 @@ export function computeSaldoBancario(cutoffStr: string): number {
   ).all() as { valor: number; data: string; conta_origem_id: number; conta_destino_id: number }[]
   const faturasPagas = db.prepare(`
     SELECT f.cartao_id, f.mes, f.conta_id, f.data_pagamento,
-      COALESCE(f.valor_ajuste, 0) AS valor_ajuste, c.melhor_data_compra,
-      f.janela_inicio, f.janela_fim
+      COALESCE(f.valor_ajuste, 0) AS valor_ajuste, c.melhor_data_compra
     FROM faturas f JOIN cartoes c ON c.id = f.cartao_id WHERE f.pago = 1
   `).all() as { cartao_id: number; mes: string; conta_id: number; data_pagamento: string; valor_ajuste: number; melhor_data_compra: number }[]
 
@@ -81,9 +80,7 @@ export function computeSaldoBancario(cutoffStr: string): number {
     for (const f of faturasPagas) {
       if (f.conta_id !== conta.id || f.data_pagamento > cutoffStr) continue
       const [fy, fm] = f.mes.split('-').map(Number)
-      const { startDate: fStart, endDate: fEnd } = f.janela_inicio
-        ? { startDate: f.janela_inicio, endDate: f.janela_fim }
-        : faturaDateRange(fy, fm, f.melhor_data_compra)
+      const { startDate: fStart, endDate: fEnd } = faturaDateRange(fy, fm, f.melhor_data_compra)
       const row = db.prepare(`
         SELECT COALESCE(SUM(valor), 0) AS total FROM transacoes
         WHERE tipo = 'despesa' AND cartao_id = ?

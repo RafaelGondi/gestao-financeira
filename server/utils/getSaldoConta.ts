@@ -1,7 +1,6 @@
 import db from '../db/index'
 import { localDateStr } from './localDate'
 import { effectiveDate } from './dateUtils'
-import { faturaDateRange } from './fatura'
 
 /**
  * Computes the current real balance of a conta, accounting for all received
@@ -71,8 +70,7 @@ export function getSaldoConta(contaId: number): number {
 
   // Faturas pagas debitadas desta conta
   const faturas = db.prepare(`
-    SELECT f.cartao_id, f.mes, COALESCE(f.valor_ajuste,0) AS valor_ajuste, cr.melhor_data_compra,
-      f.janela_inicio, f.janela_fim
+    SELECT f.cartao_id, f.mes, COALESCE(f.valor_ajuste,0) AS valor_ajuste, cr.melhor_data_compra
     FROM faturas f JOIN cartoes cr ON cr.id=f.cartao_id
     WHERE f.conta_id=? AND f.pago=1 AND f.data_pagamento<=?
   `).all([contaId, today]) as any[]
@@ -80,9 +78,13 @@ export function getSaldoConta(contaId: number): number {
   let faturasSaldo = 0
   for (const f of faturas) {
     const [fy, fm] = f.mes.split('-').map(Number)
-    const { startDate: fStart, endDate: fEnd } = f.janela_inicio
-      ? { startDate: f.janela_inicio, endDate: f.janela_fim }
-      : faturaDateRange(fy, fm, f.melhor_data_compra)
+    const c = f.melhor_data_compra as number
+    const fStart = c <= 1
+      ? `${fy}-${String(fm).padStart(2,'0')}-01`
+      : `${fm === 1 ? fy - 1 : fy}-${String(fm === 1 ? 12 : fm - 1).padStart(2,'0')}-${String(c).padStart(2,'0')}`
+    const fEnd = c <= 1
+      ? `${fy}-${String(fm).padStart(2,'0')}-${String(new Date(fy, fm, 0).getDate()).padStart(2,'0')}`
+      : `${fy}-${String(fm).padStart(2,'0')}-${String(c - 1).padStart(2,'0')}`
     const total = (db.prepare(`
       SELECT COALESCE(SUM(valor),0) AS t FROM transacoes
       WHERE tipo='despesa' AND cartao_id=?

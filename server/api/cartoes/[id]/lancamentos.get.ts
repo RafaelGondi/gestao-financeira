@@ -1,6 +1,6 @@
 import db from '../../../db/index'
 import { getRouterParam, getQuery } from 'h3'
-import { faturaDateRange, getFaturaJanelaMap, transacaoFaturaMonth } from '../../../utils/fatura'
+import { faturaDateRange, transacaoFaturaMonth } from '../../../utils/fatura'
 
 function parcelaAtual(dataInicio: string, month: string): number {
   const [iy, im] = dataInicio.split('-').map(Number)
@@ -23,8 +23,7 @@ export default defineEventHandler((event) => {
 
   const [year, mon] = month.split('-').map(Number)
   const cutoff = cartao.melhor_data_compra as number
-  const janelaMap = getFaturaJanelaMap(month)
-  const { startDate, endDate } = janelaMap.get(cartaoId) ?? faturaDateRange(year, mon, cutoff)
+  const { startDate, endDate } = faturaDateRange(year, mon, cutoff)
 
   // Previous calendar month string (for cutoff-shifted installments)
   const prevYear = mon === 1 ? year - 1 : year

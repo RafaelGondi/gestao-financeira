@@ -1,5 +1,5 @@
 import db from '../../db/index'
-import { faturaDateRange, getFaturaJanelaMap } from '../../utils/fatura'
+import { faturaDateRange } from '../../utils/fatura'
 
 interface FixaRow { valor: number; data_inicio: string; data_fim: string | null }
 interface LimiteGlobal { tipo: 'fixo' | 'porcentagem'; valor: number; data_inicio: string }
@@ -28,9 +28,8 @@ function getMonthSpending(year: number, mon: number): number {
   ).get([endDate, startDate]) as { t: number }
   total += r2.t
 
-  const janelaMap = getFaturaJanelaMap(`${yearStr}-${monStr}`)
   for (const c of cartoes) {
-    const { startDate: fStart, endDate: fEnd } = janelaMap.get(c.id) ?? faturaDateRange(year, mon, c.melhor_data_compra)
+    const { startDate: fStart, endDate: fEnd } = faturaDateRange(year, mon, c.melhor_data_compra)
     const r = db.prepare(`SELECT COALESCE(SUM(valor), 0) as t FROM transacoes
       WHERE tipo = 'despesa' AND fixa = 0 AND cartao_id = ? AND data >= ? AND data <= ?`
     ).get([c.id, fStart, fEnd]) as { t: number }

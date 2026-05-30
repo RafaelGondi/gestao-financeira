@@ -1,5 +1,3 @@
-import db from '../db/index'
-
 /**
  * Computes the date range of transactions that belong to a given fatura month.
  *
@@ -19,14 +17,9 @@ export function faturaDateRange(year: number, month: number, cutoff: number) {
   }
   const prevYear = month === 1 ? year - 1 : year
   const prevMonth = month === 1 ? 12 : month - 1
-  // Clamp ao último dia do mês — cutoff=30 em fevereiro → usa último dia de fev
-  const lastDayOfPrevMonth = new Date(prevYear, prevMonth, 0).getDate()
-  const lastDayOfCurrentMonth = new Date(year, month, 0).getDate()
-  const startDay = Math.min(cutoff, lastDayOfPrevMonth)
-  const endDay = Math.min(cutoff - 1, lastDayOfCurrentMonth)
   return {
-    startDate: `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`,
-    endDate: `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`
+    startDate: `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(cutoff).padStart(2, '0')}`,
+    endDate: `${year}-${String(month).padStart(2, '0')}-${String(cutoff - 1).padStart(2, '0')}`
   }
 }
 
@@ -37,27 +30,10 @@ export function faturaDateRange(year: number, month: number, cutoff: number) {
 export function transacaoFaturaMonth(dataStr: string, cutoff: number): string {
   if (cutoff <= 1) return dataStr.slice(0, 7)
   const [y, m, d] = dataStr.split('-').map(Number)
-  // Clamp cutoff ao último dia do mês (ex: cutoff=30 em fev → effectiveCutoff=28)
-  const lastDay = new Date(y, m, 0).getDate()
-  const effectiveCutoff = Math.min(cutoff, lastDay)
-  if (d < effectiveCutoff) {
+  if (d < cutoff) {
     return `${y}-${String(m).padStart(2, '0')}`
   }
   const nextM = m === 12 ? 1 : m + 1
   const nextY = m === 12 ? y + 1 : y
   return `${nextY}-${String(nextM).padStart(2, '0')}`
-}
-
-/**
- * Pre-loads explicit fatura janela dates for all cartões that have a custom
- * window stored (e.g. transition faturas after a cutoff change).
- *
- * Returns a Map<cartaoId, {startDate, endDate}> for the given month.
- * Callers should fall back to faturaDateRange() when the cartão is not in the map.
- */
-export function getFaturaJanelaMap(mesStr: string): Map<number, { startDate: string; endDate: string }> {
-  const rows = db.prepare(
-    'SELECT cartao_id, janela_inicio, janela_fim FROM faturas WHERE mes = ? AND janela_inicio IS NOT NULL AND janela_fim IS NOT NULL'
-  ).all([mesStr]) as { cartao_id: number; janela_inicio: string; janela_fim: string }[]
-  return new Map(rows.map(r => [r.cartao_id, { startDate: r.janela_inicio, endDate: r.janela_fim }]))
 }

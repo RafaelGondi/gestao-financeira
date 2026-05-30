@@ -78,7 +78,7 @@ export default defineEventHandler(() => {
 
   const faturasPagas = db.prepare(`
     SELECT f.cartao_id, f.mes, f.conta_id, f.data_pagamento, COALESCE(f.valor_ajuste, 0) AS valor_ajuste,
-      c.melhor_data_compra, f.janela_inicio, f.janela_fim
+      c.melhor_data_compra
     FROM faturas f
     JOIN cartoes c ON c.id = f.cartao_id
     WHERE f.pago = 1
@@ -137,9 +137,7 @@ export default defineEventHandler(() => {
       if (f.conta_id !== conta.id) continue
       if (new Date(f.data_pagamento + 'T12:00:00') > today) continue
       const [year, mon] = f.mes.split('-').map(Number)
-      const { startDate, endDate } = f.janela_inicio
-        ? { startDate: f.janela_inicio, endDate: f.janela_fim }
-        : faturaDateRange(year, mon, f.melhor_data_compra)
+      const { startDate, endDate } = faturaDateRange(year, mon, f.melhor_data_compra)
       const row = db.prepare(`
         SELECT COALESCE(SUM(valor), 0) AS total FROM transacoes
         WHERE tipo = 'despesa' AND cartao_id = ?

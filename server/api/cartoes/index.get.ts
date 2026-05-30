@@ -1,5 +1,5 @@
 import db from '../../db/index'
-import { faturaDateRange, getFaturaJanelaMap, transacaoFaturaMonth } from '../../utils/fatura'
+import { faturaDateRange, transacaoFaturaMonth } from '../../utils/fatura'
 
 export default defineEventHandler(() => {
   const now = new Date()
@@ -11,10 +11,9 @@ export default defineEventHandler(() => {
     SELECT id, nome, banco, banco_key, limite, melhor_data_compra, vencimento, cor FROM cartoes ORDER BY COALESCE(ordem, 999), nome ASC
   `).all() as any[]
 
-  const janelaMap = getFaturaJanelaMap(currentMonth)
   return cartoes.map(c => {
     const cutoff = c.melhor_data_compra as number
-    const { startDate, endDate } = janelaMap.get(c.id) ?? faturaDateRange(year, month, cutoff)
+    const { startDate, endDate } = faturaDateRange(year, month, cutoff)
 
     const mesesPagos = new Set(
       (db.prepare(`SELECT mes FROM faturas WHERE cartao_id = ? AND pago = 1`).all([c.id]) as any[]).map(r => r.mes)
