@@ -1,7 +1,7 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
 import { computeSaldoBancario } from '../../utils/saldo'
-import { faturaDateRange, getFaturaJanelaMap, getCartoesParaMes } from '../../utils/fatura'
+import { faturaDateRange } from '../../utils/fatura'
 import { computeMonthTotals } from '../../utils/month-totals'
 import { localDateStr } from '../../utils/localDate'
 import { getSaldoConta } from '../../utils/getSaldoConta'
@@ -91,8 +91,10 @@ export default defineEventHandler((event) => {
   const todasContas = db.prepare(`SELECT id FROM contas`).all() as { id: number }[]
   const saldoBancario = Math.round(todasContas.reduce((sum, c) => sum + getSaldoConta(c.id), 0) * 100) / 100
 
-  // Cartões ativos para o mês (inclui arquivados ainda vigentes nesse mês)
-  const cartoes = getCartoesParaMes(month) as Cartao[]
+  // Cartões (necessário antes de computar saldoAnterior)
+  const cartoes = db.prepare(
+    'SELECT id, nome, banco, banco_key, cor, melhor_data_compra, vencimento FROM cartoes ORDER BY nome ASC'
+  ).all() as Cartao[]
 
   // Saldo do período anterior: acumulado teoricamente desde o início dos dados.
   // Garante saldoPrevisto(M) = saldoAnterior(M+1) para todo M.
@@ -138,10 +140,9 @@ export default defineEventHandler((event) => {
 
   // Despesas de cartão (avulsas) filtradas pelo mês de fatura correto
   const prevMonStr = `${prevYear}-${String(prevMon).padStart(2, '0')}`
-  const janelaMap = getFaturaJanelaMap(month)
   const cartaoAvulsas: Transacao[] = []
   for (const c of cartoes) {
-    const { startDate: fStart, endDate: fEnd } = janelaMap.get(c.id) ?? faturaDateRange(year, mon, c.melhor_data_compra)
+    const { startDate: fStart, endDate: fEnd } = faturaDateRange(year, mon, c.melhor_data_compra)
     const rows = db.prepare(`
       SELECT id, descricao, valor, tipo, categoria, data, cartao_id, 0 AS fixa
       FROM transacoes

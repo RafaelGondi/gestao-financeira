@@ -1,6 +1,6 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
-import { faturaDateRange, getFaturaJanelaMap, getCartoesParaMes } from '../../utils/fatura'
+import { faturaDateRange } from '../../utils/fatura'
 
 interface Item {
   descricao: string
@@ -93,12 +93,11 @@ export default defineEventHandler((event) => {
     add(r.parcelas > 0 ? 'contaParcelado' : 'contaRecorrente', enrichItem({ ...r, data: effectiveDate(month, r.data_inicio) }))
   }
 
-  const cartoes = getCartoesParaMes(`${yearStr}-${monStr}`)
+  const cartoes = db.prepare(`SELECT id, nome, melhor_data_compra FROM cartoes`).all() as { id: number; nome: string; melhor_data_compra: number }[]
 
   // Cartão avulso
-  const janelaMap = getFaturaJanelaMap(`${yearStr}-${monStr}`)
   for (const c of cartoes) {
-    const { startDate: fStart, endDate: fEnd } = janelaMap.get(c.id) ?? faturaDateRange(year, mon, c.melhor_data_compra)
+    const { startDate: fStart, endDate: fEnd } = faturaDateRange(year, mon, c.melhor_data_compra)
     const rows = db.prepare(`
       SELECT t.descricao, t.valor, t.data, t.categoria, ? AS origem
       FROM transacoes t
@@ -110,7 +109,7 @@ export default defineEventHandler((event) => {
 
   // Cartão parcelado + recorrente
   for (const c of cartoes) {
-    const cutoff = c.melhor_data_compra as number
+    const cutoff = c.melhor_data_compra
     const rows = db.prepare(`
       SELECT t.descricao, t.valor, t.parcelas, t.categoria, t.data_inicio, t.data_fim, ? AS origem
       FROM transacoes t

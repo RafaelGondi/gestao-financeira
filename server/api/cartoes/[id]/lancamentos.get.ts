@@ -1,6 +1,6 @@
 import db from '../../../db/index'
 import { getRouterParam, getQuery } from 'h3'
-import { faturaDateRange, getFaturaJanelaMap, transacaoFaturaMonth } from '../../../utils/fatura'
+import { faturaDateRange, transacaoFaturaMonth } from '../../../utils/fatura'
 
 function parcelaAtual(dataInicio: string, month: string): number {
   const [iy, im] = dataInicio.split('-').map(Number)
@@ -13,7 +13,7 @@ export default defineEventHandler((event) => {
   if (!cartaoId || isNaN(cartaoId))
     throw createError({ statusCode: 400, statusMessage: 'ID inválido' })
 
-  const cartao = db.prepare(`SELECT id, nome, banco, banco_key, limite, melhor_data_compra, vencimento, cor FROM cartoes WHERE id = ?`).get([cartaoId]) as any
+  const cartao = db.prepare(`SELECT id, nome, banco, banco_key, limite, melhor_data_compra, vencimento FROM cartoes WHERE id = ?`).get([cartaoId]) as any
   if (!cartao)
     throw createError({ statusCode: 404, statusMessage: 'Cartão não encontrado' })
 
@@ -23,8 +23,7 @@ export default defineEventHandler((event) => {
 
   const [year, mon] = month.split('-').map(Number)
   const cutoff = cartao.melhor_data_compra as number
-  const janelaMap = getFaturaJanelaMap(month)
-  const { startDate, endDate } = janelaMap.get(cartaoId) ?? faturaDateRange(year, mon, cutoff)
+  const { startDate, endDate } = faturaDateRange(year, mon, cutoff)
 
   // Previous calendar month string (for cutoff-shifted installments)
   const prevYear = mon === 1 ? year - 1 : year
@@ -41,22 +40,6 @@ export default defineEventHandler((event) => {
       AND t.data >= ? AND t.data <= ?
     ORDER BY t.data DESC
   `).all([cartaoId, startDate, endDate])
-
-  // Se for fatura de transição (janela explícita), buscar também avulsas do cartão arquivado predecessor
-  const cartaoAntigo = db.prepare(`SELECT id FROM cartoes WHERE substituido_por = ? AND arquivado = 1`).get([cartaoId]) as any
-  if (cartaoAntigo && janelaMap.get(cartaoId)) {
-    const avulsasAntigo = db.prepare(`
-      SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas,
-        t.data, NULL AS data_inicio, NULL AS data_fim, t.notas, t.nome_fatura,
-        cat.icone AS categoria_icone, cat.cor AS categoria_cor
-      FROM transacoes t
-      LEFT JOIN categorias cat ON cat.nome = t.categoria
-      WHERE t.tipo = 'despesa' AND t.cartao_id = ? AND t.fixa = 0
-        AND t.data >= ? AND t.data <= ?
-      ORDER BY t.data DESC
-    `).all([cartaoAntigo.id, startDate, endDate])
-    ;(avulsas as any[]).push(...avulsasAntigo)
-  }
 
   const fixasRaw = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,
@@ -141,9 +124,5 @@ export default defineEventHandler((event) => {
     ORDER BY e.created_at ASC
   `).all([cartaoId, month]) as any[]
 
-  // Verifica se existe cartão arquivado que foi substituído por este (para mostrar botão de reverter)
-  const cartaoArquivado = db.prepare(`SELECT id FROM cartoes WHERE substituido_por = ? AND arquivado = 1`).get([cartaoId]) as any
-  const pode_reverter = !!cartaoArquivado
-
-  return { cartao: { ...cartao, gasto_mes, gasto_total: gastoTotal }, lancamentos, fatura, extornos, pode_reverter }
+  return { cartao: { ...cartao, gasto_mes, gasto_total: gastoTotal }, lancamentos, fatura, extornos }
 })

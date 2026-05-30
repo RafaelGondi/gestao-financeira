@@ -19,7 +19,7 @@ if [ ! -f ".output/server/chunks/_/nitro.mjs" ]; then
 fi
 
 echo "📦 Enviando .output para o servidor..."
-tar -czhf - .output | ssh "$SERVER" "rm -rf $APP_DIR/.output && tar -xzf - -C $APP_DIR"
+scp -r .output "$SERVER:$APP_DIR/"
 if [ $? -ne 0 ]; then
   echo "❌ Falha no envio. Abortando."
   exit 1
