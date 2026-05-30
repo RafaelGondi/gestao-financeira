@@ -124,6 +124,8 @@
 import { Bar } from 'vue-chartjs'
 import {
   Chart as ChartJS,
+  BarController,
+  LineController,
   BarElement,
   CategoryScale,
   LinearScale,
@@ -133,7 +135,7 @@ import {
   Legend,
 } from 'chart.js'
 
-ChartJS.register(BarElement, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend)
+ChartJS.register(BarController, LineController, BarElement, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend)
 
 interface MonthData {
   month: string
