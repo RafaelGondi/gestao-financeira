@@ -1,5 +1,5 @@
 import db from '../db/index'
-import { faturaDateRange } from './fatura'
+import { faturaDateRange, getFaturaJanelaMap } from './fatura'
 import { effectiveDate } from './dateUtils'
 
 interface Cartao {
@@ -44,8 +44,9 @@ export function computeMonthTotals(year: number, mon: number, cartoes: Cartao[])
   }
 
   // Card avulsas — grouped by fatura month (respects melhor_data_compra)
+  const janelaMap = getFaturaJanelaMap(monthStr)
   for (const c of cartoes) {
-    const { startDate: fStart, endDate: fEnd } = faturaDateRange(year, mon, c.melhor_data_compra)
+    const { startDate: fStart, endDate: fEnd } = janelaMap.get(c.id) ?? faturaDateRange(year, mon, c.melhor_data_compra)
     const rows = db.prepare(`
       SELECT valor FROM transacoes
       WHERE tipo = 'despesa' AND fixa = 0 AND cartao_id = ? AND data >= ? AND data <= ?

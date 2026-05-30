@@ -1,6 +1,6 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
-import { faturaDateRange } from '../../utils/fatura'
+import { faturaDateRange, getFaturaJanelaMap } from '../../utils/fatura'
 
 interface Item {
   descricao: string
@@ -96,8 +96,9 @@ export default defineEventHandler((event) => {
   const cartoes = db.prepare(`SELECT id, nome, melhor_data_compra FROM cartoes`).all() as { id: number; nome: string; melhor_data_compra: number }[]
 
   // Cartão avulso
+  const janelaMap = getFaturaJanelaMap(`${yearStr}-${monStr}`)
   for (const c of cartoes) {
-    const { startDate: fStart, endDate: fEnd } = faturaDateRange(year, mon, c.melhor_data_compra)
+    const { startDate: fStart, endDate: fEnd } = janelaMap.get(c.id) ?? faturaDateRange(year, mon, c.melhor_data_compra)
     const rows = db.prepare(`
       SELECT t.descricao, t.valor, t.data, t.categoria, ? AS origem
       FROM transacoes t

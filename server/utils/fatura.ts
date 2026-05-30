@@ -1,3 +1,5 @@
+import db from '../db/index'
+
 /**
  * Computes the date range of transactions that belong to a given fatura month.
  *
@@ -36,4 +38,18 @@ export function transacaoFaturaMonth(dataStr: string, cutoff: number): string {
   const nextM = m === 12 ? 1 : m + 1
   const nextY = m === 12 ? y + 1 : y
   return `${nextY}-${String(nextM).padStart(2, '0')}`
+}
+
+/**
+ * Pre-loads explicit fatura janela dates for all cartões that have a custom
+ * window stored (e.g. transition faturas after a cutoff change).
+ *
+ * Returns a Map<cartaoId, {startDate, endDate}> for the given month.
+ * Callers should fall back to faturaDateRange() when the cartão is not in the map.
+ */
+export function getFaturaJanelaMap(mesStr: string): Map<number, { startDate: string; endDate: string }> {
+  const rows = db.prepare(
+    'SELECT cartao_id, janela_inicio, janela_fim FROM faturas WHERE mes = ? AND janela_inicio IS NOT NULL AND janela_fim IS NOT NULL'
+  ).all([mesStr]) as { cartao_id: number; janela_inicio: string; janela_fim: string }[]
+  return new Map(rows.map(r => [r.cartao_id, { startDate: r.janela_inicio, endDate: r.janela_fim }]))
 }

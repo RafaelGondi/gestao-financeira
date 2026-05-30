@@ -1,6 +1,6 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
-import { faturaDateRange } from '../../utils/fatura'
+import { faturaDateRange, getFaturaJanelaMap } from '../../utils/fatura'
 
 export default defineEventHandler((event) => {
   const query = getQuery(event)
@@ -46,8 +46,9 @@ export default defineEventHandler((event) => {
   `).all([endDate, startDate]) as Item[]
   itens.push(...fixas)
 
+  const janelaMap = getFaturaJanelaMap(month)
   for (const c of cartoes) {
-    const { startDate: fStart, endDate: fEnd } = faturaDateRange(year, mon, c.melhor_data_compra)
+    const { startDate: fStart, endDate: fEnd } = janelaMap.get(c.id) ?? faturaDateRange(year, mon, c.melhor_data_compra)
     const rows = db.prepare(`
       SELECT t.id, t.valor, t.categoria
       FROM transacoes t

@@ -26,7 +26,12 @@ export default defineEventHandler(async (event) => {
   if (!cartao) throw createError({ statusCode: 404, message: 'Cartão não encontrado' })
 
   const [fy, fm] = mes.split('-').map(Number)
-  const { startDate: fStart, endDate: fEnd } = faturaDateRange(fy, fm, cartao.melhor_data_compra)
+  // Usa janela explícita da fatura (ex: fatura de transição), caindo back pro cálculo padrão
+  const faturaExistente = db.prepare(`SELECT janela_inicio, janela_fim FROM faturas WHERE cartao_id = ? AND mes = ?`)
+    .get([Number(cartao_id), mes]) as { janela_inicio: string | null; janela_fim: string | null } | undefined
+  const { startDate: fStart, endDate: fEnd } = faturaExistente?.janela_inicio
+    ? { startDate: faturaExistente.janela_inicio, endDate: faturaExistente.janela_fim! }
+    : faturaDateRange(fy, fm, cartao.melhor_data_compra)
 
   const totalTransacoes = (db.prepare(`
     SELECT COALESCE(SUM(valor), 0) AS t FROM transacoes

@@ -1,6 +1,6 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
-import { transacaoFaturaMonth } from '../../utils/fatura'
+import { faturaDateRange, getFaturaJanelaMap } from '../../utils/fatura'
 import { localDateStr } from '../../utils/localDate'
 
 function parcelaAtual(dataInicio: string, month: string): number {
@@ -52,29 +52,28 @@ export default defineEventHandler((event) => {
     ORDER BY t.data DESC
   `).all([today, startDate, endDate])
 
-  // Card avulsas: fetch from prev month's cutoff to end of current month, then filter by fatura month
+  // Card avulsas: per-cartão query usando o range correto da fatura (com suporte a janela de transição)
   const prevYear = Number(mon) === 1 ? Number(year) - 1 : Number(year)
   const prevMon = Number(mon) === 1 ? 12 : Number(mon) - 1
-  const broadStart = `${prevYear}-${String(prevMon).padStart(2, '0')}-01`
+  const janelaMap = getFaturaJanelaMap(month)
+  const cartoesAll = db.prepare(`SELECT id, nome, banco_key, cor, melhor_data_compra FROM cartoes`).all() as any[]
 
-  const avulsasCartaoRaw = db.prepare(`
-    SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas, t.data, NULL AS data_inicio, NULL AS data_fim,
-      t.conta_id, t.cartao_id, t.notas, t.nome_fatura, NULL AS conta_nome, NULL AS banco_key, cr.nome AS cartao_nome,
-      cr.banco_key AS cartao_banco_key, cr.cor AS cartao_cor, cr.melhor_data_compra,
-      cat.cor AS categoria_cor, cat.icone AS categoria_icone,
-      CASE WHEN t.data <= ? THEN 1 ELSE 0 END AS pago
-    FROM transacoes t
-    JOIN cartoes cr ON cr.id = t.cartao_id
-    LEFT JOIN categorias cat ON cat.nome = t.categoria
-    WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id IS NOT NULL
-      AND t.data >= ? AND t.data <= ?
-    ORDER BY t.data DESC
-  `).all([today, broadStart, endDate]) as any[]
-
-  const avulsasCartao = avulsasCartaoRaw.filter(t => {
-    const fm = transacaoFaturaMonth(t.data, t.melhor_data_compra)
-    return fm === month
-  }).map(({ melhor_data_compra: _, ...t }) => t)
+  const avulsasCartao: any[] = []
+  for (const c of cartoesAll) {
+    const { startDate: fStart, endDate: fEnd } = janelaMap.get(c.id) ?? faturaDateRange(Number(year), Number(mon), c.melhor_data_compra)
+    const rows = db.prepare(`
+      SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas, t.data, NULL AS data_inicio, NULL AS data_fim,
+        t.conta_id, t.cartao_id, t.notas, t.nome_fatura, NULL AS conta_nome, NULL AS banco_key,
+        ? AS cartao_nome, ? AS cartao_banco_key, ? AS cartao_cor,
+        cat.cor AS categoria_cor, cat.icone AS categoria_icone,
+        CASE WHEN t.data <= ? THEN 1 ELSE 0 END AS pago
+      FROM transacoes t
+      LEFT JOIN categorias cat ON cat.nome = t.categoria
+      WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id = ? AND t.data >= ? AND t.data <= ?
+      ORDER BY t.data DESC
+    `).all([c.nome, c.banco_key, c.cor, today, c.id, fStart, fEnd])
+    avulsasCartao.push(...rows)
+  }
 
   const prevMonthStr = `${prevYear}-${String(prevMon).padStart(2, '0')}`
 

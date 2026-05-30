@@ -45,11 +45,14 @@ function computeSaldoAtual(contaId: number, today: string, saldoInicial: number)
 
   // Faturas pagas debitadas desta conta
   for (const f of db.prepare(`
-    SELECT f.cartao_id, f.mes, COALESCE(f.valor_ajuste,0) AS valor_ajuste, cr.melhor_data_compra
+    SELECT f.cartao_id, f.mes, COALESCE(f.valor_ajuste,0) AS valor_ajuste, cr.melhor_data_compra,
+      f.janela_inicio, f.janela_fim
     FROM faturas f JOIN cartoes cr ON cr.id=f.cartao_id
     WHERE f.conta_id=? AND f.pago=1 AND f.data_pagamento<=?
   `).all([contaId, today]) as any[]) {
-    const { fStart, fEnd } = faturaDateRange(f.mes, f.melhor_data_compra)
+    const { fStart, fEnd } = f.janela_inicio
+      ? { fStart: f.janela_inicio, fEnd: f.janela_fim }
+      : faturaDateRange(f.mes, f.melhor_data_compra)
     const total = (db.prepare(`
       SELECT COALESCE(SUM(valor),0) AS t FROM transacoes
       WHERE tipo='despesa' AND cartao_id=?
