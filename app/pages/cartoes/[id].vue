@@ -10,6 +10,19 @@
       <UButton icon="i-heroicons-plus" color="primary" @click="abrirNovaDespesaModal">
         Nova Despesa
       </UButton>
+      <UButton
+        v-if="data?.pode_reverter"
+        icon="i-heroicons-arrow-uturn-left"
+        variant="ghost"
+        color="error"
+        size="sm"
+        @click="showReverterModal = true"
+      >
+        Reverter alteração
+      </UButton>
+      <UButton icon="i-heroicons-arrow-path" variant="ghost" color="neutral" @click="showAlterarCutoffModal = true">
+        Alterar vencimento
+      </UButton>
     </div>
 
     <!-- Card visual -->
@@ -691,6 +704,74 @@
         </div>
       </template>
     </USlideover>
+
+    <!-- Modal: Alterar vencimento / cutoff -->
+    <UModal v-model:open="showAlterarCutoffModal" title="Alterar vencimento do cartão" :dismissible="false">
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            O cartão atual será arquivado e um novo será criado com as novas datas. O histórico de faturas pagas é preservado. A operação pode ser revertida enquanto não houver faturas pagas no novo cartão.
+          </p>
+
+          <div class="grid grid-cols-2 gap-3">
+            <UFormField label="Nova melhor data de compra">
+              <UInput v-model.number="cutoffForm.novo_melhor_data_compra" type="number" min="1" max="31" placeholder="Ex: 30" />
+            </UFormField>
+            <UFormField label="Novo vencimento">
+              <UInput v-model.number="cutoffForm.novo_vencimento" type="number" min="1" max="31" placeholder="Ex: 8" />
+            </UFormField>
+          </div>
+
+          <UFormField label="A partir de qual mês?">
+            <UInput v-model="cutoffForm.a_partir_de" placeholder="YYYY-MM (ex: 2026-06)" />
+          </UFormField>
+
+          <UFormField label="Existe fatura de transição?">
+            <div class="flex items-center gap-3 mt-1">
+              <USwitch v-model="cutoffForm.tem_transicao" />
+              <span class="text-sm text-gray-600 dark:text-gray-400">
+                {{ cutoffForm.tem_transicao ? 'Sim — informar janela abaixo' : 'Não' }}
+              </span>
+            </div>
+          </UFormField>
+
+          <template v-if="cutoffForm.tem_transicao">
+            <div class="grid grid-cols-2 gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <UFormField label="Início da janela">
+                <UInput v-model="cutoffForm.janela_inicio" placeholder="YYYY-MM-DD" />
+              </UFormField>
+              <UFormField label="Fim da janela">
+                <UInput v-model="cutoffForm.janela_fim" placeholder="YYYY-MM-DD" />
+              </UFormField>
+            </div>
+          </template>
+
+          <div class="flex gap-3 pt-2">
+            <UButton variant="ghost" color="neutral" class="flex-1 justify-center" @click="showAlterarCutoffModal = false">Cancelar</UButton>
+            <UButton color="primary" class="flex-1 justify-center" :loading="alterandoCutoff" @click="confirmarAlterarCutoff">
+              Confirmar alteração
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Modal: Reverter alteração de vencimento -->
+    <UModal v-model:open="showReverterModal" title="Reverter alteração de vencimento" :dismissible="false">
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            Isso irá restaurar o cartão anterior e desfazer todas as alterações feitas (faturas, despesas fixas migradas). Esta operação não pode ser desfeita.
+          </p>
+          <div class="flex gap-3 pt-2">
+            <UButton variant="ghost" color="neutral" class="flex-1 justify-center" @click="showReverterModal = false">Cancelar</UButton>
+            <UButton color="error" class="flex-1 justify-center" :loading="revertendoAlteracao" @click="confirmarReverter">
+              Reverter
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 
@@ -1180,4 +1261,57 @@ const catChartOptions = computed(() => {
 })
 
 useHead({ title: computed(() => `${data.value?.cartao.nome ?? 'Cartão'} — Gestão Financeira`) })
+
+// ── Alterar vencimento / cutoff ──────────────────────────────────────────────
+
+const showAlterarCutoffModal = ref(false)
+const alterandoCutoff = ref(false)
+const cutoffForm = reactive({
+  novo_melhor_data_compra: null as number | null,
+  novo_vencimento: null as number | null,
+  a_partir_de: '',
+  tem_transicao: false,
+  janela_inicio: '',
+  janela_fim: '',
+})
+
+async function confirmarAlterarCutoff() {
+  if (!cutoffForm.novo_melhor_data_compra || !cutoffForm.novo_vencimento || !cutoffForm.a_partir_de) return
+  alterandoCutoff.value = true
+  try {
+    const body: any = {
+      novo_melhor_data_compra: cutoffForm.novo_melhor_data_compra,
+      novo_vencimento: cutoffForm.novo_vencimento,
+      a_partir_de: cutoffForm.a_partir_de,
+    }
+    if (cutoffForm.tem_transicao && cutoffForm.janela_inicio && cutoffForm.janela_fim) {
+      body.fatura_transicao = {
+        janela_inicio: cutoffForm.janela_inicio,
+        janela_fim: cutoffForm.janela_fim,
+      }
+    }
+    const result = await $fetch(`/api/cartoes/${cartaoIdNum}/alterar-cutoff`, { method: 'POST', body })
+    showAlterarCutoffModal.value = false
+    // Navega para o novo cartão
+    await navigateTo(`/cartoes/${(result as any).novo_cartao_id}`)
+  } finally {
+    alterandoCutoff.value = false
+  }
+}
+
+// ── Reverter alteração ───────────────────────────────────────────────────────
+
+const showReverterModal = ref(false)
+const revertendoAlteracao = ref(false)
+
+async function confirmarReverter() {
+  revertendoAlteracao.value = true
+  try {
+    const result = await $fetch(`/api/cartoes/${cartaoIdNum}/reverter-alteracao`, { method: 'POST' })
+    showReverterModal.value = false
+    await navigateTo(`/cartoes/${(result as any).cartao_restaurado_id}`)
+  } finally {
+    revertendoAlteracao.value = false
+  }
+}
 </script>

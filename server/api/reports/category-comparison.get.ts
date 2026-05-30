@@ -1,6 +1,6 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
-import { faturaDateRange } from '../../utils/fatura'
+import { faturaDateRange, getFaturaJanelaMap, getCartoesParaMes } from '../../utils/fatura'
 
 interface Item {
   valor: number
@@ -17,7 +17,7 @@ function getCategoryTotals(month: string): Map<string, number> {
   const prevMon = mon === 1 ? 12 : mon - 1
   const prevMonStr = `${prevYear}-${String(prevMon).padStart(2, '0')}`
 
-  const cartoes = db.prepare(`SELECT id, melhor_data_compra FROM cartoes`).all() as { id: number; melhor_data_compra: number }[]
+  const cartoes = getCartoesParaMes(month)
   const itens: Item[] = []
 
   // Avulsas sem cartão
@@ -34,8 +34,9 @@ function getCategoryTotals(month: string): Map<string, number> {
   `).all([endDate, startDate]) as Item[])
 
   // Cartão avulsas (pelo mês de fatura)
+  const janelaMap = getFaturaJanelaMap(month)
   for (const c of cartoes) {
-    const { startDate: fStart, endDate: fEnd } = faturaDateRange(year, mon, c.melhor_data_compra)
+    const { startDate: fStart, endDate: fEnd } = janelaMap.get(c.id) ?? faturaDateRange(year, mon, c.melhor_data_compra)
     itens.push(...db.prepare(`
       SELECT t.valor, t.categoria FROM transacoes t
       WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id = ? AND t.data >= ? AND t.data <= ?
