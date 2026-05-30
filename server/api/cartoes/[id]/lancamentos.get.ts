@@ -42,6 +42,22 @@ export default defineEventHandler((event) => {
     ORDER BY t.data DESC
   `).all([cartaoId, startDate, endDate])
 
+  // Se for fatura de transição (janela explícita), buscar também avulsas do cartão arquivado predecessor
+  const cartaoAntigo = db.prepare(`SELECT id FROM cartoes WHERE substituido_por = ? AND arquivado = 1`).get([cartaoId]) as any
+  if (cartaoAntigo && janelaMap.get(cartaoId)) {
+    const avulsasAntigo = db.prepare(`
+      SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas,
+        t.data, NULL AS data_inicio, NULL AS data_fim, t.notas, t.nome_fatura,
+        cat.icone AS categoria_icone, cat.cor AS categoria_cor
+      FROM transacoes t
+      LEFT JOIN categorias cat ON cat.nome = t.categoria
+      WHERE t.tipo = 'despesa' AND t.cartao_id = ? AND t.fixa = 0
+        AND t.data >= ? AND t.data <= ?
+      ORDER BY t.data DESC
+    `).all([cartaoAntigo.id, startDate, endDate])
+    ;(avulsas as any[]).push(...avulsasAntigo)
+  }
+
   const fixasRaw = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,
       t.data_inicio, t.data_fim, t.notas, t.nome_fatura,
