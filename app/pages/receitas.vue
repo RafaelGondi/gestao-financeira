@@ -116,6 +116,39 @@
       </template>
     </USlideover>
 
+    <!-- Modal Escopo Edição -->
+    <UModal v-model:open="showEditScopeModal" title="Editar Receita">
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-gray-600 dark:text-gray-400">
+            <strong class="text-gray-900 dark:text-white">{{ editingReceita?.descricao }}</strong> é uma receita recorrente. O que deseja alterar?
+          </p>
+          <div class="flex flex-col gap-2">
+            <UButton
+              variant="soft"
+              color="neutral"
+              :loading="saving"
+              icon="i-heroicons-calendar-days"
+              class="w-full justify-start"
+              @click="handleEditWithScope('one')"
+            >
+              Só {{ editingReceita?.parcelas ? 'esta parcela' : 'este mês' }}
+            </UButton>
+            <UButton
+              color="primary"
+              :loading="saving"
+              icon="i-heroicons-pencil-square"
+              class="w-full justify-start"
+              @click="handleEditWithScope('all')"
+            >
+              {{ editingReceita?.parcelas ? 'Todas as parcelas' : 'Todos os meses' }}
+            </UButton>
+          </div>
+          <UButton variant="ghost" color="neutral" class="w-full" @click="showEditScopeModal = false">Cancelar</UButton>
+        </div>
+      </template>
+    </UModal>
+
     <!-- Modal Delete -->
     <USlideover v-model:open="showDeleteModal" title="Excluir Receita">
       <template #body>
@@ -222,6 +255,8 @@ const saving = ref(false)
 const showDeleteModal = ref(false)
 const deletingReceita = ref<Receita | null>(null)
 const deleting = ref(false)
+const showEditScopeModal = ref(false)
+const pendingEditData = ref<any>(null)
 
 function openAddModal() { editingReceita.value = null; showModal.value = true }
 function openEditModal(r: Receita) { editingReceita.value = { ...r }; showModal.value = true }
@@ -229,6 +264,13 @@ function closeModal() { showModal.value = false; editingReceita.value = null }
 function confirmDelete(r: Receita) { deletingReceita.value = r; showDeleteModal.value = true }
 
 async function handleSubmit(data: any) {
+  // Se é edição de fixa/parcelada, perguntar o escopo antes
+  if (editingReceita.value?.id && editingReceita.value?.fixa) {
+    pendingEditData.value = data
+    showModal.value = false
+    showEditScopeModal.value = true
+    return
+  }
   saving.value = true
   try {
     if (editingReceita.value?.id)
@@ -237,6 +279,22 @@ async function handleSubmit(data: any) {
       await $fetch('/api/receitas', { method: 'POST', body: data })
     await refresh()
     closeModal()
+  } finally {
+    saving.value = false
+  }
+}
+
+async function handleEditWithScope(scope: 'one' | 'all') {
+  if (!editingReceita.value?.id || !pendingEditData.value) return
+  saving.value = true
+  try {
+    const query: Record<string, string> = { scope }
+    if (scope === 'one') query.month = currentMonth.value
+    await $fetch(`/api/receitas/${editingReceita.value.id}`, { method: 'PUT', body: pendingEditData.value, query })
+    await refresh()
+    showEditScopeModal.value = false
+    pendingEditData.value = null
+    editingReceita.value = null
   } finally {
     saving.value = false
   }

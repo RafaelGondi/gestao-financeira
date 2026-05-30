@@ -246,6 +246,39 @@
       </template>
     </USlideover>
 
+    <!-- Modal Escopo Edição -->
+    <UModal v-model:open="showEditScopeModal" title="Editar Despesa">
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-gray-600 dark:text-gray-400">
+            <strong class="text-gray-900 dark:text-white">{{ editingDespesa?.descricao }}</strong> é uma despesa recorrente. O que deseja alterar?
+          </p>
+          <div class="flex flex-col gap-2">
+            <UButton
+              variant="soft"
+              color="neutral"
+              :loading="saving"
+              icon="i-heroicons-calendar-days"
+              class="w-full justify-start"
+              @click="handleEditWithScope('one')"
+            >
+              Só {{ editingDespesa?.parcelas ? 'esta parcela' : 'este mês' }}
+            </UButton>
+            <UButton
+              color="primary"
+              :loading="saving"
+              icon="i-heroicons-pencil-square"
+              class="w-full justify-start"
+              @click="handleEditWithScope('all')"
+            >
+              {{ editingDespesa?.parcelas ? 'Todas as parcelas' : 'Todos os meses' }}
+            </UButton>
+          </div>
+          <UButton variant="ghost" color="neutral" class="w-full" @click="showEditScopeModal = false">Cancelar</UButton>
+        </div>
+      </template>
+    </UModal>
+
     <!-- Modal Delete -->
     <UModal v-model:open="showDeleteModal" title="Excluir Despesa">
       <template #body>
@@ -460,6 +493,8 @@ const saving = ref(false)
 const showDeleteModal = ref(false)
 const deletingDespesa = ref<Despesa | null>(null)
 const deleting = ref(false)
+const showEditScopeModal = ref(false)
+const pendingEditData = ref<any>(null)
 
 function openAddModal() { editingDespesa.value = null; showModal.value = true }
 function openEditModal(d: Despesa) { editingDespesa.value = { ...d }; showModal.value = true }
@@ -467,6 +502,13 @@ function closeModal() { showModal.value = false; editingDespesa.value = null }
 function confirmDelete(d: Despesa) { deletingDespesa.value = d; showDeleteModal.value = true }
 
 async function handleSubmit(data: any) {
+  // Se é edição de fixa/parcelada, perguntar o escopo antes
+  if (editingDespesa.value?.id && editingDespesa.value?.fixa) {
+    pendingEditData.value = data
+    showModal.value = false
+    showEditScopeModal.value = true
+    return
+  }
   saving.value = true
   try {
     if (editingDespesa.value?.id)
@@ -476,6 +518,23 @@ async function handleSubmit(data: any) {
     await refresh()
     await refreshFaturas()
     closeModal()
+  } finally {
+    saving.value = false
+  }
+}
+
+async function handleEditWithScope(scope: 'one' | 'all') {
+  if (!editingDespesa.value?.id || !pendingEditData.value) return
+  saving.value = true
+  try {
+    const query: Record<string, string> = { scope }
+    if (scope === 'one') query.month = currentMonth.value
+    await $fetch(`/api/despesas/${editingDespesa.value.id}`, { method: 'PUT', body: pendingEditData.value, query })
+    await refresh()
+    await refreshFaturas()
+    showEditScopeModal.value = false
+    pendingEditData.value = null
+    editingDespesa.value = null
   } finally {
     saving.value = false
   }

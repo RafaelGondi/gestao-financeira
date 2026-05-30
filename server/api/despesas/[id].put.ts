@@ -1,5 +1,5 @@
 import db from '../../db/index'
-import { readBody, getRouterParam } from 'h3'
+import { readBody, getRouterParam, getQuery } from 'h3'
 import { localDateStr } from '../../utils/localDate'
 
 interface DespesaBody {
@@ -26,16 +26,26 @@ function calcDataFim(dataInicio: string, parcelas: number): string {
   return `${ny}-${String(nm).padStart(2, '0')}-${String(Math.min(d, lastDay)).padStart(2, '0')}`
 }
 
+function addMonths(dateStr: string, n: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const total = (m - 1) + n
+  const ny = y + Math.floor(total / 12)
+  const nm = (total % 12) + 1
+  const lastDay = new Date(ny, nm, 0).getDate()
+  return `${ny}-${String(nm).padStart(2, '0')}-${String(Math.min(d, lastDay)).padStart(2, '0')}`
+}
+
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
   if (!id || isNaN(id))
     throw createError({ statusCode: 400, statusMessage: 'ID inválido' })
 
-  const existing = db.prepare(`SELECT id FROM transacoes WHERE id = ? AND tipo = 'despesa'`).get([id])
+  const existing = db.prepare(`SELECT * FROM transacoes WHERE id = ? AND tipo = 'despesa'`).get([id]) as any
   if (!existing)
     throw createError({ statusCode: 404, statusMessage: 'Despesa não encontrada' })
 
   const body = await readBody<DespesaBody>(event)
+  const { scope, month } = getQuery(event)
 
   if (!body.descricao?.trim())
     throw createError({ statusCode: 400, statusMessage: 'Descrição é obrigatória' })
@@ -48,6 +58,78 @@ export default defineEventHandler(async (event) => {
   const contaId = body.conta_id ? Number(body.conta_id) : null
   const cartaoId = body.cartao_id ? Number(body.cartao_id) : null
 
+  // scope=one: editar apenas a ocorrência do mês atual, mantendo a fixa para os demais
+  if (scope === 'one' && month && existing.fixa) {
+    const row = existing
+    const [iy, im] = row.data_inicio.split('-').map(Number)
+    const [oy, om] = (month as string).split('-').map(Number)
+    const occurrenceIndex = (oy - iy) * 12 + (om - im)
+
+    const prevMonthDate = occurrenceIndex > 0 ? addMonths(row.data_inicio, occurrenceIndex - 1) : null
+    const nextMonthDate = addMonths(row.data_inicio, occurrenceIndex + 1)
+
+    const firstMonthYM = row.data_inicio.slice(0, 7)
+    const lastMonthYM = row.data_fim ? row.data_fim.slice(0, 7) : null
+    const isFirst = (month as string) === firstMonthYM
+    const isLast = lastMonthYM !== null && (month as string) === lastMonthYM
+    const isOnly = isFirst && isLast
+
+    // Determina a data da ocorrência deste mês
+    const day = row.data_inicio.slice(8, 10)
+    const [my, mm] = (month as string).split('-').map(Number)
+    const lastDayOfMonth = new Date(my, mm, 0).getDate()
+    const occDay = String(Math.min(parseInt(day, 10), lastDayOfMonth)).padStart(2, '0')
+    const occDate = `${month}-${occDay}`
+
+    if (isOnly) {
+      // Única ocorrência: converte a própria transação em avulsa com novos valores
+      db.prepare(`
+        UPDATE transacoes
+        SET descricao = ?, valor = ?, categoria = ?, conta_id = ?, cartao_id = ?, fixa = 0,
+            data = ?, data_inicio = NULL, data_fim = NULL, parcelas = 0, notas = ?, nome_fatura = ?
+        WHERE id = ?
+      `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, contaId, cartaoId,
+              occDate, body.notas?.trim() || null, body.nome_fatura?.trim() || null, id])
+    } else if (isFirst) {
+      // Primeira ocorrência: avança o início da fixa e cria avulsa para este mês
+      const newParcelas = row.parcelas > 0 ? row.parcelas - 1 : 0
+      db.prepare(`UPDATE transacoes SET data_inicio = ?, data = ?, parcelas = ? WHERE id = ?`)
+        .run([nextMonthDate, nextMonthDate, newParcelas, id])
+      db.prepare(`
+        INSERT INTO transacoes (descricao, valor, tipo, categoria, fixa, data, data_inicio, data_fim, parcelas, conta_id, cartao_id, notas, nome_fatura)
+        VALUES (?, ?, 'despesa', ?, 0, ?, NULL, NULL, 0, ?, ?, ?, ?)
+      `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, occDate, contaId, cartaoId, body.notas?.trim() || null, body.nome_fatura?.trim() || null])
+    } else if (isLast) {
+      // Última ocorrência: recua o fim da fixa e cria avulsa para este mês
+      const newParcelas = row.parcelas > 0 ? row.parcelas - 1 : 0
+      db.prepare(`UPDATE transacoes SET data_fim = ?, parcelas = ? WHERE id = ?`)
+        .run([prevMonthDate, newParcelas, id])
+      db.prepare(`
+        INSERT INTO transacoes (descricao, valor, tipo, categoria, fixa, data, data_inicio, data_fim, parcelas, conta_id, cartao_id, notas, nome_fatura)
+        VALUES (?, ?, 'despesa', ?, 0, ?, NULL, NULL, 0, ?, ?, ?, ?)
+      `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, occDate, contaId, cartaoId, body.notas?.trim() || null, body.nome_fatura?.trim() || null])
+    } else {
+      // Ocorrência do meio: divide a fixa em duas e cria avulsa para este mês
+      const parcelas1 = row.parcelas > 0 ? occurrenceIndex : 0
+      const parcelas2 = row.parcelas > 0 ? row.parcelas - occurrenceIndex - 1 : 0
+      db.prepare(`UPDATE transacoes SET data_fim = ?, parcelas = ? WHERE id = ?`)
+        .run([prevMonthDate, parcelas1, id])
+      // Segunda parte da fixa (após este mês)
+      db.prepare(`
+        INSERT INTO transacoes (descricao, valor, tipo, categoria, fixa, data, data_inicio, data_fim, parcelas, conta_id, cartao_id, notas, nome_fatura)
+        SELECT descricao, valor, tipo, categoria, fixa, ?, ?, ?, ?, conta_id, cartao_id, notas, nome_fatura FROM transacoes WHERE id = ?
+      `).run([nextMonthDate, nextMonthDate, row.data_fim ?? null, parcelas2, id])
+      // Avulsa deste mês com novos valores
+      db.prepare(`
+        INSERT INTO transacoes (descricao, valor, tipo, categoria, fixa, data, data_inicio, data_fim, parcelas, conta_id, cartao_id, notas, nome_fatura)
+        VALUES (?, ?, 'despesa', ?, 0, ?, NULL, NULL, 0, ?, ?, ?, ?)
+      `).run([body.descricao.trim(), body.valor, body.categoria?.trim() || null, occDate, contaId, cartaoId, body.notas?.trim() || null, body.nome_fatura?.trim() || null])
+    }
+
+    return { success: true }
+  }
+
+  // scope=all (ou avulsa): atualiza normalmente
   if (body.tipo === 'parcelada') {
     if (!body.data_inicio || !dateRe.test(body.data_inicio))
       throw createError({ statusCode: 400, statusMessage: 'Data de início inválida' })
