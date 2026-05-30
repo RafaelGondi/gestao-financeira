@@ -1290,7 +1290,7 @@ async function confirmarAlterarCutoff() {
         janela_fim: cutoffForm.janela_fim,
       }
     }
-    const result = await $fetch(`/api/cartoes/${cartaoIdNum}/alterar-cutoff`, { method: 'POST', body })
+    const result = await $fetch(`/api/cartoes/${cartaoIdNum.value}/alterar-cutoff`, { method: 'POST', body })
     showAlterarCutoffModal.value = false
     // Navega para o novo cartão
     await navigateTo(`/cartoes/${(result as any).novo_cartao_id}`)
@@ -1307,7 +1307,7 @@ const revertendoAlteracao = ref(false)
 async function confirmarReverter() {
   revertendoAlteracao.value = true
   try {
-    const result = await $fetch(`/api/cartoes/${cartaoIdNum}/reverter-alteracao`, { method: 'POST' })
+    const result = await $fetch(`/api/cartoes/${cartaoIdNum.value}/reverter-alteracao`, { method: 'POST' })
     showReverterModal.value = false
     await navigateTo(`/cartoes/${(result as any).cartao_restaurado_id}`)
   } finally {
