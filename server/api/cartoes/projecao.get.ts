@@ -2,7 +2,7 @@ import db from '../../db/index'
 import { calcProjecaoCartao } from '../../utils/projecao'
 
 export default defineEventHandler(() => {
-  const cartoes = db.prepare(`SELECT id FROM cartoes`).all() as { id: number }[]
+  const cartoes = db.prepare(`SELECT id FROM cartoes WHERE arquivado = 0 OR arquivado IS NULL`).all() as { id: number }[]
 
   if (!cartoes.length) {
     return { mes_quitacao: null, mes_inicio_residual: null, projecao12: [] }

@@ -289,6 +289,26 @@
       </template>
     </USlideover>
 
+    <!-- Cartões Arquivados -->
+    <div v-if="cartoesArquivados?.length" class="space-y-2">
+      <p class="text-sm font-medium text-gray-400">Cartões arquivados</p>
+      <div
+        v-for="c in cartoesArquivados"
+        :key="c.id"
+        class="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800"
+      >
+        <SharedBankLogo :bank="findBank(c.banco_key)" :size="32" class="rounded-lg opacity-50" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ c.nome }}</p>
+          <p class="text-xs text-gray-400">{{ c.banco }} · Limite {{ format(c.limite) }}</p>
+        </div>
+        <NuxtLink :to="`/cartoes/${c.id}`" class="text-xs text-gray-400 hover:text-gray-600 underline">Ver histórico</NuxtLink>
+        <UButton size="xs" variant="ghost" color="neutral" icon="i-heroicons-arrow-uturn-left" @click="desarquivar(c.id)">
+          Reativar
+        </UButton>
+      </div>
+    </div>
+
     <!-- Delete Confirm Modal -->
     <USlideover v-model:open="showDeleteModal" title="Excluir Cartão">
       <template #body>
@@ -346,6 +366,7 @@ function cardStyle(cartao: Cartao) {
 }
 
 const { data: cartoes, pending, error, refresh } = await useFetch<Cartao[]>('/api/cartoes')
+const { data: cartoesArquivados, refresh: refreshArquivados } = await useFetch<Cartao[]>('/api/cartoes/arquivados')
 
 interface ProjecaoMes { mes: string; valor: number }
 interface Projecao { mes_quitacao: string | null; mes_inicio_residual: string | null; projecao12: ProjecaoMes[] }
@@ -507,6 +528,11 @@ async function handleDelete() {
   } finally {
     deleting.value = false
   }
+}
+
+async function desarquivar(id: number) {
+  await $fetch(`/api/cartoes/${id}/desarquivar`, { method: 'PATCH' })
+  await Promise.all([refresh(), refreshArquivados(), refreshProjecao()])
 }
 
 useHead({ title: 'Cartões — Gestão Financeira' })

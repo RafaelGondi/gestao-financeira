@@ -1,6 +1,7 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
 import { faturaDateRange } from '../../utils/fatura'
+import { getCartoesParaMes } from '../../utils/cartoes'
 
 interface Item {
   descricao: string
@@ -93,7 +94,7 @@ export default defineEventHandler((event) => {
     add(r.parcelas > 0 ? 'contaParcelado' : 'contaRecorrente', enrichItem({ ...r, data: effectiveDate(month, r.data_inicio) }))
   }
 
-  const cartoes = db.prepare(`SELECT id, nome, melhor_data_compra FROM cartoes`).all() as { id: number; nome: string; melhor_data_compra: number }[]
+  const cartoes = getCartoesParaMes(`${yearStr}-${monStr}`)
 
   // Cartão avulso
   for (const c of cartoes) {

@@ -1,6 +1,7 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
 import { faturaDateRange } from '../../utils/fatura'
+import { getCartoesParaMes } from '../../utils/cartoes'
 
 interface Item {
   valor: number
@@ -17,7 +18,7 @@ function getCategoryTotals(month: string): Map<string, number> {
   const prevMon = mon === 1 ? 12 : mon - 1
   const prevMonStr = `${prevYear}-${String(prevMon).padStart(2, '0')}`
 
-  const cartoes = db.prepare(`SELECT id, melhor_data_compra FROM cartoes`).all() as { id: number; melhor_data_compra: number }[]
+  const cartoes = getCartoesParaMes(month)
   const itens: Item[] = []
 
   // Avulsas sem cartão

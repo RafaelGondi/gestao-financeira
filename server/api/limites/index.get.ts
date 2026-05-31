@@ -1,6 +1,7 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
 import { faturaDateRange } from '../../utils/fatura'
+import { getCartoesParaMes } from '../../utils/cartoes'
 
 export default defineEventHandler((event) => {
   const query = getQuery(event)
@@ -21,7 +22,7 @@ export default defineEventHandler((event) => {
   const prevMon = mon === 1 ? 12 : mon - 1
   const prevMonStr = `${prevYear}-${String(prevMon).padStart(2, '0')}`
 
-  const cartoes = db.prepare(`SELECT id, nome, melhor_data_compra FROM cartoes`).all() as { id: number; nome: string; melhor_data_compra: number }[]
+  const cartoes = getCartoesParaMes(month)
 
   interface Item {
     id: number

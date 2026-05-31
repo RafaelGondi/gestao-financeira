@@ -67,9 +67,10 @@ export default defineEventHandler((event) => {
     JOIN cartoes cr ON cr.id = t.cartao_id
     LEFT JOIN categorias cat ON cat.nome = t.categoria
     WHERE t.tipo = 'despesa' AND t.fixa = 0 AND t.cartao_id IS NOT NULL
+      AND (cr.arquivado = 0 OR cr.arquivado IS NULL OR cr.arquivado_em > ?)
       AND t.data >= ? AND t.data <= ?
     ORDER BY t.data DESC
-  `).all([today, broadStart, endDate]) as any[]
+  `).all([today, month, broadStart, endDate]) as any[]
 
   const avulsasCartao = avulsasCartaoRaw.filter(t => {
     const fm = transacaoFaturaMonth(t.data, t.melhor_data_compra)

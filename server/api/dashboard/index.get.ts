@@ -2,6 +2,7 @@ import db from '../../db/index'
 import { getQuery } from 'h3'
 import { computeSaldoBancario } from '../../utils/saldo'
 import { faturaDateRange } from '../../utils/fatura'
+import { getCartoesParaMes } from '../../utils/cartoes'
 import { computeMonthTotals } from '../../utils/month-totals'
 import { localDateStr } from '../../utils/localDate'
 import { getSaldoConta } from '../../utils/getSaldoConta'
@@ -92,9 +93,7 @@ export default defineEventHandler((event) => {
   const saldoBancario = Math.round(todasContas.reduce((sum, c) => sum + getSaldoConta(c.id), 0) * 100) / 100
 
   // Cartões (necessário antes de computar saldoAnterior)
-  const cartoes = db.prepare(
-    'SELECT id, nome, banco, banco_key, cor, melhor_data_compra, vencimento FROM cartoes ORDER BY nome ASC'
-  ).all() as Cartao[]
+  const cartoes = getCartoesParaMes(month) as Cartao[]
 
   // Saldo do período anterior: acumulado teoricamente desde o início dos dados.
   // Garante saldoPrevisto(M) = saldoAnterior(M+1) para todo M.

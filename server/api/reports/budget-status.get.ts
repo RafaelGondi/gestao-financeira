@@ -1,5 +1,6 @@
 import db from '../../db/index'
 import { faturaDateRange } from '../../utils/fatura'
+import { getCartoesParaMes } from '../../utils/cartoes'
 
 interface FixaRow { valor: number; data_inicio: string; data_fim: string | null }
 interface LimiteGlobal { tipo: 'fixo' | 'porcentagem'; valor: number; data_inicio: string }
@@ -13,7 +14,7 @@ function getMonthSpending(year: number, mon: number): number {
   const prevYear = mon === 1 ? year - 1 : year
   const prevMon = mon === 1 ? 12 : mon - 1
   const prevMonStr = `${prevYear}-${String(prevMon).padStart(2, '0')}`
-  const cartoes = db.prepare(`SELECT id, melhor_data_compra FROM cartoes`).all() as { id: number; melhor_data_compra: number }[]
+  const cartoes = getCartoesParaMes(`${yearStr}-${monStr}`)
 
   let total = 0
 

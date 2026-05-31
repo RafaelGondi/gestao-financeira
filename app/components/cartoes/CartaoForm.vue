@@ -140,12 +140,19 @@ const { BANKS, findBank } = useBanks()
 const isEdit = computed(() => !!props.initial?.id)
 
 const colorPresets = [
-  { label: 'Preto',    value: '#111827', gradient: 'linear-gradient(135deg, #1f2937ee, #111827cc)' },
-  { label: 'Azul',    value: '#1D4ED8', gradient: 'linear-gradient(135deg, #2563ebee, #1D4ED8cc)' },
-  { label: 'Prata',   value: '#64748B', gradient: 'linear-gradient(135deg, #94a3b8ee, #64748Bcc)' },
-  { label: 'Roxo',    value: '#6D28D9', gradient: 'linear-gradient(135deg, #7c3aedee, #6D28D9cc)' },
-  { label: 'Verde',   value: '#065F46', gradient: 'linear-gradient(135deg, #059669ee, #065F46cc)' },
-  { label: 'Dourado', value: '#92400E', gradient: 'linear-gradient(135deg, #D97706ee, #92400Ecc)' },
+  { label: 'Preto',     value: '#111827', gradient: 'linear-gradient(135deg, #1f2937ee, #111827cc)' },
+  { label: 'Marinho',   value: '#1E3A8A', gradient: 'linear-gradient(135deg, #1e40afee, #1E3A8Acc)' },
+  { label: 'Azul',      value: '#1D4ED8', gradient: 'linear-gradient(135deg, #2563ebee, #1D4ED8cc)' },
+  { label: 'Ciano',     value: '#0E7490', gradient: 'linear-gradient(135deg, #0891b2ee, #0E7490cc)' },
+  { label: 'Verde',     value: '#065F46', gradient: 'linear-gradient(135deg, #059669ee, #065F46cc)' },
+  { label: 'Lima',      value: '#15803D', gradient: 'linear-gradient(135deg, #16a34aee, #15803Dcc)' },
+  { label: 'Índigo',    value: '#3730A3', gradient: 'linear-gradient(135deg, #4338caee, #3730A3cc)' },
+  { label: 'Roxo',      value: '#6D28D9', gradient: 'linear-gradient(135deg, #7c3aedee, #6D28D9cc)' },
+  { label: 'Rosa',      value: '#BE185D', gradient: 'linear-gradient(135deg, #db2777ee, #BE185Dcc)' },
+  { label: 'Vermelho',  value: '#B91C1C', gradient: 'linear-gradient(135deg, #dc2626ee, #B91C1Ccc)' },
+  { label: 'Laranja',   value: '#C2410C', gradient: 'linear-gradient(135deg, #ea580cee, #C2410Ccc)' },
+  { label: 'Dourado',   value: '#92400E', gradient: 'linear-gradient(135deg, #D97706ee, #92400Ecc)' },
+  { label: 'Prata',     value: '#64748B', gradient: 'linear-gradient(135deg, #94a3b8ee, #64748Bcc)' },
 ]
 
 const form = reactive({

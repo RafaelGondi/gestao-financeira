@@ -10,6 +10,9 @@
       <UButton icon="i-heroicons-plus" color="primary" @click="abrirNovaDespesaModal">
         Nova Despesa
       </UButton>
+      <UButton icon="i-heroicons-archive-box" variant="ghost" color="neutral" :loading="arquivando" @click="arquivarCartao">
+        Arquivar
+      </UButton>
     </div>
 
     <!-- Card visual -->
@@ -286,6 +289,26 @@
         <div class="flex items-center justify-between gap-3">
           <p class="text-sm font-medium text-gray-600 dark:text-gray-400 flex-shrink-0">Lançamentos</p>
           <div class="flex items-center gap-3 flex-shrink-0">
+            <template v-if="!data?.fatura?.pago">
+              <UButton
+                v-if="modoSelecao"
+                size="xs"
+                variant="ghost"
+                color="neutral"
+                @click="selecionarTodos"
+              >
+                {{ selecionados.size === lancamentosOrdenados.length ? 'Desmarcar todos' : 'Selecionar todos' }}
+              </UButton>
+              <UButton
+                size="xs"
+                :variant="modoSelecao ? 'soft' : 'ghost'"
+                :color="modoSelecao ? 'primary' : 'neutral'"
+                icon="i-heroicons-cursor-arrow-rays"
+                @click="toggleModoSelecao"
+              >
+                {{ modoSelecao ? 'Cancelar' : 'Selecionar' }}
+              </UButton>
+            </template>
             <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
               <button
                 v-for="op in sortOpcoes"
@@ -372,9 +395,20 @@
         <div
           v-for="(lanc, i) in lancamentosOrdenados"
           :key="`${lanc.id}-${lanc.fixa}`"
-          class="group flex items-center gap-4 px-5 py-4"
-          :class="i < lancamentosOrdenados.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
+          class="group flex items-center gap-4 px-5 py-4 cursor-pointer"
+          :class="[
+            i < lancamentosOrdenados.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : '',
+            modoSelecao && selecionados.has(lanc.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+          ]"
+          @click="modoSelecao ? toggleSelecionado(lanc.id) : undefined"
         >
+          <input
+            v-if="modoSelecao"
+            type="checkbox"
+            class="flex-shrink-0 w-4 h-4 accent-blue-600 cursor-pointer"
+            :checked="selecionados.has(lanc.id)"
+            @click.stop="toggleSelecionado(lanc.id)"
+          />
           <div
             class="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center"
             :style="lanc.categoria_icone ? { background: lanc.categoria_cor } : {}"
@@ -486,6 +520,36 @@
         </div>
       </template>
     </div>
+
+    <!-- Barra de transferência (modo seleção ativo) -->
+    <Teleport to="body">
+      <div
+        v-if="modoSelecao && selecionados.size > 0"
+        class="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 shadow-xl px-4 py-3 flex items-center gap-3"
+      >
+        <p class="text-sm font-medium text-gray-700 dark:text-gray-200 flex-shrink-0">
+          {{ selecionados.size }} selecionado(s)
+        </p>
+        <USelect
+          v-model="cartaoDestinoId"
+          :items="cartoesDestino"
+          value-key="id"
+          label-key="nome"
+          placeholder="Transferir para..."
+          class="flex-1"
+          size="sm"
+        />
+        <UButton
+          color="primary"
+          size="sm"
+          :loading="transferindo"
+          :disabled="!cartaoDestinoId"
+          @click="confirmarTransferencia"
+        >
+          Transferir
+        </UButton>
+      </div>
+    </Teleport>
 
     <!-- Slideover: Nova / Editar Despesa -->
     <USlideover
@@ -1179,5 +1243,73 @@ const catChartOptions = computed(() => {
   }
 })
 
-useHead({ title: computed(() => `${data.value?.cartao.nome ?? 'Cartão'} — Gestão Financeira`) })
+useHead({ title: computed(() => `${data.value?.cartao.nome ?? 'Gestão Financeira'}`) })
+
+// ── Transferência de lançamentos ─────────────────────────────────────────────
+
+const modoSelecao = ref(false)
+const selecionados = ref(new Set<number>())
+const cartaoDestinoId = ref<number | null>(null)
+const transferindo = ref(false)
+
+const { data: todosCartoes } = await useFetch<any[]>('/api/cartoes')
+const cartoesDestino = computed(() =>
+  (todosCartoes.value ?? []).filter(c => c.id !== cartaoIdNum.value)
+)
+
+function toggleModoSelecao() {
+  modoSelecao.value = !modoSelecao.value
+  selecionados.value.clear()
+  cartaoDestinoId.value = null
+}
+
+function toggleSelecionado(id: number) {
+  if (selecionados.value.has(id)) selecionados.value.delete(id)
+  else selecionados.value.add(id)
+  selecionados.value = new Set(selecionados.value)
+}
+
+function selecionarTodos() {
+  const todos = lancamentosOrdenados.value.map(l => l.id)
+  if (selecionados.value.size === todos.length) {
+    selecionados.value.clear()
+  } else {
+    selecionados.value = new Set(todos)
+  }
+}
+
+async function confirmarTransferencia() {
+  if (!cartaoDestinoId.value || selecionados.value.size === 0) return
+  transferindo.value = true
+  try {
+    await $fetch(`/api/cartoes/${cartaoIdNum.value}/transferir-lancamentos`, {
+      method: 'POST',
+      body: {
+        destino_id: cartaoDestinoId.value,
+        mes: currentMonth.value,
+        lancamento_ids: [...selecionados.value],
+      },
+    })
+    await refresh()
+    modoSelecao.value = false
+    selecionados.value.clear()
+    cartaoDestinoId.value = null
+  } finally {
+    transferindo.value = false
+  }
+}
+
+// ── Arquivar ─────────────────────────────────────────────────────────────────
+const arquivando = ref(false)
+
+async function arquivarCartao() {
+  if (!confirm(`Arquivar o cartão "${data.value?.cartao.nome}"? Ele deixará de aparecer nas listas ativas. O histórico de faturas é preservado.`)) return
+  arquivando.value = true
+  try {
+    await $fetch(`/api/cartoes/${cartaoIdNum.value}/arquivar`, { method: 'PATCH' })
+    await navigateTo('/cartoes')
+  } finally {
+    arquivando.value = false
+  }
+}
 </script>

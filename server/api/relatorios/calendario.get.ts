@@ -1,5 +1,6 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
+import { getCartoesParaMes } from '../../utils/cartoes'
 
 export default defineEventHandler((event) => {
   const query = getQuery(event)
@@ -70,7 +71,7 @@ export default defineEventHandler((event) => {
   }
 
   // Cartão avulsas — compras feitas dentro do mês visualizado
-  const cartoes = db.prepare(`SELECT id, nome, melhor_data_compra FROM cartoes`).all() as { id: number; nome: string; melhor_data_compra: number }[]
+  const cartoes = getCartoesParaMes(month)
   for (const c of cartoes) {
     const rows = db.prepare(`
       SELECT t.data, t.valor, t.categoria, 0 AS parcelas, NULL AS data_inicio,
