@@ -1,5 +1,6 @@
 import db from '../../../db/index'
 import { getRouterParam, readBody } from 'h3'
+import { calcFaturaMonth } from '../../../utils/fatura'
 
 interface Body {
   destino_id: number
@@ -73,7 +74,7 @@ export default defineEventHandler(async (event) => {
 
       // Usa o mesmo calcMes que o display: se dia >= cutoff, a ocorrência efetiva é no mês anterior
       const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
-      const calcMes = (cutoff > 1 && dayP >= cutoff) ? prevMesStr : mes
+      const calcMes = calcFaturaMonth(t.data_inicio, cutoff, mes, prevMesStr)
 
       const [iy, im] = t.data_inicio.split('-').map(Number)
       const [cy, cm] = calcMes.split('-').map(Number)

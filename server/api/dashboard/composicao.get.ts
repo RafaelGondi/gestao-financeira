@@ -1,6 +1,6 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
-import { faturaDateRange } from '../../utils/fatura'
+import { faturaDateRange, calcFaturaMonth } from '../../utils/fatura'
 import { getCartoesParaMes } from '../../utils/cartoes'
 
 interface Item {
@@ -111,16 +111,17 @@ export default defineEventHandler((event) => {
   // Cartão parcelado + recorrente
   for (const c of cartoes) {
     const cutoff = c.melhor_data_compra
+    const { startDate: fStart, endDate: fEnd } = faturaDateRange(year, mon, cutoff)
     const rows = db.prepare(`
       SELECT t.descricao, t.valor, t.parcelas, t.categoria, t.data_inicio, t.data_fim, ? AS origem
       FROM transacoes t
       WHERE t.tipo = 'despesa' AND t.fixa = 1 AND t.cartao_id = ?
         AND t.data_inicio <= ? AND (t.data_fim IS NULL OR t.data_fim >= ?)
-    `).all([c.nome, c.id, endDate, startDate]) as any[]
+    `).all([c.nome, c.id, fEnd, fStart]) as any[]
 
     for (const t of rows) {
       const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
-      const calcMonth = cutoff > 1 && dayP >= cutoff ? prevMonStr : month
+      const calcMonth = calcFaturaMonth(t.data_inicio, cutoff, month, prevMonStr)
       const effDate = effectiveDate(calcMonth, t.data_inicio)
       if (effDate < t.data_inicio) continue
       if (t.data_fim && effDate > t.data_fim) continue

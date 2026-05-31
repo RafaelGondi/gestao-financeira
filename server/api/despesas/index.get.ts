@@ -1,6 +1,6 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
-import { transacaoFaturaMonth } from '../../utils/fatura'
+import { transacaoFaturaMonth, calcFaturaMonth } from '../../utils/fatura'
 import { localDateStr } from '../../utils/localDate'
 
 function parcelaAtual(dataInicio: string, month: string): number {
@@ -98,7 +98,7 @@ export default defineEventHandler((event) => {
   const fixas = fixasRaw.flatMap((t: any) => {
     const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
     const cutoffT: number = t.cartao_id && t.melhor_data_compra > 1 ? t.melhor_data_compra : 1
-    const calcMonth = (cutoffT > 1 && dayP >= cutoffT) ? prevMonthStr : month
+    const calcMonth = calcFaturaMonth(t.data_inicio, cutoffT, month, prevMonthStr)
     const effDate = effectiveDate(calcMonth, t.data_inicio)
     if (effDate < t.data_inicio) return []
     if (t.data_fim && effDate > t.data_fim) return []

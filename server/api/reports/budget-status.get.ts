@@ -1,5 +1,5 @@
 import db from '../../db/index'
-import { faturaDateRange } from '../../utils/fatura'
+import { faturaDateRange, calcFaturaMonth } from '../../utils/fatura'
 import { getCartoesParaMes } from '../../utils/cartoes'
 
 interface FixaRow { valor: number; data_inicio: string; data_fim: string | null }
@@ -39,13 +39,14 @@ function getMonthSpending(year: number, mon: number): number {
 
   for (const c of cartoes) {
     const cutoff = c.melhor_data_compra
+    const { startDate: fStart, endDate: fEnd } = faturaDateRange(year, mon, cutoff)
     const rows = db.prepare(`SELECT valor, data_inicio, data_fim FROM transacoes
       WHERE tipo = 'despesa' AND fixa = 1 AND cartao_id = ?
         AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)`
-    ).all([c.id, endDate, startDate]) as FixaRow[]
+    ).all([c.id, fEnd, fStart]) as FixaRow[]
     for (const t of rows) {
       const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
-      const calcMonth = cutoff > 1 && dayP >= cutoff ? prevMonStr : `${yearStr}-${monStr}`
+      const calcMonth = calcFaturaMonth(t.data_inicio, cutoff, `${yearStr}-${monStr}`, prevMonStr)
       const effDate = effectiveDate(calcMonth, t.data_inicio)
       if (effDate < t.data_inicio) continue
       if (t.data_fim && effDate > t.data_fim) continue

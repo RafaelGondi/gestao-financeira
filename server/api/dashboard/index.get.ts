@@ -1,7 +1,7 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
 import { computeSaldoBancario } from '../../utils/saldo'
-import { faturaDateRange } from '../../utils/fatura'
+import { faturaDateRange, calcFaturaMonth } from '../../utils/fatura'
 import { getCartoesParaMes } from '../../utils/cartoes'
 import { computeMonthTotals } from '../../utils/month-totals'
 import { localDateStr } from '../../utils/localDate'
@@ -156,6 +156,7 @@ export default defineEventHandler((event) => {
   for (const c of cartoes) {
     const cutoff = c.melhor_data_compra
     const fatPago = faturasPagasNoMes.has(c.id) ? 1 : 0
+    const { startDate: fStart, endDate: fEnd } = faturaDateRange(year, mon, cutoff)
     const rows = db.prepare(`
       SELECT id, descricao, valor, tipo, categoria, data_inicio, cartao_id, 1 AS fixa, parcelas,
         data_inicio, data_fim
@@ -163,11 +164,11 @@ export default defineEventHandler((event) => {
       WHERE tipo = 'despesa' AND fixa = 1 AND cartao_id = ?
         AND data_inicio <= ?
         AND (data_fim IS NULL OR data_fim >= ?)
-    `).all([c.id, endDate, startDate]) as any[]
+    `).all([c.id, fEnd, fStart]) as any[]
 
     for (const t of rows) {
       const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
-      const calcMonth = cutoff > 1 && dayP >= cutoff ? prevMonStr : month
+      const calcMonth = calcFaturaMonth(t.data_inicio, cutoff, month, prevMonStr)
       const effDate = effectiveDate(calcMonth, t.data_inicio)
       if (effDate < t.data_inicio) continue
       if (t.data_fim && effDate > t.data_fim) continue

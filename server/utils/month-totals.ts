@@ -53,11 +53,15 @@ export function computeMonthTotals(year: number, mon: number, cartoes: Cartao[])
     totalDespesas += rows.reduce((s, r) => s + r.valor, 0)
 
     // Card fixas/parceladas — with melhor_data_compra cutoff applied
+    // Usa a janela da fatura (fStart/fEnd), não o calendário do mês (startDate/endDate).
+    // Parceladas com data_fim dentro da janela mas antes do início do mês calendário
+    // (ex: última parcela em abril numa fatura que vai de abr/09 a mai/08) seriam
+    // excluídas incorretamente se usássemos startDate — causando gap com o saldo bancário.
     const fixasCartao = db.prepare(`
       SELECT valor, data_inicio, data_fim FROM transacoes
       WHERE tipo = 'despesa' AND fixa = 1 AND cartao_id = ?
         AND data_inicio <= ? AND (data_fim IS NULL OR data_fim >= ?)
-    `).all([c.id, endDate, startDate]) as any[]
+    `).all([c.id, fEnd, fStart]) as any[]
 
     for (const t of fixasCartao) {
       const dayP = parseInt(t.data_inicio.slice(8, 10), 10)
