@@ -77,16 +77,16 @@
           :sub2="{ label: 'A pagar', value: data.despesas.aPagar, color: 'red' }"
         />
         <DashboardResumoCard
-          title="Saldo Previsto"
-          :value="data.saldoPrevisto"
+          title="Saldo Atual"
+          :value="data.saldoBancario"
           value-color="blue"
-          icon="i-heroicons-arrow-trending-up"
-          :period="currentMonthEndLabel"
-          subtitle2="(Receita - Despesa + Saldo)"
+          icon="i-heroicons-banknotes"
+          :period="todayLabel"
+          subtitle2="Dinheiro real nas contas"
           show-eye
           :hidden="globalHidden"
-          :sub1="{ label: 'Disponível', value: data.saldoDisponivel, color: 'blue' }"
-          :sub2="{ label: 'Previsto', value: data.saldoPrevisto, color: 'blue' }"
+          :sub1="{ label: 'Previsto fim do mês', value: data.saldoPrevisto, color: 'blue' }"
+          :sub2="{ label: 'Variação esperada', value: data.saldoPrevisto - data.saldoBancario, color: 'blue' }"
         />
       </div>
 
@@ -179,6 +179,11 @@ const currentMonthEndLabel = computed(() => {
   const [y, m] = currentMonth.value.split('-').map(Number)
   const lastDay = new Date(y, m, 0).getDate()
   return `Até ${lastDay} de ${mesesPt[m - 1]}`
+})
+
+const todayLabel = computed(() => {
+  const now = new Date()
+  return `Hoje, ${now.getDate()} de ${mesesPt[now.getMonth()]}`
 })
 
 useHead({ title: 'Dashboard — Gestão Financeira' })

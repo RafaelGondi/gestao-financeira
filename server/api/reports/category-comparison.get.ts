@@ -8,6 +8,20 @@ interface Item {
   categoria: string | null
 }
 
+// Mapeia categoria → supercategoria (nome, cor, icone)
+function buildSuperMap() {
+  const catRows = db.prepare(`
+    SELECT c.nome, s.nome AS super_nome, s.cor AS super_cor, s.icone AS super_icone
+    FROM categorias c
+    LEFT JOIN supercategorias s ON s.id = c.supercategoria_id
+  `).all() as { nome: string; super_nome: string | null; super_cor: string | null; super_icone: string | null }[]
+  return new Map(catRows.map(r => [r.nome, {
+    nome: r.super_nome ?? 'Sem supercategoria',
+    cor: r.super_cor ?? '#6b7280',
+    icone: r.super_icone ?? 'i-heroicons-tag',
+  }]))
+}
+
 function getCategoryTotals(month: string): Map<string, number> {
   const [yearStr, monStr] = month.split('-')
   const year = Number(yearStr), mon = Number(monStr)
@@ -83,6 +97,21 @@ function prevMonths(fromMonth: string, count: number): string[] {
   return result
 }
 
+// Agrega um Map<categoria, valor> → Map<chave, valor> de acordo com o modo
+function aggregateByMode(
+  catTotals: Map<string, number>,
+  modo: 'categoria' | 'supercategoria',
+  superMap: ReturnType<typeof buildSuperMap>
+): Map<string, number> {
+  if (modo === 'categoria') return catTotals
+  const out = new Map<string, number>()
+  for (const [cat, val] of catTotals) {
+    const superNome = superMap.get(cat)?.nome ?? 'Sem supercategoria'
+    out.set(superNome, (out.get(superNome) ?? 0) + val)
+  }
+  return out
+}
+
 export default defineEventHandler((event) => {
   const query = getQuery(event)
   const now = new Date()
@@ -93,22 +122,25 @@ export default defineEventHandler((event) => {
 
   const monthA = (query.month as string) || currentMonthDefault
   const monthB = (query.compareMonth as string) || prevMonthDefault
+  const modo = (query.modo as string) === 'supercategoria' ? 'supercategoria' : 'categoria'
 
-  const totalsA = getCategoryTotals(monthA)
-  const totalsB = getCategoryTotals(monthB)
+  const superMap = buildSuperMap()
+
+  const totalsA = aggregateByMode(getCategoryTotals(monthA), modo, superMap)
+  const totalsB = aggregateByMode(getCategoryTotals(monthB), modo, superMap)
 
   // Últimos 6 meses terminando em monthA (inclusive) para sparkline
   const trendMonths = prevMonths(monthA, 6)
-  const trendMaps = trendMonths.map(m => getCategoryTotals(m))
+  const trendMaps = trendMonths.map(m => aggregateByMode(getCategoryTotals(m), modo, superMap))
 
-  const catMeta = new Map(
-    (db.prepare(`SELECT nome, cor, icone FROM categorias`).all() as { nome: string; cor: string; icone: string }[])
-      .map(c => [c.nome, c])
-  )
+  // Meta (cor/ícone) dependendo do modo
+  const metaMap = modo === 'categoria'
+    ? new Map((db.prepare(`SELECT nome, cor, icone FROM categorias`).all() as { nome: string; cor: string; icone: string }[]).map(c => [c.nome, c]))
+    : new Map((db.prepare(`SELECT nome, cor, icone FROM supercategorias`).all() as { nome: string; cor: string; icone: string }[]).map(s => [s.nome, s]))
 
   const allKeys = new Set([...totalsA.keys(), ...totalsB.keys()])
   const rows = [...allKeys].map(nome => {
-    const meta = catMeta.get(nome)
+    const meta = metaMap.get(nome)
     const total_a = totalsA.get(nome) ?? 0
     const total_b = totalsB.get(nome) ?? 0
     const diff = total_a - total_b

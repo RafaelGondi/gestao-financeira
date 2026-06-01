@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-4">
-    <!-- Seletores de mês -->
+    <!-- Seletores de mês + modo -->
     <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 px-5 py-4 flex items-center gap-4 flex-wrap">
       <span class="text-sm text-gray-500 flex-shrink-0">Comparar</span>
       <select
@@ -16,6 +16,26 @@
       >
         <option v-for="m in monthOptions" :key="m.value" :value="m.value">{{ m.label }}</option>
       </select>
+      <span class="text-sm text-gray-400 flex-shrink-0">por</span>
+      <!-- Toggle categoria / supercategoria -->
+      <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 gap-0.5">
+        <button
+          type="button"
+          class="px-3 py-1 text-xs rounded-md transition-all cursor-pointer"
+          :class="modo === 'categoria'
+            ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm font-medium'
+            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+          @click="modo = 'categoria'"
+        >Categoria</button>
+        <button
+          type="button"
+          class="px-3 py-1 text-xs rounded-md transition-all cursor-pointer"
+          :class="modo === 'supercategoria'
+            ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm font-medium'
+            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+          @click="modo = 'supercategoria'"
+        >Supercategoria</button>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -52,7 +72,7 @@
       <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
         <!-- Filtro -->
         <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-          <span class="text-xs font-medium text-gray-400 uppercase tracking-wide flex-1">Categoria</span>
+          <span class="text-xs font-medium text-gray-400 uppercase tracking-wide flex-1">{{ modo === 'supercategoria' ? 'Supercategoria' : 'Categoria' }}</span>
           <div class="flex items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md p-0.5">
             <button
               class="px-2.5 py-0.5 text-xs font-medium rounded transition-all cursor-pointer"
@@ -98,7 +118,7 @@
             </div>
           </div>
           <div v-if="!visibleRows.length" class="text-center py-12 text-gray-400 text-sm">
-            {{ data.rows.length ? 'Nenhuma categoria aparece nos dois meses' : 'Nenhuma despesa nos dois meses selecionados' }}
+            {{ data.rows.length ? `Nenhuma ${modo === 'supercategoria' ? 'supercategoria' : 'categoria'} aparece nos dois meses` : 'Nenhuma despesa nos dois meses selecionados' }}
           </div>
         </div>
 
@@ -138,7 +158,7 @@
               </svg>
             </div>
             <div v-if="!visibleRows.length" class="text-center py-12 text-gray-400 text-sm">
-              {{ data.rows.length ? 'Nenhuma categoria aparece nos dois meses' : 'Nenhuma despesa nos dois meses selecionados' }}
+              {{ data.rows.length ? `Nenhuma ${modo === 'supercategoria' ? 'supercategoria' : 'categoria'} aparece nos dois meses` : 'Nenhuma despesa nos dois meses selecionados' }}
             </div>
           </div>
         </div>
@@ -163,6 +183,7 @@ const prevMonthDefault = now.getMonth() === 0
 
 const monthA = ref(currentMonthDefault)
 const monthB = ref(prevMonthDefault)
+const modo = ref<'categoria' | 'supercategoria'>('categoria')
 
 // Gera opções dos últimos 24 meses
 const monthOptions = computed(() => {
@@ -198,8 +219,8 @@ const labelAShort = computed(() => fmtMonthShort(monthA.value))
 const labelBShort = computed(() => fmtMonthShort(monthB.value))
 
 const { data, pending } = useFetch('/api/reports/category-comparison', {
-  query: computed(() => ({ month: monthA.value, compareMonth: monthB.value })),
-  watch: [monthA, monthB],
+  query: computed(() => ({ month: monthA.value, compareMonth: monthB.value, modo: modo.value })),
+  watch: [monthA, monthB, modo],
 })
 
 const apenasComparaveis = ref(false)

@@ -157,6 +157,11 @@
     <template v-else-if="abaAtiva === 'comparacao'">
       <ReportsCategoryComparison />
     </template>
+
+    <!-- Aba: Previsão -->
+    <template v-else-if="abaAtiva === 'previsao'">
+      <ReportsForecast />
+    </template>
   </div>
 </template>
 
@@ -177,13 +182,15 @@ const abas = [
   { key: 'orcamento',  label: 'Orçamento' },
   { key: 'evolution',  label: 'Evolução' },
   { key: 'comparacao', label: 'Comparação' },
+  { key: 'previsao',   label: 'Previsão' },
 ]
 const route = useRoute()
-const abaAtiva = ref<'categoria' | 'composicao' | 'orcamento' | 'evolution' | 'comparacao'>(
+const abaAtiva = ref<'categoria' | 'composicao' | 'orcamento' | 'evolution' | 'comparacao' | 'previsao'>(
   route.query.aba === 'composicao' ? 'composicao'
   : route.query.aba === 'orcamento' ? 'orcamento'
   : route.query.aba === 'evolution' ? 'evolution'
   : route.query.aba === 'comparacao' ? 'comparacao'
+  : route.query.aba === 'previsao' ? 'previsao'
   : 'categoria'
 )
 
