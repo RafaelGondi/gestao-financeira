@@ -34,26 +34,56 @@
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 px-5 py-4 border-b border-gray-100 dark:border-gray-800">
         <div class="flex items-center gap-2">
           <div class="w-8 h-8 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
-            <UIcon name="i-heroicons-chart-bar" class="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            <UIcon :name="chartMode === 'fluxo' ? 'i-heroicons-chart-bar' : 'i-heroicons-chart-bar'" class="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </div>
           <div>
-            <h2 class="font-semibold text-gray-800 dark:text-gray-100">Evolução dos últimos 12 meses</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Receitas, despesas e saldo mês a mês</p>
+            <h2 class="font-semibold text-gray-800 dark:text-gray-100">
+              {{ chartMode === 'fluxo' ? 'Evolução dos últimos 12 meses' : 'Patrimônio acumulado' }}
+            </h2>
+            <p class="text-xs text-gray-400 mt-0.5">
+              {{ chartMode === 'fluxo' ? 'Receitas, despesas e saldo mês a mês' : 'Saldo acumulado ao final de cada mês' }}
+            </p>
           </div>
         </div>
-        <!-- Legend -->
-        <div class="flex items-center gap-4 pl-10 sm:pl-0">
-          <div class="flex items-center gap-1.5">
-            <div class="w-3 h-3 rounded-sm bg-emerald-500" />
-            <span class="text-xs text-gray-400">Receitas</span>
+        <div class="flex items-center gap-3 pl-10 sm:pl-0">
+          <!-- Toggle fluxo / patrimônio -->
+          <div class="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 gap-0.5">
+            <button
+              type="button"
+              class="px-3 py-1 text-xs rounded-md transition-all"
+              :class="chartMode === 'fluxo'
+                ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm font-medium'
+                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+              @click="chartMode = 'fluxo'"
+            >Fluxo</button>
+            <button
+              type="button"
+              class="px-3 py-1 text-xs rounded-md transition-all"
+              :class="chartMode === 'patrimonio'
+                ? 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm font-medium'
+                : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+              @click="chartMode = 'patrimonio'"
+            >Patrimônio</button>
           </div>
-          <div class="flex items-center gap-1.5">
-            <div class="w-3 h-3 rounded-sm bg-rose-400" />
-            <span class="text-xs text-gray-400">Despesas</span>
+          <!-- Legend fluxo -->
+          <div v-if="chartMode === 'fluxo'" class="flex items-center gap-4">
+            <div class="flex items-center gap-1.5">
+              <div class="w-3 h-3 rounded-sm bg-emerald-500" />
+              <span class="text-xs text-gray-400">Receitas</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-3 h-3 rounded-sm bg-rose-400" />
+              <span class="text-xs text-gray-400">Despesas</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <div class="w-3 h-0.5 bg-primary-400" />
+              <span class="text-xs text-gray-400">Saldo</span>
+            </div>
           </div>
-          <div class="flex items-center gap-1.5">
-            <div class="w-3 h-0.5 bg-primary-400" />
-            <span class="text-xs text-gray-400">Saldo</span>
+          <!-- Legend patrimônio -->
+          <div v-else class="flex items-center gap-1.5">
+            <div class="w-3 h-0.5 bg-emerald-500" />
+            <span class="text-xs text-gray-400">Patrimônio</span>
           </div>
         </div>
       </div>
@@ -61,17 +91,20 @@
       <!-- Mobile: Y axis fixo + barras com scroll horizontal -->
       <div class="flex sm:hidden px-2 py-5" style="height: 320px">
         <div class="flex-shrink-0 w-14">
-          <Bar :data="yAxisChartData" :options="yAxisOnlyOptions" />
+          <Bar v-if="chartMode === 'fluxo'" :data="yAxisChartData" :options="yAxisOnlyOptions" />
+          <Line v-else :data="yAxisPatrimonioData" :options="yAxisOnlyOptions" />
         </div>
         <div ref="chartScroll" class="overflow-x-auto flex-1">
           <div class="h-full w-[600px]">
-            <Bar :data="chartData" :options="chartOptionsMobile" />
+            <Bar v-if="chartMode === 'fluxo'" :data="chartData" :options="chartOptionsMobile" />
+            <Line v-else :data="patrimonioChartData" :options="chartOptionsMobile" />
           </div>
         </div>
       </div>
       <!-- Desktop: gráfico normal -->
       <div class="hidden sm:block px-5 py-5 h-72">
-        <Bar :data="chartData" :options="chartOptions" />
+        <Bar v-if="chartMode === 'fluxo'" :data="chartData" :options="chartOptions" />
+        <Line v-else :data="patrimonioChartData" :options="patrimonioChartOptions" />
       </div>
     </div>
 
@@ -108,6 +141,9 @@
           <p class="text-xs sm:text-sm font-medium text-blue-900 dark:text-blue-400 w-20 sm:w-28 text-right flex-shrink-0">
             {{ format(row.balance) }}
           </p>
+          <p class="text-xs sm:text-sm font-medium text-emerald-700 dark:text-emerald-500 w-20 sm:w-28 text-right flex-shrink-0 hidden sm:block">
+            {{ format(row.patrimonio) }}
+          </p>
           <p
             class="text-xs sm:text-sm font-medium w-12 sm:w-16 text-right flex-shrink-0"
             :class="savingsRate(row) === null ? 'text-gray-300 dark:text-gray-600' : savingsRate(row)! >= 0 ? 'text-emerald-900 dark:text-emerald-400' : 'text-rose-900 dark:text-rose-400'"
@@ -121,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { Bar } from 'vue-chartjs'
+import { Bar, Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
   BarController,
@@ -131,20 +167,23 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  Filler,
   Tooltip,
   Legend,
 } from 'chart.js'
 
-ChartJS.register(BarController, LineController, BarElement, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend)
+ChartJS.register(BarController, LineController, BarElement, CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend)
 
 interface MonthData {
   month: string
   income: number
   expenses: number
   balance: number
+  patrimonio: number
 }
 
 const props = defineProps<{ data: MonthData[] }>()
+const chartMode = ref<'fluxo' | 'patrimonio'>('fluxo')
 const { format } = useCurrency()
 
 const chartScroll = ref<HTMLElement | null>(null)
@@ -315,6 +354,66 @@ const chartOptions = {
         color: '#9ca3af',
         font: { size: 11 },
         callback: (val: any) => `R$${(val / 1000).toFixed(0)}k`,
+      },
+    },
+  },
+}
+
+// ── Gráfico de patrimônio acumulado ──
+const patrimonioChartData = computed(() => ({
+  labels: props.data.map(d => formatMonthLabel(d.month)),
+  datasets: [
+    {
+      label: 'Patrimônio',
+      data: props.data.map(d => d.patrimonio),
+      borderColor: 'rgba(16, 185, 129, 0.85)',
+      backgroundColor: 'rgba(16, 185, 129, 0.08)',
+      borderWidth: 2,
+      pointRadius: 3,
+      pointBackgroundColor: 'rgba(16, 185, 129, 0.9)',
+      tension: 0.35,
+      fill: true,
+    },
+  ],
+}))
+
+const yAxisPatrimonioData = computed(() => ({
+  labels: props.data.map(d => formatMonthLabel(d.month)),
+  datasets: patrimonioChartData.value.datasets.map(ds => ({
+    ...ds,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    pointBackgroundColor: 'transparent',
+    pointBorderColor: 'transparent',
+  })),
+}))
+
+const patrimonioChartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  interaction: { mode: 'index' as const, intersect: false },
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      callbacks: {
+        label: (ctx: any) => {
+          const val = ctx.raw as number
+          return ` Patrimônio: R$ ${val.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+        },
+      },
+    },
+  },
+  scales: {
+    x: {
+      grid: { display: false },
+      ticks: { color: '#9ca3af', font: { size: 11 } },
+    },
+    y: {
+      grid: { color: 'rgba(156, 163, 175, 0.08)' },
+      ticks: {
+        color: '#9ca3af',
+        font: { size: 11 },
+        callback: (val: any) => `R$${(val / 1000).toFixed(1)}k`,
       },
     },
   },
