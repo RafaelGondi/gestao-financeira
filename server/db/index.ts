@@ -213,6 +213,26 @@ if (!g.__db) {
     )
   `)
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT,
+      criado_em TEXT NOT NULL,
+      automatico INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS snapshot_dados (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      snapshot_id INTEGER NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+      mes TEXT NOT NULL,
+      patrimonio REAL,
+      receitas REAL,
+      despesas REAL,
+      saldo_mes REAL
+    )
+  `)
+
   g.__db = db
 }
 
