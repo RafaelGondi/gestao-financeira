@@ -520,8 +520,14 @@ function isEntrada(l: Lancamento) {
 const busca = ref('')
 watch(currentMonth, () => { busca.value = '' })
 
+// IDs ocultos temporariamente durante o undo window
+const pendingDeleteId = ref<number | string | null>(null)
+
 const lancamentosFiltrados = computed(() => {
   let list = data.value?.lancamentos ?? []
+
+  // Oculta item com exclusão pendente (undo em andamento)
+  if (pendingDeleteId.value !== null) list = list.filter(l => l.id !== pendingDeleteId.value)
 
   if (filtroTipo.value === 'entradas') list = list.filter(l => isEntrada(l))
   else if (filtroTipo.value === 'saidas') list = list.filter(l => !isEntrada(l))
@@ -633,30 +639,67 @@ function abrirDeleteModal(lanc: Lancamento) {
   showDeleteModal.value = true
 }
 
+let deleteTimeoutId: ReturnType<typeof setTimeout> | null = null
+
 async function handleDelete(scope: 'one' | 'all') {
   if (!deletingLanc.value) return
-  deleting.value = true
-  const tipo = deletingLanc.value.tipo as keyof typeof apiMap
-  try {
-    const params: Record<string, string> = {}
-    if (tipo !== 'transferencia') {
-      params.scope = scope
-      if (scope === 'one') params.month = currentMonth.value
+  const lanc = deletingLanc.value
+  const tipo = lanc.tipo as keyof typeof apiMap
+
+  // Fecha o modal imediatamente e oculta o item na UI
+  showDeleteModal.value = false
+  deletingLanc.value = null
+  pendingDeleteId.value = lanc.id
+
+  const toastId = `undo-delete-${lanc.id}`
+
+  // Cancela qualquer exclusão pendente anterior antes de iniciar nova
+  if (deleteTimeoutId) clearTimeout(deleteTimeoutId)
+
+  toast.add({
+    id: toastId,
+    title: `"${lanc.descricao}" excluído`,
+    icon: 'i-heroicons-trash',
+    color: 'neutral',
+    duration: 5000,
+    actions: [
+      {
+        label: 'Desfazer',
+        click: () => {
+          if (deleteTimeoutId) clearTimeout(deleteTimeoutId)
+          deleteTimeoutId = null
+          pendingDeleteId.value = null
+          toast.remove(toastId)
+        },
+      },
+    ],
+  })
+
+  deleteTimeoutId = setTimeout(async () => {
+    deleteTimeoutId = null
+    if (pendingDeleteId.value !== lanc.id) return // foi cancelado via undo
+    deleting.value = true
+    try {
+      const params: Record<string, string> = {}
+      if (tipo !== 'transferencia') {
+        params.scope = scope
+        if (scope === 'one') params.month = currentMonth.value
+      }
+      await $fetch(`${apiMap[tipo]}/${lanc.id}`, {
+        method: 'DELETE',
+        query: Object.keys(params).length ? params : undefined,
+      })
+      await refresh()
+      refreshNuxtData()
+    } catch (e: any) {
+      // Deu erro: restaura o item na UI e avisa
+      pendingDeleteId.value = null
+      toast.add({ title: 'Erro ao excluir', description: e?.data?.message ?? e?.message, color: 'error' })
+    } finally {
+      pendingDeleteId.value = null
+      deleting.value = false
     }
-    await $fetch(`${apiMap[tipo]}/${deletingLanc.value.id}`, {
-      method: 'DELETE',
-      query: Object.keys(params).length ? params : undefined,
-    })
-    showDeleteModal.value = false
-    deletingLanc.value = null
-    await refresh()
-    refreshNuxtData()
-    toast.add({ title: 'Lançamento excluído', color: 'success', icon: 'i-heroicons-check-circle' })
-  } catch (e: any) {
-    toast.add({ title: 'Erro ao excluir', description: e?.data?.message ?? e?.message, color: 'error' })
-  } finally {
-    deleting.value = false
-  }
+  }, 5000)
 }
 
 // --- Marcar como recebido ---
@@ -711,6 +754,14 @@ const pagarLanc = ref<Lancamento | null>(null)
 const pagarData = ref('')
 const salvandoPagamento = ref(false)
 const toast = useToast()
+
+// Garante que o timeout de exclusão pendente dispara ao sair da página
+onBeforeUnmount(() => {
+  if (deleteTimeoutId) {
+    clearTimeout(deleteTimeoutId)
+    deleteTimeoutId = null
+  }
+})
 
 function abrirPagarModal(lanc: Lancamento) {
   pagarLanc.value = lanc

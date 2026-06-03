@@ -18,7 +18,7 @@ export default defineEventHandler((event) => {
     throw createError({ statusCode: 400, statusMessage: 'ID inválido' })
 
   const row = db.prepare(`
-    SELECT id, fixa, parcelas, data_inicio, data_fim, descricao, valor, categoria, conta_id
+    SELECT id, fixa, parcelas, data_inicio, data_fim, descricao, valor, categoria, conta_id, cartao_id
     FROM transacoes WHERE id = ? AND tipo = 'despesa'
   `).get([id]) as any
 
@@ -59,8 +59,8 @@ export default defineEventHandler((event) => {
     db.prepare('UPDATE transacoes SET data_fim = ?, parcelas = ? WHERE id = ?')
       .run([prevMonthDate, parcelas1, id])
     db.prepare(`
-      INSERT INTO transacoes (descricao, valor, tipo, categoria, fixa, data, data_inicio, data_fim, parcelas, conta_id)
-      SELECT descricao, valor, tipo, categoria, fixa, data, ?, ?, ?, conta_id FROM transacoes WHERE id = ?
+      INSERT INTO transacoes (descricao, valor, tipo, categoria, fixa, data, data_inicio, data_fim, parcelas, conta_id, cartao_id)
+      SELECT descricao, valor, tipo, categoria, fixa, data, ?, ?, ?, conta_id, cartao_id FROM transacoes WHERE id = ?
     `).run([nextMonthDate, row.data_fim ?? null, parcelas2, id])
   }
 
