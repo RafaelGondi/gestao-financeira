@@ -86,7 +86,7 @@
           show-eye
           :hidden="globalHidden"
           :sub1="{ label: 'Previsto fim do mês', value: data.saldoPrevisto, color: 'blue' }"
-          :sub2="{ label: 'Variação esperada', value: data.saldoPrevisto - data.saldoBancario, color: 'blue' }"
+          :sub2="{ label: 'Resultado do mês', value: data.saldoPrevisto - data.saldoAnterior, color: (data.saldoPrevisto - data.saldoAnterior) >= 0 ? 'green' : 'red' }"
         />
       </div>
 
