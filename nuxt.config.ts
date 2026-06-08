@@ -1,7 +1,14 @@
 export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@vite-pwa/nuxt'],
   fonts: {
-    providers: { google: false, bunny: false, fontshare: false },
+    providers: {
+      adobe: false,
+      bunny: false,
+      fontshare: false,
+      fontsource: false,
+      google: false,
+      googleicons: false,
+    },
   },
   css: ['~/assets/css/main.css'],
   future: { compatibilityVersion: 4 },
