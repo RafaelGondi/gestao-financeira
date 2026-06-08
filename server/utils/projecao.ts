@@ -44,6 +44,8 @@ export function calcProjecaoCartao(cartaoId: number): ProjecaoResult {
         const iY = iy + Math.floor((im - 1 + i) / 12)
         const iM = ((im - 1 + i) % 12) + 1
         const d = `${iY}-${String(iM).padStart(2, '0')}-${String(dayP).padStart(2, '0')}`
+        if (d < t.data_inicio) continue
+        if (t.data_fim && d > t.data_fim) continue
         const fm = transacaoFaturaMonth(d, cutoff)
         if (fm >= thisMonthStr) add(fm, t.valor)
       }

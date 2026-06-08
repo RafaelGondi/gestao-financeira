@@ -48,6 +48,8 @@ export default defineEventHandler((event) => {
         const iY = iy + Math.floor((im - 1 + i) / 12)
         const iM = ((im - 1 + i) % 12) + 1
         const installDate = `${iY}-${String(iM).padStart(2, '0')}-${String(dayP).padStart(2, '0')}`
+        if (installDate < t.data_inicio) continue
+        if (t.data_fim && installDate > t.data_fim) continue
         const faturaMes = transacaoFaturaMonth(installDate, cutoff)
         if (faturaMes >= thisMonthStr) addToFatura(faturaMes, t.valor)
       }
