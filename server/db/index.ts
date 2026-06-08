@@ -27,6 +27,7 @@ if (!g.__db) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT NOT NULL,
       banco TEXT NOT NULL,
+      ultimos_digitos TEXT,
       limite REAL NOT NULL,
       melhor_data_compra INTEGER NOT NULL,
       vencimento INTEGER NOT NULL,
@@ -110,6 +111,7 @@ if (!g.__db) {
   const cartaoCols = db.prepare(`PRAGMA table_info(cartoes)`).all() as { name: string }[]
   const cartaoColNames = cartaoCols.map(c => c.name)
   if (!cartaoColNames.includes('banco_key')) db.exec(`ALTER TABLE cartoes ADD COLUMN banco_key TEXT NOT NULL DEFAULT ''`)
+  if (!cartaoColNames.includes('ultimos_digitos')) db.exec(`ALTER TABLE cartoes ADD COLUMN ultimos_digitos TEXT`)
   if (!cartaoColNames.includes('cor')) db.exec(`ALTER TABLE cartoes ADD COLUMN cor TEXT`)
   if (!cartaoColNames.includes('ordem')) {
     db.exec(`ALTER TABLE cartoes ADD COLUMN ordem INTEGER`)

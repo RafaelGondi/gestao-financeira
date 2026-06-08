@@ -421,18 +421,23 @@
             />
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{{ lanc.descricao }}</p>
+            <div class="flex items-center gap-2 min-w-0">
+              <p class="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{{ lanc.descricao }}</p>
+              <span
+                v-if="lanc.parcelas > 0"
+                class="inline-flex items-center gap-1 rounded-md bg-violet-100 px-1.5 py-0.5 text-[11px] font-semibold text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 flex-shrink-0"
+              >
+                <UIcon name="i-heroicons-queue-list" class="w-3 h-3" />
+                {{ lanc.parcela_atual }}/{{ lanc.parcelas }}
+              </span>
+            </div>
             <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
               <span class="text-xs text-gray-400">{{ descricaoData(lanc) }}</span>
               <template v-if="lanc.categoria">
                 <span class="text-gray-300 dark:text-gray-700">·</span>
                 <span class="text-xs text-gray-400">{{ lanc.categoria }}</span>
               </template>
-              <template v-if="lanc.parcelas > 0">
-                <span class="text-gray-300 dark:text-gray-700">·</span>
-                <span class="text-xs text-gray-400">{{ lanc.parcela_atual }}/{{ lanc.parcelas }}</span>
-              </template>
-              <template v-else-if="lanc.fixa">
+              <template v-if="lanc.fixa && lanc.parcelas === 0">
                 <span class="text-gray-300 dark:text-gray-700">·</span>
                 <span class="text-xs text-gray-400">Fixa</span>
               </template>
@@ -501,14 +506,19 @@
               :class="li < grupo.itens.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''"
             >
               <div class="flex-1 min-w-0">
-                <p class="text-sm text-gray-800 dark:text-gray-100 truncate">{{ lanc.descricao }}</p>
+                <div class="flex items-center gap-2 min-w-0">
+                  <p class="text-sm text-gray-800 dark:text-gray-100 truncate">{{ lanc.descricao }}</p>
+                  <span
+                    v-if="lanc.parcelas > 0"
+                    class="inline-flex items-center gap-1 rounded-md bg-violet-100 px-1.5 py-0.5 text-[11px] font-semibold text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 flex-shrink-0"
+                  >
+                    <UIcon name="i-heroicons-queue-list" class="w-3 h-3" />
+                    {{ lanc.parcela_atual }}/{{ lanc.parcelas }}
+                  </span>
+                </div>
                 <div class="flex items-center gap-1.5 mt-0.5">
                   <span class="text-xs text-gray-400">{{ descricaoData(lanc) }}</span>
-                  <template v-if="lanc.parcelas > 0">
-                    <span class="text-gray-300 dark:text-gray-700">·</span>
-                    <span class="text-xs text-gray-400">{{ lanc.parcela_atual }}/{{ lanc.parcelas }}</span>
-                  </template>
-                  <template v-else-if="lanc.fixa">
+                  <template v-if="lanc.fixa && lanc.parcelas === 0">
                     <span class="text-gray-300 dark:text-gray-700">·</span>
                     <span class="text-xs text-gray-400">Fixa</span>
                   </template>
@@ -863,11 +873,18 @@ function fmtMonth(ym: string) {
 }
 
 function descricaoData(l: Lancamento) {
+  if (l.parcelas > 0) {
+    return l.data_inicio ? fmtDate(l.data_inicio) : fmtDate(l.data)
+  }
   if (l.fixa) {
     const dia = l.data_inicio?.split('-')[2]
     return `Todo dia ${dia}${l.data_fim ? ' · até ' + fmtDate(l.data_fim) : ''}`
   }
   return fmtDate(l.data)
+}
+
+function sortDateKey(l: Lancamento) {
+  return l.parcelas > 0 ? (l.data_inicio ?? l.data) : l.data
 }
 
 const { data: projecao } = await useFetch<{
@@ -1160,7 +1177,11 @@ const lancamentosFiltrados = computed(() => {
 const lancamentosOrdenados = computed(() => {
   const list = [...lancamentosFiltrados.value]
   if (sortMode.value === 'valor') return list.sort((a, b) => b.valor - a.valor)
-  return list.sort((a, b) => b.data.localeCompare(a.data))
+  return list.sort((a, b) => {
+    const dateCompare = sortDateKey(b).localeCompare(sortDateKey(a))
+    if (dateCompare !== 0) return dateCompare
+    return b.id - a.id
+  })
 })
 
 const expandedCategorias = reactive(new Set<string>())
@@ -1181,7 +1202,14 @@ const lancamentosAgrupados = computed(() => {
   }
   return [...map.values()]
     .sort((a, b) => b.total - a.total)
-    .map(g => ({ ...g, itens: [...g.itens].sort((a, b) => b.data.localeCompare(a.data)) }))
+    .map(g => ({
+      ...g,
+      itens: [...g.itens].sort((a, b) => {
+        const dateCompare = sortDateKey(b).localeCompare(sortDateKey(a))
+        if (dateCompare !== 0) return dateCompare
+        return b.id - a.id
+      }),
+    }))
 })
 
 const gastosPorCategoria = computed(() => {

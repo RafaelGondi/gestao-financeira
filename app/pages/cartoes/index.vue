@@ -142,6 +142,9 @@
                 <p class="text-white/60 text-xs">Limite</p>
                 <p class="text-white text-sm font-semibold">{{ format(cartao.limite) }}</p>
               </div>
+              <p v-if="cartao.ultimos_digitos" class="text-white/70 text-xs font-medium">
+                **** {{ cartao.ultimos_digitos }}
+              </p>
               <div class="text-right">
                 <p class="text-white/60 text-xs">Vencimento</p>
                 <p class="text-white text-sm font-semibold">Dia {{ cartao.vencimento }}</p>
@@ -215,6 +218,9 @@
               <p class="text-white/60 text-xs">Limite</p>
               <p class="text-white text-sm font-semibold">{{ format(cartao.limite) }}</p>
             </div>
+            <p v-if="cartao.ultimos_digitos" class="text-white/70 text-xs font-medium">
+              **** {{ cartao.ultimos_digitos }}
+            </p>
             <div class="text-right">
               <p class="text-white/60 text-xs">Vencimento</p>
               <p class="text-white text-sm font-semibold">Dia {{ cartao.vencimento }}</p>
@@ -338,6 +344,7 @@ interface Cartao {
   nome: string
   banco: string
   banco_key: string
+  ultimos_digitos: string | null
   limite: number
   melhor_data_compra: number
   vencimento: number
@@ -537,4 +544,3 @@ async function desarquivar(id: number) {
 
 useHead({ title: 'Cartões — Gestão Financeira' })
 </script>
-

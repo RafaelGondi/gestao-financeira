@@ -79,12 +79,23 @@
         <div>
           <p class="text-white/70 text-[10px]">{{ selectedBankName }}</p>
           <p class="text-white text-sm font-bold">{{ form.nome || 'Nome do Cartão' }}</p>
+          <p v-if="form.ultimos_digitos" class="text-white/70 text-[10px] mt-0.5">**** {{ form.ultimos_digitos }}</p>
         </div>
       </div>
     </UFormField>
 
     <UFormField label="Nome do Cartão" required>
       <UInput v-model="form.nome" placeholder="Ex: Uniclass, Visa Infinity, Platinum..." class="w-full" />
+    </UFormField>
+
+    <UFormField label="Últimos 4 dígitos">
+      <UInput
+        v-model="form.ultimos_digitos"
+        inputmode="numeric"
+        maxlength="4"
+        placeholder="Ex: 1234"
+        class="w-full"
+      />
     </UFormField>
 
     <UFormField label="Limite" required>
@@ -116,6 +127,7 @@ interface CartaoInput {
   nome: string
   banco: string
   banco_key: string
+  ultimos_digitos: string | null
   limite: number
   melhor_data_compra: number
   vencimento: number
@@ -159,6 +171,7 @@ const form = reactive({
   nome: '',
   bancoKey: '',
   bancoCustom: '',
+  ultimos_digitos: '',
   limite: 0,
   melhor_data_compra: 1,
   vencimento: 1,
@@ -170,6 +183,7 @@ watch(() => props.initial, (val) => {
     form.nome = val.nome
     form.bancoKey = val.banco_key ?? ''
     form.bancoCustom = val.banco_key ? '' : val.banco
+    form.ultimos_digitos = val.ultimos_digitos ?? ''
     form.limite = val.limite
     form.melhor_data_compra = val.melhor_data_compra
     form.vencimento = val.vencimento
@@ -178,6 +192,7 @@ watch(() => props.initial, (val) => {
     form.nome = ''
     form.bancoKey = ''
     form.bancoCustom = ''
+    form.ultimos_digitos = ''
     form.limite = 0
     form.melhor_data_compra = 1
     form.vencimento = 1
@@ -206,17 +221,24 @@ const previewStyle = computed(() => {
   return { background: `linear-gradient(135deg, ${color}ee 0%, ${color}99 100%)` }
 })
 
+watch(() => form.ultimos_digitos, (value) => {
+  const digits = value.replace(/\D/g, '').slice(0, 4)
+  if (digits !== value) form.ultimos_digitos = digits
+})
+
 function handleSubmit() {
   const bancoNome = form.bancoKey
     ? (BANKS.find(b => b.key === form.bancoKey)?.name ?? form.bancoKey)
     : form.bancoCustom.trim()
 
   if (!form.nome.trim() || !bancoNome || form.limite <= 0) return
+  if (form.ultimos_digitos && form.ultimos_digitos.length !== 4) return
 
   emit('submit', {
     nome: form.nome.trim(),
     banco: bancoNome,
     banco_key: form.bancoKey || '',
+    ultimos_digitos: form.ultimos_digitos || null,
     limite: Number(form.limite),
     melhor_data_compra: form.melhor_data_compra,
     vencimento: form.vencimento,

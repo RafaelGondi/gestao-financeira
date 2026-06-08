@@ -5,6 +5,7 @@ interface CartaoBody {
   nome: string
   banco: string
   banco_key: string
+  ultimos_digitos?: string | null
   limite: number
   melhor_data_compra: number
   vencimento: number
@@ -20,6 +21,12 @@ export default defineEventHandler(async (event) => {
   if (!body.banco || typeof body.banco !== 'string' || body.banco.trim() === '') {
     throw createError({ statusCode: 400, statusMessage: 'Banco é obrigatório' })
   }
+
+  const ultimosDigitos = body.ultimos_digitos?.trim() || null
+  if (ultimosDigitos && !/^\d{4}$/.test(ultimosDigitos)) {
+    throw createError({ statusCode: 400, statusMessage: 'Últimos 4 dígitos inválidos' })
+  }
+
   if (typeof body.limite !== 'number' || body.limite < 0) {
     throw createError({ statusCode: 400, statusMessage: 'Limite inválido' })
   }
@@ -39,9 +46,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const result = db.prepare(
-    `INSERT INTO cartoes (nome, banco, banco_key, limite, melhor_data_compra, vencimento, cor)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
-  ).run([body.nome.trim(), body.banco.trim(), body.banco_key?.trim() ?? '', body.limite, body.melhor_data_compra, body.vencimento, body.cor ?? null])
+    `INSERT INTO cartoes (nome, banco, banco_key, ultimos_digitos, limite, melhor_data_compra, vencimento, cor)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run([body.nome.trim(), body.banco.trim(), body.banco_key?.trim() ?? '', ultimosDigitos, body.limite, body.melhor_data_compra, body.vencimento, body.cor ?? null])
 
   const cartao = db.prepare('SELECT * FROM cartoes WHERE id = ?').get([result.lastInsertRowid])
   return cartao

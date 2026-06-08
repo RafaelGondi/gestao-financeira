@@ -13,7 +13,7 @@ export default defineEventHandler((event) => {
   if (!cartaoId || isNaN(cartaoId))
     throw createError({ statusCode: 400, statusMessage: 'ID inválido' })
 
-  const cartao = db.prepare(`SELECT id, nome, banco, banco_key, limite, melhor_data_compra, vencimento, cor FROM cartoes WHERE id = ?`).get([cartaoId]) as any
+  const cartao = db.prepare(`SELECT id, nome, banco, banco_key, ultimos_digitos, limite, melhor_data_compra, vencimento, cor FROM cartoes WHERE id = ?`).get([cartaoId]) as any
   if (!cartao)
     throw createError({ statusCode: 404, statusMessage: 'Cartão não encontrado' })
 
