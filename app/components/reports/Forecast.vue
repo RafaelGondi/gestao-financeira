@@ -6,23 +6,23 @@
       <USkeleton class="h-80 rounded-lg" />
     </div>
 
-    <template v-else-if="data && data.length">
+    <template v-else-if="meses.length">
       <!-- Resumo -->
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
           <p class="text-xs text-gray-400 mb-1">Saldo hoje</p>
-          <p class="text-base font-bold text-blue-900 dark:text-blue-400">{{ format(data[0].patrimonio - data[0].balance) }}</p>
+          <p class="text-base font-bold text-blue-900 dark:text-blue-400">{{ format(saldoHoje) }}</p>
         </div>
         <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
           <p class="text-xs text-gray-400 mb-1">Em 6 meses</p>
-          <p class="text-base font-bold" :class="data[5].patrimonio >= data[0].patrimonio ? 'text-emerald-900 dark:text-emerald-400' : 'text-rose-900 dark:text-rose-400'">
-            {{ format(data[5]?.patrimonio ?? 0) }}
+          <p class="text-base font-bold" :class="meses[5].patrimonio >= meses[0].patrimonio ? 'text-emerald-900 dark:text-emerald-400' : 'text-rose-900 dark:text-rose-400'">
+            {{ format(meses[5]?.patrimonio ?? 0) }}
           </p>
         </div>
         <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4 col-span-2 sm:col-span-1">
           <p class="text-xs text-gray-400 mb-1">Em 12 meses</p>
-          <p class="text-base font-bold" :class="data[11].patrimonio >= data[0].patrimonio ? 'text-emerald-900 dark:text-emerald-400' : 'text-rose-900 dark:text-rose-400'">
-            {{ format(data[11]?.patrimonio ?? 0) }}
+          <p class="text-base font-bold" :class="meses[11].patrimonio >= meses[0].patrimonio ? 'text-emerald-900 dark:text-emerald-400' : 'text-rose-900 dark:text-rose-400'">
+            {{ format(meses[11]?.patrimonio ?? 0) }}
           </p>
         </div>
       </div>
@@ -32,7 +32,12 @@
         <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
           <div class="min-w-0">
             <h2 class="font-semibold text-gray-800 dark:text-gray-100">Projeção do saldo</h2>
-            <p class="text-xs text-gray-400 mt-0.5">Baseado em lançamentos recorrentes e parcelamentos conhecidos</p>
+            <p class="text-xs text-gray-400 mt-0.5">
+              Baseado em lançamentos recorrentes e parcelamentos conhecidos
+              <template v-if="rendimento">
+                · Juros: 105% CDI ({{ rendimento.cdiAnual.toFixed(2) }}% a.a. → {{ rendimento.taxaAnualEfetiva.toFixed(2) }}% a.a.)
+              </template>
+            </p>
           </div>
           <div class="flex items-center gap-2 flex-shrink-0">
             <!-- Range selector -->
@@ -140,14 +145,18 @@
           <Line :data="chartData" :options="chartOptions" />
         </div>
 
-        <!-- Legenda snapshot comparado -->
-        <div v-if="selectedSnapshotData" class="px-5 pb-4 flex items-center gap-4 text-xs text-gray-500">
+        <!-- Legenda -->
+        <div class="px-5 pb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500">
           <span class="flex items-center gap-1.5">
             <span class="w-6 h-0.5 bg-emerald-500 inline-block rounded" />
-            Previsão atual
+            Previsão
           </span>
           <span class="flex items-center gap-1.5">
-            <span class="w-6 h-0.5 inline-block rounded" style="background: rgba(129,140,248,0.7); border-top: 2px dashed rgba(129,140,248,0.7);" />
+            <span class="w-6 h-0.5 inline-block rounded border-t-2 border-dashed border-amber-500" style="height: 0" />
+            105% CDI
+          </span>
+          <span v-if="selectedSnapshotData" class="flex items-center gap-1.5">
+            <span class="w-6 h-0.5 inline-block rounded border-t-2 border-dashed border-indigo-400" style="height: 0" />
             {{ selectedSnapshotData.nome || fmtDate(selectedSnapshotData.criado_em) }}
           </span>
         </div>
@@ -202,8 +211,32 @@ ChartJS.register(LineController, CategoryScale, LinearScale, PointElement, LineE
 const { format } = useCurrency()
 const toast = useToast()
 
-const { data, pending, refresh: refreshForecast } = await useFetch('/api/reports/forecast')
+interface RendimentoInfo {
+  multiplicadorCdi: number
+  cdiAnual: number
+  taxaAnualEfetiva: number
+  taxaMensal: number
+  dataReferencia: string | null
+  fonte: 'bcb' | 'fallback'
+}
+
+interface ForecastMonth {
+  month: string
+  patrimonio: number
+  patrimonioComJuros: number
+  balance: number
+}
+
+const { data, pending, refresh: refreshForecast } = await useFetch<{
+  saldoHoje: number
+  meses: ForecastMonth[]
+  rendimento: RendimentoInfo
+}>('/api/reports/forecast')
 const { data: snapshots, refresh: refreshSnapshots } = await useFetch('/api/snapshots')
+
+const saldoHoje = computed(() => data.value?.saldoHoje ?? 0)
+const meses = computed(() => data.value?.meses ?? [])
+const rendimento = computed(() => data.value?.rendimento ?? null)
 
 const rangeOptions = [
   { label: '6m', value: 6 },
@@ -212,7 +245,7 @@ const rangeOptions = [
 ]
 const range = ref(12)
 
-const visibleData = computed(() => (data.value ?? []).slice(0, range.value))
+const visibleData = computed(() => meses.value.slice(0, range.value))
 
 // --- Snapshot state ---
 const selectedSnapshotId = ref<number | null>(null)
@@ -300,7 +333,7 @@ const snapshotOverlay = computed(() => {
 const chartData = computed(() => {
   const datasets: any[] = [
     {
-      label: 'Saldo projetado',
+      label: 'Previsão',
       data: visibleData.value.map(d => d.patrimonio),
       borderColor: 'rgba(16, 185, 129, 0.8)',
       backgroundColor: 'rgba(16, 185, 129, 0.06)',
@@ -311,6 +344,20 @@ const chartData = computed(() => {
       tension: 0.3,
       fill: true,
       order: 1,
+    },
+    {
+      label: '105% CDI',
+      data: visibleData.value.map(d => d.patrimonioComJuros),
+      borderColor: 'rgba(245, 158, 11, 0.85)',
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      borderDash: [6, 4],
+      pointRadius: 3,
+      pointBackgroundColor: 'rgba(245, 158, 11, 0.75)',
+      pointBorderColor: 'rgba(245, 158, 11, 0.75)',
+      tension: 0.3,
+      fill: false,
+      order: 3,
     },
   ]
 

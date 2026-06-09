@@ -7,7 +7,7 @@
     </div>
 
     <!-- Month Navigator (hidden on tabs with their own period control) -->
-    <div v-if="abaAtiva !== 'evolution' && abaAtiva !== 'comparacao'" class="bg-white dark:bg-gray-900 rounded-lg px-6 py-4 border border-gray-100 dark:border-gray-800">
+    <div v-if="abaAtiva !== 'evolution' && abaAtiva !== 'comparacao' && abaAtiva !== 'previsao'" class="bg-white dark:bg-gray-900 rounded-lg px-6 py-4 border border-gray-100 dark:border-gray-800">
       <DashboardMonthNavigator v-model="currentMonth" />
     </div>
 
@@ -162,6 +162,11 @@
     <template v-else-if="abaAtiva === 'previsao'">
       <ReportsForecast />
     </template>
+
+    <!-- Aba: Fluxo de caixa -->
+    <template v-else-if="abaAtiva === 'fluxo'">
+      <ReportsCashFlowTimeline :month="currentMonth" />
+    </template>
   </div>
 </template>
 
@@ -183,14 +188,16 @@ const abas = [
   { key: 'evolution',  label: 'Evolução' },
   { key: 'comparacao', label: 'Comparação' },
   { key: 'previsao',   label: 'Previsão' },
+  { key: 'fluxo',      label: 'Fluxo de Caixa' },
 ]
 const route = useRoute()
-const abaAtiva = ref<'categoria' | 'composicao' | 'orcamento' | 'evolution' | 'comparacao' | 'previsao'>(
+const abaAtiva = ref<'categoria' | 'composicao' | 'orcamento' | 'evolution' | 'comparacao' | 'previsao' | 'fluxo'>(
   route.query.aba === 'composicao' ? 'composicao'
   : route.query.aba === 'orcamento' ? 'orcamento'
   : route.query.aba === 'evolution' ? 'evolution'
   : route.query.aba === 'comparacao' ? 'comparacao'
   : route.query.aba === 'previsao' ? 'previsao'
+  : route.query.aba === 'fluxo' ? 'fluxo'
   : 'categoria'
 )
 

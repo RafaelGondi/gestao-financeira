@@ -1,9 +1,9 @@
 import db from '../../db/index'
 import { getQuery } from 'h3'
-import { computeSaldoBancario } from '../../utils/saldo'
 import { faturaDateRange, calcFaturaMonth } from '../../utils/fatura'
 import { getCartoesParaMes } from '../../utils/cartoes'
 import { computeMonthTotals } from '../../utils/month-totals'
+import { computeSaldoAnterior } from '../../utils/saldo-anterior'
 import { localDateStr } from '../../utils/localDate'
 import { getSaldoConta } from '../../utils/getSaldoConta'
 
@@ -32,45 +32,6 @@ interface Cartao {
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100
-
-// Saldo teórico acumulado ao início do mês (year, mon).
-// Itera mês a mês desde o primeiro mês com transações, garantindo que
-// saldoPrevisto(M) == saldoAnterior(M+1) para qualquer M.
-function computeSaldoAnterior(year: number, mon: number, cartoes: Cartao[]): number {
-  const { firstDate } = db.prepare(`
-    SELECT MIN(d) AS firstDate FROM (
-      SELECT data AS d FROM transacoes WHERE fixa = 0 AND data IS NOT NULL
-      UNION ALL
-      SELECT data_inicio AS d FROM transacoes WHERE fixa = 1 AND data_inicio IS NOT NULL
-    )
-  `).get() as { firstDate: string | null }
-
-  if (!firstDate) return computeSaldoBancario(
-    `${year}-${String(mon === 1 ? 12 : mon - 1).padStart(2, '0')}-01`
-  )
-
-  const firstYear = Number(firstDate.slice(0, 4))
-  const firstMon = Number(firstDate.slice(5, 7))
-
-  // Base: saldo bancário real no fim do mês anterior ao primeiro mês com dados.
-  // Nesse ponto não há transações rastreadas, então computeSaldoBancario ≈ sum(saldo_inicial).
-  const baseY = firstMon === 1 ? firstYear - 1 : firstYear
-  const baseM = firstMon === 1 ? 12 : firstMon - 1
-  const baseLastDay = new Date(baseY, baseM, 0).getDate()
-  const baseDate = `${baseY}-${String(baseM).padStart(2, '0')}-${String(baseLastDay).padStart(2, '0')}`
-  let saldo = computeSaldoBancario(baseDate)
-
-  // Acumula receitas − despesas de cada mês até o mês anterior ao alvo (exclusive).
-  let iy = firstYear, im = firstMon
-  while (iy < year || (iy === year && im < mon)) {
-    const { totalReceitas, totalDespesas } = computeMonthTotals(iy, im, cartoes)
-    saldo = r2(saldo + totalReceitas - totalDespesas)
-    im++
-    if (im > 12) { im = 1; iy++ }
-  }
-
-  return saldo
-}
 
 export default defineEventHandler((event) => {
   const query = getQuery(event)
