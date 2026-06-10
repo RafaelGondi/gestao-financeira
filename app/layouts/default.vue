@@ -363,6 +363,7 @@ const analisesLinks = [
 const planejamentoLinks = [
   { to: '/limites', label: 'Limites', icon: 'i-heroicons-chart-bar' },
   { to: '/metas', label: 'Metas', icon: 'i-heroicons-flag' },
+  { to: '/patrimonio', label: 'Patrimônio', icon: 'i-heroicons-building-library' },
 ]
 
 const movOpen = ref(false)

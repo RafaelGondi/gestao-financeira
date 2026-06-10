@@ -10,7 +10,7 @@
       <!-- Resumo -->
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
-          <p class="text-xs text-gray-400 mb-1">Saldo hoje</p>
+          <p class="text-xs text-gray-400 mb-1">Saldo hoje (contas)</p>
           <p class="text-base font-bold text-blue-900 dark:text-blue-400">{{ format(saldoHoje) }}</p>
         </div>
         <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 p-4">
@@ -33,7 +33,7 @@
           <div class="min-w-0">
             <h2 class="font-semibold text-gray-800 dark:text-gray-100">Projeção do saldo</h2>
             <p class="text-xs text-gray-400 mt-0.5">
-              Baseado em lançamentos recorrentes e parcelamentos conhecidos
+              Contas bancárias — lançamentos recorrentes e parcelamentos conhecidos
               <template v-if="rendimento">
                 · Juros: 105% CDI ({{ rendimento.cdiAnual.toFixed(2) }}% a.a. → {{ rendimento.taxaAnualEfetiva.toFixed(2) }}% a.a.)
               </template>
@@ -149,7 +149,7 @@
         <div class="px-5 pb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500">
           <span class="flex items-center gap-1.5">
             <span class="w-6 h-0.5 bg-emerald-500 inline-block rounded" />
-            Previsão
+            Previsão (contas)
           </span>
           <span class="flex items-center gap-1.5">
             <span class="w-6 h-0.5 inline-block rounded border-t-2 border-dashed border-amber-500" style="height: 0" />
@@ -333,7 +333,7 @@ const snapshotOverlay = computed(() => {
 const chartData = computed(() => {
   const datasets: any[] = [
     {
-      label: 'Previsão',
+      label: 'Previsão (contas)',
       data: visibleData.value.map(d => d.patrimonio),
       borderColor: 'rgba(16, 185, 129, 0.8)',
       backgroundColor: 'rgba(16, 185, 129, 0.06)',

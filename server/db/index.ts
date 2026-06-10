@@ -216,6 +216,153 @@ if (!g.__db) {
   `)
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS patrimonio_externo (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL,
+      tipo TEXT NOT NULL DEFAULT 'outro' CHECK(tipo IN ('fgts', 'consorcio', 'renda_fixa', 'caixinha', 'outro')),
+      saldo_atual REAL NOT NULL DEFAULT 0,
+      valor_alvo REAL,
+      incluir_em_totais INTEGER NOT NULL DEFAULT 0,
+      aporte_modo TEXT NOT NULL DEFAULT 'nenhum' CHECK(aporte_modo IN ('nenhum', 'fixo_mensal', 'manual')),
+      aporte_valor REAL,
+      rendimento_modo TEXT NOT NULL DEFAULT 'nenhum' CHECK(rendimento_modo IN ('nenhum', 'taxa_anual', 'cdi_pct', 'tr_mais', 'cdi_faixas')),
+      rendimento_valor REAL,
+      grupo_rendimento TEXT,
+      cdi_faixa_teto REAL,
+      cdi_pct_ate_teto REAL,
+      cdi_pct_acima REAL,
+      cdi_dias_base TEXT NOT NULL DEFAULT 'uteis',
+      data_fim TEXT,
+      icone TEXT NOT NULL DEFAULT 'i-lucide-landmark',
+      cor TEXT NOT NULL DEFAULT '#6366f1',
+      notas TEXT,
+      ativo INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS patrimonio_movimentos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patrimonio_id INTEGER NOT NULL REFERENCES patrimonio_externo(id) ON DELETE CASCADE,
+      tipo TEXT NOT NULL CHECK(tipo IN ('aporte', 'ajuste', 'retirada')),
+      valor REAL NOT NULL,
+      data DATE NOT NULL,
+      notas TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  const patCols = db.prepare(`PRAGMA table_info(patrimonio_externo)`).all() as { name: string }[]
+  const patColNames = patCols.map(c => c.name)
+  if (patCols.length && !patColNames.includes('grupo_rendimento')) {
+    db.exec(`
+      PRAGMA foreign_keys=OFF;
+      BEGIN;
+      CREATE TABLE patrimonio_externo_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        tipo TEXT NOT NULL DEFAULT 'outro' CHECK(tipo IN ('fgts', 'consorcio', 'renda_fixa', 'caixinha', 'outro')),
+        saldo_atual REAL NOT NULL DEFAULT 0,
+        valor_alvo REAL,
+        incluir_em_totais INTEGER NOT NULL DEFAULT 0,
+        aporte_modo TEXT NOT NULL DEFAULT 'nenhum' CHECK(aporte_modo IN ('nenhum', 'fixo_mensal', 'manual')),
+        aporte_valor REAL,
+        rendimento_modo TEXT NOT NULL DEFAULT 'nenhum' CHECK(rendimento_modo IN ('nenhum', 'taxa_anual', 'cdi_pct', 'tr_mais', 'cdi_faixas')),
+        rendimento_valor REAL,
+        grupo_rendimento TEXT,
+        cdi_faixa_teto REAL,
+        cdi_pct_ate_teto REAL,
+        cdi_pct_acima REAL,
+        data_fim TEXT,
+        icone TEXT NOT NULL DEFAULT 'i-lucide-landmark',
+        cor TEXT NOT NULL DEFAULT '#6366f1',
+        notas TEXT,
+        ativo INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO patrimonio_externo_new (
+        id, nome, tipo, saldo_atual, valor_alvo, incluir_em_totais,
+        aporte_modo, aporte_valor, rendimento_modo, rendimento_valor,
+        data_fim, icone, cor, notas, ativo, created_at
+      )
+      SELECT id, nome, tipo, saldo_atual, valor_alvo, incluir_em_totais,
+        aporte_modo, aporte_valor, rendimento_modo, rendimento_valor,
+        data_fim, icone, cor, notas, ativo, created_at
+      FROM patrimonio_externo;
+      DROP TABLE patrimonio_externo;
+      ALTER TABLE patrimonio_externo_new RENAME TO patrimonio_externo;
+      COMMIT;
+      PRAGMA foreign_keys=ON;
+    `)
+  }
+
+  if (patCols.length && !patColNames.includes('cdi_dias_base')) {
+    db.exec(`ALTER TABLE patrimonio_externo ADD COLUMN cdi_dias_base TEXT NOT NULL DEFAULT 'uteis'`)
+  }
+
+  const movCols = db.prepare(`PRAGMA table_info(patrimonio_movimentos)`).all() as { name: string }[]
+  if (movCols.length && !movCols.map(c => c.name).includes('transferencia_id')) {
+    db.exec(`ALTER TABLE patrimonio_movimentos ADD COLUMN transferencia_id INTEGER REFERENCES transferencias(id) ON DELETE SET NULL`)
+  }
+
+  const trCols = db.prepare(`PRAGMA table_info(transferencias)`).all() as { name: string }[]
+  if (trCols.length && !trCols.map(c => c.name).includes('patrimonio_destino_id')) {
+    db.exec(`
+      PRAGMA foreign_keys=OFF;
+      BEGIN;
+      CREATE TABLE transferencias_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        descricao TEXT,
+        valor REAL NOT NULL,
+        conta_origem_id INTEGER NOT NULL REFERENCES contas(id),
+        conta_destino_id INTEGER REFERENCES contas(id),
+        patrimonio_destino_id INTEGER REFERENCES patrimonio_externo(id),
+        data DATE NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        CHECK (
+          (conta_destino_id IS NOT NULL AND patrimonio_destino_id IS NULL)
+          OR (conta_destino_id IS NULL AND patrimonio_destino_id IS NOT NULL)
+        )
+      );
+      INSERT INTO transferencias_new (id, descricao, valor, conta_origem_id, conta_destino_id, data, created_at)
+      SELECT id, descricao, valor, conta_origem_id, conta_destino_id, data, created_at FROM transferencias;
+      DROP TABLE transferencias;
+      ALTER TABLE transferencias_new RENAME TO transferencias;
+      COMMIT;
+      PRAGMA foreign_keys=ON;
+    `)
+  }
+
+  const trCols2 = db.prepare(`PRAGMA table_info(transferencias)`).all() as { name: string }[]
+  if (trCols2.length && !trCols2.map(c => c.name).includes('patrimonio_origem_id')) {
+    db.exec(`
+      PRAGMA foreign_keys=OFF;
+      BEGIN;
+      CREATE TABLE transferencias_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        descricao TEXT,
+        valor REAL NOT NULL,
+        conta_origem_id INTEGER REFERENCES contas(id),
+        conta_destino_id INTEGER REFERENCES contas(id),
+        patrimonio_destino_id INTEGER REFERENCES patrimonio_externo(id),
+        patrimonio_origem_id INTEGER REFERENCES patrimonio_externo(id),
+        data DATE NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        CHECK (
+          (conta_origem_id IS NOT NULL AND patrimonio_origem_id IS NULL AND conta_destino_id IS NOT NULL AND patrimonio_destino_id IS NULL)
+          OR (conta_origem_id IS NOT NULL AND patrimonio_origem_id IS NULL AND conta_destino_id IS NULL AND patrimonio_destino_id IS NOT NULL)
+          OR (patrimonio_origem_id IS NOT NULL AND conta_origem_id IS NULL AND conta_destino_id IS NOT NULL AND patrimonio_destino_id IS NULL)
+        )
+      );
+      INSERT INTO transferencias_new (id, descricao, valor, conta_origem_id, conta_destino_id, patrimonio_destino_id, data, created_at)
+      SELECT id, descricao, valor, conta_origem_id, conta_destino_id, patrimonio_destino_id, data, created_at FROM transferencias;
+      DROP TABLE transferencias;
+      ALTER TABLE transferencias_new RENAME TO transferencias;
+      COMMIT;
+      PRAGMA foreign_keys=ON;
+    `)
+  }
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS snapshots (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nome TEXT,

@@ -1,27 +1,74 @@
 import db from '../../db/index'
 import { readBody } from 'h3'
-import { getSaldoConta } from '../../utils/getSaldoConta'
+import {
+  applyPatrimonioAporte,
+  applyPatrimonioRetirada,
+  assertPatrimonioDestino,
+  assertSaldoOrigem,
+  assertSaldoPatrimonio,
+  getTransferKind,
+} from '../../utils/transferenciaPatrimonio'
 
 export default defineEventHandler(async (event) => {
   const body = await readBody(event)
-  const { descricao, valor, conta_origem_id, conta_destino_id, data } = body
+  const { descricao, valor, conta_origem_id, conta_destino_id, patrimonio_destino_id, patrimonio_origem_id, data } = body
 
-  if (!valor || valor <= 0 || !conta_origem_id || !conta_destino_id || !data) {
+  const v = Number(valor)
+  const kind = getTransferKind(body)
+
+  if (!v || v <= 0 || !data || !kind) {
     throw createError({ statusCode: 400, message: 'Dados inválidos' })
   }
-  if (conta_origem_id === conta_destino_id) {
+  if (kind === 'conta-conta' && conta_origem_id === conta_destino_id) {
     throw createError({ statusCode: 400, message: 'Contas de origem e destino devem ser diferentes' })
   }
 
-  const saldo = getSaldoConta(conta_origem_id)
-  if (Math.round(Number(valor) * 100) > Math.round(saldo * 100)) {
-    throw createError({ statusCode: 422, message: `Saldo insuficiente. Disponível: R$ ${saldo.toFixed(2).replace('.', ',')}` })
+  if (kind === 'conta-conta' || kind === 'aporte') assertSaldoOrigem(conta_origem_id, v)
+  if (kind === 'aporte') assertPatrimonioDestino(patrimonio_destino_id)
+  if (kind === 'saque') {
+    assertPatrimonioDestino(patrimonio_origem_id)
+    assertSaldoPatrimonio(patrimonio_origem_id, v)
   }
 
-  const result = db.prepare(`
-    INSERT INTO transferencias (descricao, valor, conta_origem_id, conta_destino_id, data)
-    VALUES (?, ?, ?, ?, ?)
-  `).run([descricao || null, Number(valor), conta_origem_id, conta_destino_id, data])
+  const insert = db.transaction(() => {
+    const result = db.prepare(`
+      INSERT INTO transferencias (
+        descricao, valor, conta_origem_id, conta_destino_id,
+        patrimonio_destino_id, patrimonio_origem_id, data
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run([
+      descricao || null,
+      v,
+      kind === 'saque' ? null : conta_origem_id,
+      kind === 'aporte' ? null : conta_destino_id,
+      kind === 'aporte' ? patrimonio_destino_id : null,
+      kind === 'saque' ? patrimonio_origem_id : null,
+      data,
+    ])
 
-  return { id: result.lastInsertRowid }
+    const transferenciaId = Number(result.lastInsertRowid)
+
+    if (kind === 'aporte') {
+      applyPatrimonioAporte(
+        patrimonio_destino_id,
+        transferenciaId,
+        v,
+        data,
+        descricao || 'Transferência da conta',
+      )
+    } else if (kind === 'saque') {
+      applyPatrimonioRetirada(
+        patrimonio_origem_id,
+        transferenciaId,
+        v,
+        data,
+        descricao || 'Saque para conta',
+      )
+    }
+
+    return transferenciaId
+  })
+
+  return { id: insert() }
 })

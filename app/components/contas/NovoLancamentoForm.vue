@@ -10,17 +10,53 @@
       <UIcon name="i-heroicons-lock-closed" class="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 flex-shrink-0 ml-auto" />
     </div>
 
-    <!-- Conta destino (só transferência) -->
-    <UFormField v-if="tipo === 'transferencia'" label="Conta de destino" required>
-      <USelect
-        v-model="form.conta_destino_id"
-        :items="contasDestino"
-        value-key="value"
-        label-key="label"
-        placeholder="Selecione a conta de destino..."
-        class="w-full"
-      />
-    </UFormField>
+    <!-- Destino da transferência -->
+    <template v-if="tipo === 'transferencia'">
+      <UFormField label="Tipo de destino">
+        <div class="flex gap-2">
+          <UButton
+            size="sm"
+            :variant="destinoTipo === 'conta' ? 'solid' : 'outline'"
+            :color="destinoTipo === 'conta' ? 'primary' : 'neutral'"
+            class="flex-1 justify-center"
+            @click="setDestinoTipo('conta')"
+          >Conta bancária</UButton>
+          <UButton
+            size="sm"
+            :variant="destinoTipo === 'patrimonio' ? 'solid' : 'outline'"
+            :color="destinoTipo === 'patrimonio' ? 'primary' : 'neutral'"
+            class="flex-1 justify-center"
+            @click="setDestinoTipo('patrimonio')"
+          >Caixinha / renda fixa</UButton>
+        </div>
+      </UFormField>
+
+      <UFormField :label="destinoTipo === 'conta' ? 'Conta de destino' : 'Patrimônio de destino'" required>
+        <USelect
+          v-if="destinoTipo === 'conta'"
+          v-model="form.conta_destino_id"
+          :items="contasDestino"
+          value-key="value"
+          label-key="label"
+          placeholder="Selecione a conta de destino..."
+          class="w-full"
+        />
+        <USelect
+          v-else
+          v-model="form.patrimonio_destino_id"
+          :items="patrimonioDestino"
+          value-key="value"
+          label-key="label"
+          placeholder="Selecione caixinha ou renda fixa..."
+          class="w-full"
+        />
+      </UFormField>
+
+      <p v-if="destinoTipo === 'patrimonio' && !patrimonioOptions.length" class="text-xs text-orange-500">
+        Nenhum item de patrimônio cadastrado.
+        <NuxtLink to="/patrimonio" class="underline">Cadastre em Patrimônio</NuxtLink>.
+      </p>
+    </template>
 
     <!-- Descrição -->
     <UFormField v-if="tipo !== 'transferencia'" label="Descrição" required>
@@ -180,11 +216,37 @@ const descricaoConta = computed(() => {
 
 // Outras contas para transferência
 const { data: todasContas } = await useFetch<{ id: number; nome: string; banco: string }[]>('/api/contas')
+const { data: patrimonioData } = await useFetch<{ itens: { id: number; nome: string; tipo: string }[] }>('/api/patrimonio')
+
+const tipoPatrimonioLabel: Record<string, string> = {
+  caixinha: 'Caixinha',
+  renda_fixa: 'Renda fixa',
+  fgts: 'FGTS',
+  consorcio: 'Consórcio',
+  outro: 'Outro',
+}
+
+const patrimonioOptions = computed(() =>
+  (patrimonioData.value?.itens ?? []).map(p => ({
+    value: p.id,
+    label: `${p.nome} (${tipoPatrimonioLabel[p.tipo] ?? p.tipo})`,
+  }))
+)
+
+const destinoTipo = ref<'conta' | 'patrimonio'>('conta')
+
 const contasDestino = computed(() =>
   (todasContas.value ?? [])
     .filter(c => c.id !== props.contaId)
     .map(c => ({ value: c.id, label: `${c.nome} — ${c.banco}` }))
 )
+const patrimonioDestino = computed(() => patrimonioOptions.value)
+
+function setDestinoTipo(tipo: 'conta' | 'patrimonio') {
+  destinoTipo.value = tipo
+  form.conta_destino_id = null
+  form.patrimonio_destino_id = null
+}
 
 const form = reactive({
   descricao: '',
@@ -198,6 +260,7 @@ const form = reactive({
   data_fim: '',
   parcelas: 2,
   conta_destino_id: null as number | null,
+  patrimonio_destino_id: null as number | null,
 })
 
 // Pre-fill form when editing
@@ -220,13 +283,17 @@ watch(() => props.initial, (val) => {
       form.tipoLanc = 'avulsa'
       form.data = val.data ?? today
     }
-    if (val.conta_destino_id) form.conta_destino_id = val.conta_destino_id
+    if (val.conta_destino_id) {
+      destinoTipo.value = 'conta'
+      form.conta_destino_id = val.conta_destino_id
+    }
   }
 }, { immediate: true })
 
 // Reset form when tipo changes (only when not editing)
 watch(() => props.tipo, () => {
   if (props.initial?.id) return
+  destinoTipo.value = 'conta'
   form.descricao = ''
   form.valor = 0
   form.categoria = ''
@@ -238,6 +305,7 @@ watch(() => props.tipo, () => {
   form.data_fim = ''
   form.parcelas = 2
   form.conta_destino_id = null
+  form.patrimonio_destino_id = null
 })
 
 const dataFimParcelada = computed(() => {
@@ -257,14 +325,22 @@ function fmtDate(d: string) {
 
 function handleSubmit() {
   if (props.tipo === 'transferencia') {
-    if (!form.conta_destino_id || form.valor <= 0 || !form.data) return
-    emit('submit', {
+    const temConta = destinoTipo.value === 'conta' && form.conta_destino_id
+    const temPatrimonio = destinoTipo.value === 'patrimonio' && form.patrimonio_destino_id
+    if ((!temConta && !temPatrimonio) || form.valor <= 0 || !form.data) return
+
+    const base = {
       conta_origem_id: props.contaId,
-      conta_destino_id: form.conta_destino_id,
       valor: Number(form.valor),
       data: form.data,
       descricao: form.descricao.trim() || undefined,
-    })
+    }
+
+    if (temPatrimonio) {
+      emit('submit', { ...base, patrimonio_destino_id: form.patrimonio_destino_id })
+    } else {
+      emit('submit', { ...base, conta_destino_id: form.conta_destino_id })
+    }
     return
   }
 

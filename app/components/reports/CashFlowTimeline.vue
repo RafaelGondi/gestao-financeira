@@ -62,7 +62,7 @@
         <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
           <h2 class="font-semibold text-gray-800 dark:text-gray-100">Saldo dia a dia</h2>
           <p class="text-xs text-gray-400 mt-0.5">
-            Evolução do saldo bancário considerando entradas e saídas na data prevista de cada lançamento
+            Patrimônio total (contas + reservas incluídas nos totais gerais)
           </p>
         </div>
         <div class="hidden sm:block px-5 py-5 h-72">
@@ -146,26 +146,32 @@
               <div class="flex items-center gap-2.5 min-w-0">
                 <div
                   class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                  :class="ev.tipo === 'receita'
-                    ? 'bg-emerald-100 dark:bg-emerald-900/30'
-                    : 'bg-rose-100 dark:bg-rose-900/30'"
+                  :class="ev.neutro
+                    ? 'bg-violet-100 dark:bg-violet-900/30'
+                    : ev.tipo === 'receita'
+                      ? 'bg-emerald-100 dark:bg-emerald-900/30'
+                      : 'bg-rose-100 dark:bg-rose-900/30'"
                 >
                   <UIcon
-                    :name="ev.tipo === 'receita' ? 'i-heroicons-arrow-down-circle' : 'i-heroicons-arrow-up-circle'"
+                    :name="ev.neutro ? 'i-heroicons-arrows-right-left' : ev.tipo === 'receita' ? 'i-heroicons-arrow-down-circle' : 'i-heroicons-arrow-up-circle'"
                     class="w-4 h-4"
-                    :class="ev.tipo === 'receita' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
+                    :class="ev.neutro
+                      ? 'text-violet-600 dark:text-violet-400'
+                      : ev.tipo === 'receita' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
                   />
                 </div>
                 <div class="min-w-0">
                   <p class="text-sm text-gray-700 dark:text-gray-300 truncate">{{ ev.descricao }}</p>
-                  <p class="text-xs text-gray-400">{{ ev.realizado ? 'Realizado' : 'Previsto' }}</p>
+                  <p class="text-xs text-gray-400">{{ ev.neutro ? 'Reserva incluída nos totais' : ev.realizado ? 'Realizado' : 'Previsto' }}</p>
                 </div>
               </div>
               <span
                 class="text-sm font-medium flex-shrink-0 ml-3"
-                :class="ev.tipo === 'receita' ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'"
+                :class="ev.neutro
+                  ? 'text-violet-700 dark:text-violet-400'
+                  : ev.tipo === 'receita' ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'"
               >
-                {{ ev.tipo === 'receita' ? '+' : '−' }}{{ format(ev.valor) }}
+                {{ ev.neutro ? format(ev.valor) : `${ev.tipo === 'receita' ? '+' : '−'}${format(ev.valor)}` }}
               </span>
             </div>
           </div>
@@ -193,8 +199,9 @@ ChartJS.register(LineController, CategoryScale, LinearScale, PointElement, LineE
 interface CashFlowEvent {
   descricao: string
   valor: number
-  tipo: 'receita' | 'despesa' | 'fatura'
+  tipo: 'receita' | 'despesa' | 'fatura' | 'transferencia'
   realizado: boolean
+  neutro?: boolean
 }
 
 interface CashFlowDay {

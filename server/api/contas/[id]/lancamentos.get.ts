@@ -202,28 +202,39 @@ export default defineEventHandler((event) => {
   for (const t of db.prepare(`
     SELECT tr.id, tr.descricao, tr.valor, tr.data,
       tr.conta_origem_id, tr.conta_destino_id,
-      co.nome AS conta_origem_nome, cd.nome AS conta_destino_nome
+      tr.patrimonio_destino_id, tr.patrimonio_origem_id,
+      co.nome AS conta_origem_nome, cd.nome AS conta_destino_nome,
+      pe.nome AS patrimonio_destino_nome,
+      po.nome AS patrimonio_origem_nome
     FROM transferencias tr
-    JOIN contas co ON co.id = tr.conta_origem_id
-    JOIN contas cd ON cd.id = tr.conta_destino_id
+    LEFT JOIN contas co ON co.id = tr.conta_origem_id
+    LEFT JOIN contas cd ON cd.id = tr.conta_destino_id
+    LEFT JOIN patrimonio_externo pe ON pe.id = tr.patrimonio_destino_id
+    LEFT JOIN patrimonio_externo po ON po.id = tr.patrimonio_origem_id
     WHERE (tr.conta_origem_id = ? OR tr.conta_destino_id = ?)
       AND tr.data >= ? AND tr.data <= ?
     ORDER BY tr.data DESC
   `).all([contaId, contaId, startDate, endDate]) as any[]) {
     const isEntrada = t.conta_destino_id === contaId
+    const destinoNome = t.patrimonio_destino_nome ?? t.conta_destino_nome
+    const origemNome = t.patrimonio_origem_nome ?? t.conta_origem_nome
     lancamentos.push({
       id: t.id,
       descricao: t.descricao || (isEntrada
-        ? `Transferência de ${t.conta_origem_nome}`
-        : `Transferência para ${t.conta_destino_nome}`),
+        ? (t.patrimonio_origem_nome
+          ? `Saque de ${t.patrimonio_origem_nome}`
+          : `Transferência de ${origemNome}`)
+        : `Transferência para ${destinoNome}`),
       valor: t.valor,
       tipo: 'transferencia',
       direcao: isEntrada ? 'entrada' : 'saida',
       data: t.data,
       conta_origem_id: t.conta_origem_id,
       conta_destino_id: t.conta_destino_id,
-      conta_origem_nome: t.conta_origem_nome,
-      conta_destino_nome: t.conta_destino_nome,
+      patrimonio_destino_id: t.patrimonio_destino_id,
+      patrimonio_origem_id: t.patrimonio_origem_id,
+      conta_origem_nome: origemNome,
+      conta_destino_nome: destinoNome,
       fixa: 0, parcelas: 0, categoria: null, pago: 1
     })
   }

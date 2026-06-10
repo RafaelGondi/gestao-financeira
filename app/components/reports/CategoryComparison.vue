@@ -58,11 +58,11 @@
         <div class="p-3 sm:p-4 min-w-0">
           <p class="text-xs text-gray-400 mb-1">Variação</p>
           <div class="flex items-baseline gap-1 sm:gap-2 flex-wrap">
-            <p class="text-sm sm:text-lg font-bold truncate" :class="diffClass(data.total_a - data.total_b)">
-              {{ diffSign(data.total_a - data.total_b) }}{{ format(Math.abs(data.total_a - data.total_b)) }}
+            <p class="text-sm sm:text-lg font-bold truncate" :class="diffClass(data.total_b - data.total_a)">
+              {{ diffSign(data.total_b - data.total_a) }}{{ format(Math.abs(data.total_b - data.total_a)) }}
             </p>
-            <p v-if="data.total_b > 0" class="text-xs sm:text-sm font-medium flex-shrink-0" :class="diffClass(data.total_a - data.total_b)">
-              {{ diffPctLabel((data.total_a - data.total_b) / data.total_b * 100) }}
+            <p v-if="data.total_a > 0" class="text-xs sm:text-sm font-medium flex-shrink-0" :class="diffClass(data.total_b - data.total_a)">
+              {{ diffPctLabel((data.total_b - data.total_a) / data.total_a * 100) }}
             </p>
           </div>
         </div>
@@ -73,6 +73,7 @@
         <!-- Filtro -->
         <div class="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
           <span class="text-xs font-medium text-gray-400 uppercase tracking-wide flex-1">{{ modo === 'supercategoria' ? 'Supercategoria' : 'Categoria' }}</span>
+          <span class="hidden md:inline text-xs text-gray-400 mr-1">Clique na linha para ver os lançamentos</span>
           <div class="flex items-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md p-0.5">
             <button
               class="px-2.5 py-0.5 text-xs font-medium rounded transition-all cursor-pointer"
@@ -89,33 +90,52 @@
 
         <!-- Mobile: layout empilhado -->
         <div class="sm:hidden divide-y divide-gray-100 dark:divide-gray-800">
-          <div v-for="row in visibleRows" :key="row.nome" class="px-4 py-3">
-            <!-- Linha 1: ícone + nome + variação -->
-            <div class="flex items-center gap-2.5 mb-1.5">
-              <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" :style="{ background: row.cor }">
-                <UIcon :name="row.icone" class="w-4 h-4 text-white" />
+          <div v-for="row in visibleRows" :key="row.nome">
+            <button
+              type="button"
+              class="w-full px-4 py-3 text-left transition-colors cursor-pointer"
+              :class="hasItems(row) ? 'hover:bg-gray-50 dark:hover:bg-gray-800/50' : 'cursor-default'"
+              :disabled="!hasItems(row)"
+              @click="toggleExpand(row.nome)"
+            >
+              <div class="flex items-center gap-2.5 mb-1.5">
+                <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" :style="{ background: row.cor }">
+                  <UIcon :name="row.icone" class="w-4 h-4 text-white" />
+                </div>
+                <span class="text-sm font-medium text-gray-800 dark:text-gray-100 flex-1 min-w-0 truncate">{{ row.nome }}</span>
+                <UIcon
+                  v-if="hasItems(row)"
+                  :name="expanded === row.nome ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+                  class="w-4 h-4 text-gray-400 flex-shrink-0"
+                />
+                <span
+                  class="text-sm font-semibold flex-shrink-0"
+                  :class="row.total_a === 0 && row.total_b === 0 ? 'text-gray-300' : diffClass(row.diff)"
+                >
+                  {{ row.total_a === 0 && row.total_b === 0 ? '—' : diffSign(row.diff) + format(Math.abs(row.diff)) }}
+                </span>
               </div>
-              <span class="text-sm font-medium text-gray-800 dark:text-gray-100 flex-1 min-w-0 truncate">{{ row.nome }}</span>
-              <span
-                class="text-sm font-semibold flex-shrink-0"
-                :class="row.total_a === 0 && row.total_b === 0 ? 'text-gray-300' : diffClass(row.diff)"
-              >
-                {{ row.total_a === 0 && row.total_b === 0 ? '—' : diffSign(row.diff) + format(Math.abs(row.diff)) }}
-              </span>
-            </div>
-            <!-- Linha 2: valores dos dois meses + % -->
-            <div class="flex items-center gap-1.5 pl-9">
-              <span class="text-xs text-gray-400">{{ labelAShort }}:</span>
-              <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ row.total_a > 0 ? format(row.total_a) : '—' }}</span>
-              <UIcon name="i-heroicons-arrow-right" class="w-3 h-3 text-gray-300 flex-shrink-0" />
-              <span class="text-xs text-gray-400">{{ labelBShort }}:</span>
-              <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ row.total_b > 0 ? format(row.total_b) : '—' }}</span>
-              <span
-                v-if="row.diff_pct !== null"
-                class="ml-auto text-xs font-medium flex-shrink-0"
-                :class="diffClass(row.diff)"
-              >{{ diffPctLabel(row.diff_pct) }}</span>
-            </div>
+              <div class="flex items-center gap-1.5 pl-9">
+                <span class="text-xs text-gray-400">{{ labelAShort }}:</span>
+                <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ row.total_a > 0 ? format(row.total_a) : '—' }}</span>
+                <UIcon name="i-heroicons-arrow-right" class="w-3 h-3 text-gray-300 flex-shrink-0" />
+                <span class="text-xs text-gray-400">{{ labelBShort }}:</span>
+                <span class="text-xs font-medium text-gray-700 dark:text-gray-300">{{ row.total_b > 0 ? format(row.total_b) : '—' }}</span>
+                <span
+                  v-if="row.diff_pct !== null"
+                  class="ml-auto text-xs font-medium flex-shrink-0"
+                  :class="diffClass(row.diff)"
+                >{{ diffPctLabel(row.diff_pct) }}</span>
+              </div>
+            </button>
+            <ReportsCategoryComparisonDetails
+              v-if="expanded === row.nome"
+              :label-a="labelA"
+              :label-b="labelB"
+              :modo="modo"
+              :loading="loadingDetails === row.nome"
+              :details="getDetails(row.nome)"
+            />
           </div>
           <div v-if="!visibleRows.length" class="text-center py-12 text-gray-400 text-sm">
             {{ data.rows.length ? `Nenhuma ${modo === 'supercategoria' ? 'supercategoria' : 'categoria'} aparece nos dois meses` : 'Nenhuma despesa nos dois meses selecionados' }}
@@ -134,28 +154,48 @@
               <span class="text-xs font-medium text-gray-400 uppercase tracking-wide w-16 text-right">%</span>
               <span class="w-12 flex-shrink-0" />
             </div>
-            <div
-              v-for="row in visibleRows"
-              :key="row.nome"
-              class="grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-3 px-5 py-3 border-b border-gray-100 dark:border-gray-800 last:border-0"
-            >
-              <div class="flex items-center gap-2.5 min-w-0">
-                <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" :style="{ background: row.cor }">
-                  <UIcon :name="row.icone" class="w-4 h-4 text-white" />
+            <div v-for="row in visibleRows" :key="row.nome">
+              <button
+                type="button"
+                class="w-full grid grid-cols-[1fr_auto_auto_auto_auto_auto] items-center gap-3 px-5 py-3 border-b border-gray-100 dark:border-gray-800 text-left transition-colors"
+                :class="[
+                  hasItems(row) ? 'hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer' : 'cursor-default',
+                  expanded === row.nome ? 'bg-gray-50/80 dark:bg-gray-800/30' : '',
+                ]"
+                :disabled="!hasItems(row)"
+                @click="toggleExpand(row.nome)"
+              >
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" :style="{ background: row.cor }">
+                    <UIcon :name="row.icone" class="w-4 h-4 text-white" />
+                  </div>
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{{ row.nome }}</span>
+                  <UIcon
+                    v-if="hasItems(row)"
+                    :name="expanded === row.nome ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+                    class="w-4 h-4 text-gray-400 flex-shrink-0"
+                  />
                 </div>
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{{ row.nome }}</span>
-              </div>
-              <p class="text-sm font-medium text-gray-800 dark:text-gray-100 w-28 text-right flex-shrink-0">{{ row.total_a > 0 ? format(row.total_a) : '—' }}</p>
-              <p class="text-sm font-medium text-gray-800 dark:text-gray-100 w-28 text-right flex-shrink-0">{{ row.total_b > 0 ? format(row.total_b) : '—' }}</p>
-              <p class="text-sm font-medium w-24 text-right flex-shrink-0" :class="row.total_a === 0 && row.total_b === 0 ? 'text-gray-300 dark:text-gray-600' : diffClass(row.diff)">
-                {{ row.total_a === 0 && row.total_b === 0 ? '—' : diffSign(row.diff) + format(Math.abs(row.diff)) }}
-              </p>
-              <p class="text-sm font-medium w-16 text-right flex-shrink-0" :class="row.diff_pct === null ? 'text-gray-300 dark:text-gray-600' : diffClass(row.diff)">
-                {{ row.diff_pct === null ? '—' : diffPctLabel(row.diff_pct) }}
-              </p>
-              <svg width="48" height="18" class="flex-shrink-0 w-12">
-                <polyline :points="sparkPoints(row.trend)" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" :class="sparkColor(row.trend)" />
-              </svg>
+                <p class="text-sm font-medium text-gray-800 dark:text-gray-100 w-28 text-right flex-shrink-0">{{ row.total_a > 0 ? format(row.total_a) : '—' }}</p>
+                <p class="text-sm font-medium text-gray-800 dark:text-gray-100 w-28 text-right flex-shrink-0">{{ row.total_b > 0 ? format(row.total_b) : '—' }}</p>
+                <p class="text-sm font-medium w-24 text-right flex-shrink-0" :class="row.total_a === 0 && row.total_b === 0 ? 'text-gray-300 dark:text-gray-600' : diffClass(row.diff)">
+                  {{ row.total_a === 0 && row.total_b === 0 ? '—' : diffSign(row.diff) + format(Math.abs(row.diff)) }}
+                </p>
+                <p class="text-sm font-medium w-16 text-right flex-shrink-0" :class="row.diff_pct === null ? 'text-gray-300 dark:text-gray-600' : diffClass(row.diff)">
+                  {{ row.diff_pct === null ? '—' : diffPctLabel(row.diff_pct) }}
+                </p>
+                <svg width="48" height="18" class="flex-shrink-0 w-12 pointer-events-none">
+                  <polyline :points="sparkPoints(row.trend)" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" :class="sparkColor(row.trend)" />
+                </svg>
+              </button>
+              <ReportsCategoryComparisonDetails
+                v-if="expanded === row.nome"
+                :label-a="labelA"
+                :label-b="labelB"
+                :modo="modo"
+                :loading="loadingDetails === row.nome"
+                :details="getDetails(row.nome)"
+              />
             </div>
             <div v-if="!visibleRows.length" class="text-center py-12 text-gray-400 text-sm">
               {{ data.rows.length ? `Nenhuma ${modo === 'supercategoria' ? 'supercategoria' : 'categoria'} aparece nos dois meses` : 'Nenhuma despesa nos dois meses selecionados' }}
@@ -181,22 +221,37 @@ const prevMonthDefault = now.getMonth() === 0
   ? monthStr(now.getFullYear() - 1, 12)
   : monthStr(now.getFullYear(), now.getMonth())
 
-const monthA = ref(currentMonthDefault)
-const monthB = ref(prevMonthDefault)
+const monthA = ref(prevMonthDefault)
+const monthB = ref(currentMonthDefault)
 const modo = ref<'categoria' | 'supercategoria'>('categoria')
 
-// Gera opções dos últimos 24 meses
+// Mês atual, meses futuros (projeção) e últimos 24 meses passados
 const monthOptions = computed(() => {
-  const opts = []
-  let y = now.getFullYear(), m = now.getMonth() + 1
-  for (let i = 0; i < 24; i++) {
+  const opts: { value: string; label: string }[] = []
+  const pushMonth = (y: number, m: number) => {
     const val = monthStr(y, m)
     const date = new Date(y, m - 1, 1)
     const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
     opts.push({ value: val, label: label.charAt(0).toUpperCase() + label.slice(1) })
+  }
+
+  let y = now.getFullYear(), m = now.getMonth() + 1
+
+  // Atual + 17 meses à frente (mesmo horizonte da Previsão)
+  for (let i = 0; i <= 17; i++) {
+    if (i > 0) { m++; if (m > 12) { m = 1; y++ } }
+    pushMonth(y, m)
+  }
+
+  // 23 meses anteriores ao atual
+  y = now.getFullYear()
+  m = now.getMonth() + 1
+  for (let i = 1; i < 24; i++) {
     m--
     if (m === 0) { m = 12; y-- }
+    pushMonth(y, m)
   }
+
   return opts
 })
 
@@ -224,6 +279,62 @@ const { data, pending } = useFetch('/api/reports/category-comparison', {
 })
 
 const apenasComparaveis = ref(false)
+const expanded = ref<string | null>(null)
+const loadingDetails = ref<string | null>(null)
+const detailsCache = ref<Record<string, { itens_a: ExpenseDetail[]; itens_b: ExpenseDetail[] }>>({})
+
+interface ExpenseDetail {
+  id: number
+  descricao: string
+  valor: number
+  data: string
+  categoria: string | null
+  origem: string
+  fixa: boolean
+}
+
+interface ComparisonRow {
+  nome: string
+  total_a: number
+  total_b: number
+  diff: number
+}
+
+watch([monthA, monthB, modo], () => {
+  expanded.value = null
+  detailsCache.value = {}
+})
+
+function cacheKey(nome: string) {
+  return `${monthA.value}|${monthB.value}|${modo.value}|${nome}`
+}
+
+function getDetails(nome: string) {
+  return detailsCache.value[cacheKey(nome)] ?? null
+}
+
+function hasItems(row: ComparisonRow) {
+  return row.total_a > 0 || row.total_b > 0
+}
+
+async function toggleExpand(nome: string) {
+  if (expanded.value === nome) {
+    expanded.value = null
+    return
+  }
+  expanded.value = nome
+  const key = cacheKey(nome)
+  if (detailsCache.value[key]) return
+
+  loadingDetails.value = nome
+  try {
+    detailsCache.value[key] = await $fetch('/api/reports/category-comparison/details', {
+      query: { month: monthA.value, compareMonth: monthB.value, modo: modo.value, nome },
+    })
+  } finally {
+    loadingDetails.value = null
+  }
+}
 
 const visibleRows = computed(() => {
   if (!data.value) return []
@@ -231,8 +342,8 @@ const visibleRows = computed(() => {
   return data.value.rows.filter(r => r.total_a > 0 && r.total_b > 0)
 })
 
-// diff positivo = gastou mais no mês A → vermelho (despesa aumentou = ruim)
-// diff negativo = gastou menos no mês A → verde
+// diff positivo = gastou mais no mês B (atual) vs A (anterior) → vermelho
+// diff negativo = gastou menos no mês B → verde
 function diffClass(diff: number) {
   if (diff > 0) return 'text-rose-900 dark:text-rose-400'
   if (diff < 0) return 'text-emerald-900 dark:text-emerald-400'

@@ -83,7 +83,7 @@
           <!-- Legend patrimônio -->
           <div v-else class="flex items-center gap-1.5">
             <div class="w-3 h-0.5 bg-emerald-500" />
-            <span class="text-xs text-gray-400">Patrimônio</span>
+            <span class="text-xs text-gray-400">Patrimônio total</span>
           </div>
         </div>
       </div>

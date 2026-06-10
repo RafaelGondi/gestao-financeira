@@ -49,8 +49,8 @@ export function computeSaldoBancario(cutoffStr: string): number {
 
   const contas = db.prepare(`SELECT id, saldo_inicial FROM contas`).all() as { id: number; saldo_inicial: number }[]
   const transferencias = db.prepare(
-    `SELECT valor, data, conta_origem_id, conta_destino_id FROM transferencias`
-  ).all() as { valor: number; data: string; conta_origem_id: number; conta_destino_id: number }[]
+    `SELECT valor, data, conta_origem_id, conta_destino_id, patrimonio_destino_id FROM transferencias`
+  ).all() as { valor: number; data: string; conta_origem_id: number | null; conta_destino_id: number | null; patrimonio_destino_id: number | null }[]
   const faturasPagas = db.prepare(`
     SELECT f.cartao_id, f.mes, f.conta_id, f.data_pagamento,
       COALESCE(f.valor_ajuste, 0) AS valor_ajuste, c.melhor_data_compra

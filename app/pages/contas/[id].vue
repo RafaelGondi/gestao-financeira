@@ -422,7 +422,8 @@ interface Lancamento {
   parcela_atual: number | null
   pago: number
   conta_origem_id?: number
-  conta_destino_id?: number
+  conta_destino_id?: number | null
+  patrimonio_destino_id?: number | null
   conta_origem_nome?: string
   conta_destino_nome?: string
   cartao_nome?: string
@@ -600,7 +601,8 @@ const editTransferenciaInitial = computed(() => {
     data: editingLanc.value.data,
     descricao: editingLanc.value.descricao,
     conta_origem_id: editingLanc.value.conta_origem_id!,
-    conta_destino_id: editingLanc.value.conta_destino_id!,
+    conta_destino_id: editingLanc.value.conta_destino_id ?? null,
+    patrimonio_destino_id: editingLanc.value.patrimonio_destino_id ?? null,
   }
 })
 

@@ -6,6 +6,7 @@ import { computeMonthTotals } from '../../utils/month-totals'
 import { computeSaldoAnterior } from '../../utils/saldo-anterior'
 import { localDateStr } from '../../utils/localDate'
 import { getSaldoConta } from '../../utils/getSaldoConta'
+import { getPatrimonioIncluidoTotal } from '../../utils/patrimonio-totais'
 
 interface Transacao {
   id: number
@@ -52,6 +53,8 @@ export default defineEventHandler((event) => {
   // Saldo bancário real hoje: soma dos saldos reais de cada conta (mesma lógica da página de Contas)
   const todasContas = db.prepare(`SELECT id FROM contas`).all() as { id: number }[]
   const saldoBancario = Math.round(todasContas.reduce((sum, c) => sum + getSaldoConta(c.id), 0) * 100) / 100
+  const patrimonioExternoIncluido = getPatrimonioIncluidoTotal(todayStr)
+  const saldoGeral = r2(saldoBancario + patrimonioExternoIncluido)
 
   // Cartões (necessário antes de computar saldoAnterior)
   const cartoes = getCartoesParaMes(month) as Cartao[]
@@ -168,7 +171,10 @@ export default defineEventHandler((event) => {
   const aPagar = r2(despesas.filter(t => !t.pago).reduce((sum, t) => sum + t.valor, 0) + (totalAjustes - totalAjustesPagos))
 
   const saldo = r2(totalReceitas - totalDespesas)
-  const saldoDisponivel = saldoBancario
+  const saldoDisponivel = saldoGeral
+  // Previsão de fim do mês: só contas bancárias (receitas − despesas do mês).
+  // Patrimônio incluído entra no saldo atual, mas não infla este previsto — evita
+  // contar caixinha cadastrada manualmente como se fosse entrada extra no mês.
   const saldoPrevisto = r2(saldoAnterior + totalReceitas - totalDespesas)
 
   const contasPagarItems = despesas
@@ -205,7 +211,9 @@ export default defineEventHandler((event) => {
   return {
     saldo,
     saldoBancario,
-    saldoAnterior,
+    saldoGeral,
+    patrimonioExternoIncluido,
+    saldoAnterior: r2(saldoAnterior),
     saldoDisponivel,
     saldoPrevisto,
     receitas: { total: recebido, recebido, aReceber, items: receitas },

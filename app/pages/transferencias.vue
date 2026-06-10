@@ -3,7 +3,7 @@
     <div class="flex items-center justify-between gap-2">
       <div class="min-w-0">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Transferências</h1>
-        <p class="text-sm text-gray-500 mt-1">Movimentações entre contas</p>
+        <p class="text-sm text-gray-500 mt-1">Entre contas ou para caixinhas e renda fixa</p>
       </div>
       <UButton icon="i-heroicons-plus" color="primary" class="flex-shrink-0" @click="openAddModal">
         <span class="hidden sm:inline">Nova Transferência</span>
@@ -56,7 +56,7 @@
         <UIcon name="i-heroicons-arrows-right-left" class="w-10 h-10 text-gray-400" />
       </div>
       <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Nenhuma transferência neste mês</h3>
-      <p class="text-gray-400 text-sm mb-6">Registre movimentações entre suas contas</p>
+      <p class="text-gray-400 text-sm mb-6">Registre movimentações entre contas ou aportes para o patrimônio</p>
       <UButton icon="i-heroicons-plus" color="primary" @click="openAddModal">
         Nova transferência
       </UButton>
@@ -78,9 +78,12 @@
         <!-- Info -->
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-1.5 min-w-0">
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{{ tr.conta_origem_nome }}</span>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{{ origemLabel(tr) }}</span>
             <UIcon name="i-heroicons-arrow-right" class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{{ tr.conta_destino_nome }}</span>
+            <span class="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{{ destinoLabel(tr) }}</span>
+            <span v-if="tr.patrimonio_destino_id || tr.patrimonio_origem_id" class="text-xs bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 px-1.5 py-0.5 rounded flex-shrink-0">
+              Patrimônio
+            </span>
           </div>
           <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
             <span class="text-xs text-gray-400 whitespace-nowrap">{{ fmtDate(tr.data) }}</span>
@@ -124,8 +127,8 @@
           <p class="text-gray-600 dark:text-gray-400">
             Tem certeza que deseja excluir esta transferência de
             <strong class="text-gray-900 dark:text-white">{{ format(deletingTransferencia?.valor ?? 0) }}</strong>
-            de <strong class="text-gray-900 dark:text-white">{{ deletingTransferencia?.conta_origem_nome }}</strong>
-            para <strong class="text-gray-900 dark:text-white">{{ deletingTransferencia?.conta_destino_nome }}</strong>?
+            de <strong class="text-gray-900 dark:text-white">{{ origemLabel(deletingTransferencia!) }}</strong>
+            para <strong class="text-gray-900 dark:text-white">{{ destinoLabel(deletingTransferencia!) }}</strong>?
           </p>
           <div class="flex justify-end gap-3">
             <UButton variant="ghost" color="neutral" @click="showDeleteModal = false">Cancelar</UButton>
@@ -143,10 +146,24 @@ interface Transferencia {
   descricao: string | null
   valor: number
   data: string
-  conta_origem_id: number
-  conta_destino_id: number
-  conta_origem_nome: string
-  conta_destino_nome: string
+  conta_origem_id: number | null
+  conta_destino_id: number | null
+  patrimonio_destino_id: number | null
+  patrimonio_origem_id: number | null
+  conta_origem_nome: string | null
+  conta_destino_nome: string | null
+  patrimonio_destino_nome: string | null
+  patrimonio_destino_tipo: string | null
+  patrimonio_origem_nome: string | null
+  patrimonio_origem_tipo: string | null
+}
+
+function origemLabel(tr: Transferencia) {
+  return tr.patrimonio_origem_nome ?? tr.conta_origem_nome ?? '—'
+}
+
+function destinoLabel(tr: Transferencia) {
+  return tr.patrimonio_destino_nome ?? tr.conta_destino_nome ?? '—'
 }
 
 const { format } = useCurrency()

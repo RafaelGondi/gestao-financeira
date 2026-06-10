@@ -4,6 +4,8 @@ import { computeSaldoAnterior } from '../../utils/saldo-anterior'
 import { getSaldoConta } from '../../utils/getSaldoConta'
 import { localDateStr } from '../../utils/localDate'
 import { fetchCdiAnual, computePatrimonioComRendimento } from '../../utils/cdi'
+import { computeSaldoBancario } from '../../utils/saldo'
+import { getPatrimonioIncluidoTotal, lastDayOfMonth } from '../../utils/patrimonio-totais'
 
 interface Cartao {
   id: number
@@ -20,7 +22,10 @@ export default defineEventHandler(async () => {
   const [currentYear, currentMon] = [Number(todayStr.slice(0, 4)), Number(todayStr.slice(5, 7))]
 
   const todasContas = db.prepare(`SELECT id FROM contas`).all() as { id: number }[]
-  const saldoHoje = r2(todasContas.reduce((sum, c) => sum + getSaldoConta(c.id), 0))
+  const saldoBancarioHoje = r2(todasContas.reduce((sum, c) => sum + getSaldoConta(c.id), 0))
+  const patrimonioExternoIncluido = getPatrimonioIncluidoTotal(todayStr)
+  const saldoHoje = saldoBancarioHoje
+  const saldoGeralHoje = r2(saldoBancarioHoje + patrimonioExternoIncluido)
 
   const results = []
 
@@ -30,13 +35,21 @@ export default defineEventHandler(async () => {
 
     const month = `${y}-${String(m).padStart(2, '0')}`
     const isPast = y < currentYear || (y === currentYear && m < currentMon)
+    const isCurrent = i === 0
 
     const saldoAnterior = computeSaldoAnterior(y, m, cartoes)
     const { totalReceitas: income, totalDespesas: expenses } = computeMonthTotals(y, m, cartoes)
     const balance = r2(income - expenses)
-    const patrimonio = r2(saldoAnterior + balance)
 
-    results.push({ month, income, expenses, balance, patrimonio, saldoAnterior, isCurrent: i === 0, isPast })
+    // Mesma lógica do dashboard saldoPrevisto: saldo anterior + (receitas − despesas)
+    let patrimonio: number
+    if (isPast) {
+      patrimonio = computeSaldoBancario(lastDayOfMonth(y, m))
+    } else {
+      patrimonio = r2(saldoAnterior + balance)
+    }
+
+    results.push({ month, income, expenses, balance, patrimonio, saldoAnterior, isCurrent, isPast })
   }
 
   const cdiInfo = await fetchCdiAnual()
@@ -53,6 +66,9 @@ export default defineEventHandler(async () => {
 
   return {
     saldoHoje,
+    saldoGeralHoje,
+    saldoBancarioHoje,
+    patrimonioExternoIncluido,
     meses,
     rendimento: {
       multiplicadorCdi: 105,

@@ -8,9 +8,23 @@
         </div>
         <span class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ title }}</span>
       </div>
-      <button v-if="showEye" class="text-gray-300 dark:text-gray-600 hover:text-gray-500 transition-colors cursor-pointer" @click="localHidden = !localHidden">
-        <UIcon :name="localHidden ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'" class="w-4 h-4" />
-      </button>
+      <div class="flex items-center gap-2 shrink-0">
+        <div v-if="toggleOptions?.length" class="inline-flex rounded-lg bg-gray-50 dark:bg-gray-800/60 p-0.5">
+          <button
+            v-for="opt in toggleOptions"
+            :key="opt.id"
+            type="button"
+            class="px-2.5 py-1 min-h-8 min-w-13 text-xs rounded-md transition-colors cursor-pointer"
+            :class="toggle === opt.id
+              ? 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm'
+              : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'"
+            @click="emit('update:toggle', opt.id)"
+          >{{ opt.label }}</button>
+        </div>
+        <button v-if="showEye" class="text-gray-300 dark:text-gray-600 hover:text-gray-500 transition-colors cursor-pointer p-1 -m-1" @click="localHidden = !localHidden">
+          <UIcon :name="localHidden ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'" class="w-4 h-4" />
+        </button>
+      </div>
     </div>
 
     <!-- Main value -->
@@ -73,6 +87,12 @@ const props = defineProps<{
   hidden?: boolean
   sub1: SubCard
   sub2: SubCard
+  toggleOptions?: { id: string; label: string }[]
+  toggle?: string
+}>()
+
+const emit = defineEmits<{
+  'update:toggle': [id: string]
 }>()
 
 const { format } = useCurrency()

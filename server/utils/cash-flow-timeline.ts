@@ -1,7 +1,8 @@
 import db from '../db/index'
 import { effectiveDate } from './dateUtils'
 import { getCartoesParaMes } from './cartoes'
-import { computeSaldoAnterior } from './saldo-anterior'
+import { computeSaldoBancario } from './saldo'
+import { computeSaldoGeral, getPatrimonioIncluidoTotal, lastDayOfPreviousMonth } from './patrimonio-totais'
 import { localDateStr } from './localDate'
 import { faturaDateRange, calcFaturaMonth } from './fatura'
 
@@ -10,8 +11,9 @@ const r2 = (n: number) => Math.round(n * 100) / 100
 export interface CashFlowEvent {
   descricao: string
   valor: number
-  tipo: 'receita' | 'despesa' | 'fatura'
+  tipo: 'receita' | 'despesa' | 'fatura' | 'transferencia'
   realizado: boolean
+  neutro?: boolean
 }
 
 export interface CashFlowDay {
@@ -43,8 +45,10 @@ interface RawEvent {
   date: string
   amount: number
   descricao: string
-  tipo: 'receita' | 'despesa' | 'fatura'
+  tipo: 'receita' | 'despesa' | 'fatura' | 'transferencia'
   realizado: boolean
+  /** Transferência para patrimônio incluído nos totais — não altera patrimônio geral */
+  neutro?: boolean
 }
 
 function resolveEventDate(
@@ -208,6 +212,61 @@ function collectEvents(month: string, startDate: string, endDate: string, today:
     }
   }
 
+  // Transferências entre contas e aportes para patrimônio (saída da conta de origem)
+  const transferenciasSaida = db.prepare(`
+    SELECT tr.descricao, tr.valor, tr.data, co.nome AS conta_origem_nome,
+      cd.nome AS conta_destino_nome, pe.nome AS patrimonio_destino_nome,
+      pe.incluir_em_totais
+    FROM transferencias tr
+    JOIN contas co ON co.id = tr.conta_origem_id
+    LEFT JOIN contas cd ON cd.id = tr.conta_destino_id
+    LEFT JOIN patrimonio_externo pe ON pe.id = tr.patrimonio_destino_id
+    WHERE tr.conta_origem_id IS NOT NULL AND tr.data >= ? AND tr.data <= ?
+  `).all([startDate, endDate]) as {
+    descricao: string | null; valor: number; data: string
+    conta_origem_nome: string; conta_destino_nome: string | null
+    patrimonio_destino_nome: string | null; incluir_em_totais: number | null
+  }[]
+
+  for (const tr of transferenciasSaida) {
+    const destino = tr.patrimonio_destino_nome ?? tr.conta_destino_nome ?? 'destino'
+    const incluidoNosTotais = tr.patrimonio_destino_nome != null && tr.incluir_em_totais === 1
+    pushIfInMonth({
+      date: tr.data,
+      amount: -tr.valor,
+      descricao: tr.descricao || `Transferência para ${destino}`,
+      tipo: 'transferencia',
+      realizado: tr.data <= today,
+      neutro: incluidoNosTotais,
+    })
+  }
+
+  // Saques do patrimônio para conta (entrada na conta de destino)
+  const transferenciasSaque = db.prepare(`
+    SELECT tr.descricao, tr.valor, tr.data,
+      cd.nome AS conta_destino_nome, pe.nome AS patrimonio_origem_nome,
+      pe.incluir_em_totais
+    FROM transferencias tr
+    JOIN contas cd ON cd.id = tr.conta_destino_id
+    JOIN patrimonio_externo pe ON pe.id = tr.patrimonio_origem_id
+    WHERE tr.patrimonio_origem_id IS NOT NULL AND tr.data >= ? AND tr.data <= ?
+  `).all([startDate, endDate]) as {
+    descricao: string | null; valor: number; data: string
+    conta_destino_nome: string; patrimonio_origem_nome: string; incluir_em_totais: number
+  }[]
+
+  for (const tr of transferenciasSaque) {
+    const incluidoNosTotais = tr.incluir_em_totais === 1
+    pushIfInMonth({
+      date: tr.data,
+      amount: tr.valor,
+      descricao: tr.descricao || `Saque de ${tr.patrimonio_origem_nome}`,
+      tipo: 'transferencia',
+      realizado: tr.data <= today,
+      neutro: incluidoNosTotais,
+    })
+  }
+
   return events
 }
 
@@ -221,7 +280,8 @@ export function computeCashFlowTimeline(month: string): CashFlowTimeline {
   const today = localDateStr()
 
   const cartoes = getCartoesParaMes(month) as { id: number; melhor_data_compra: number }[]
-  const saldoInicial = computeSaldoAnterior(year, mon, cartoes)
+  const prevMonthEnd = lastDayOfPreviousMonth(year, mon)
+  let bankProj = computeSaldoBancario(prevMonthEnd)
   const rawEvents = collectEvents(month, startDate, endDate, today)
 
   // Agrupa eventos por data
@@ -232,11 +292,14 @@ export function computeCashFlowTimeline(month: string): CashFlowTimeline {
   }
 
   const dias: CashFlowDay[] = []
+  const saldoInicial = computeSaldoGeral(prevMonthEnd)
   let saldo = saldoInicial
   let saldoMinimo = saldoInicial
   let saldoMinimoDia = 1
   let saldoMinimoDate: string | null = startDate
   let diasNegativos = 0
+  let bankProjAtToday: number | null = null
+  const saldoGeralHoje = today >= startDate && today <= endDate ? computeSaldoGeral(today) : null
 
   for (let day = 1; day <= lastDay; day++) {
     const date = `${yearStr}-${monStr}-${String(day).padStart(2, '0')}`
@@ -245,9 +308,23 @@ export function computeCashFlowTimeline(month: string): CashFlowTimeline {
     let entradas = 0
     let saidas = 0
     for (const e of dayEvents) {
-      if (e.amount > 0) entradas += e.amount
-      else saidas += Math.abs(e.amount)
-      saldo = r2(saldo + e.amount)
+      if (e.neutro) {
+        // Transferência para reserva incluída nos totais — visível mas não conta como saída do patrimônio geral
+      } else if (e.amount > 0) {
+        entradas += e.amount
+      } else {
+        saidas += Math.abs(e.amount)
+      }
+      bankProj = r2(bankProj + e.amount)
+    }
+
+    if (date <= today) {
+      saldo = computeSaldoGeral(date)
+      if (date === today) bankProjAtToday = bankProj
+    } else if (saldoGeralHoje != null && bankProjAtToday != null) {
+      saldo = r2(saldoGeralHoje + (bankProj - bankProjAtToday))
+    } else {
+      saldo = r2(bankProj + getPatrimonioIncluidoTotal(today))
     }
 
     entradas = r2(entradas)
@@ -272,6 +349,7 @@ export function computeCashFlowTimeline(month: string): CashFlowTimeline {
         valor: Math.abs(e.amount),
         tipo: e.tipo,
         realizado: e.realizado,
+        neutro: e.neutro,
       })),
       isPast: date < today,
       isToday: date === today,

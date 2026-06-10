@@ -78,14 +78,17 @@
         />
         <DashboardResumoCard
           title="Saldo Atual"
-          :value="data.saldoBancario"
+          :value="saldoAtualValor"
           value-color="blue"
           icon="i-heroicons-banknotes"
           :period="todayLabel"
-          subtitle2="Dinheiro real nas contas"
+          :subtitle2="saldoAtualSubtitle"
           show-eye
           :hidden="globalHidden"
-          :sub1="{ label: 'Previsto fim do mês', value: data.saldoPrevisto, color: 'blue' }"
+          :toggle-options="saldoAtualToggleOptions"
+          :toggle="saldoAtualModo"
+          @update:toggle="onSaldoAtualToggle"
+          :sub1="{ label: 'Previsto fim do mês (contas)', value: data.saldoPrevisto, color: 'blue' }"
           :sub2="{ label: 'Resultado do mês', value: data.saldoPrevisto - data.saldoAnterior, color: (data.saldoPrevisto - data.saldoAnterior) >= 0 ? 'green' : 'red' }"
         />
       </div>
@@ -129,6 +132,12 @@
 
 <script setup lang="ts">
 const globalHidden = ref(false)
+const saldoAtualModo = ref<'contas' | 'total'>('contas')
+const { format } = useCurrency()
+
+function onSaldoAtualToggle(id: string) {
+  if (id === 'contas' || id === 'total') saldoAtualModo.value = id
+}
 
 const now = new Date()
 const currentMonth = ref(
@@ -184,6 +193,30 @@ const currentMonthEndLabel = computed(() => {
 const todayLabel = computed(() => {
   const now = new Date()
   return `Hoje, ${now.getDate()} de ${mesesPt[now.getMonth()]}`
+})
+
+const saldoAtualToggleOptions = computed(() => {
+  if (!data.value || (data.value.patrimonioExternoIncluido ?? 0) <= 0) return undefined
+  return [
+    { id: 'contas', label: 'Contas' },
+    { id: 'total', label: 'Total' },
+  ]
+})
+
+const saldoAtualValor = computed(() => {
+  if (!data.value) return 0
+  if (saldoAtualModo.value === 'total' && (data.value.patrimonioExternoIncluido ?? 0) > 0) {
+    return data.value.saldoGeral ?? data.value.saldoBancario
+  }
+  return data.value.saldoBancario
+})
+
+const saldoAtualSubtitle = computed(() => {
+  if (!data.value) return ''
+  if (saldoAtualModo.value === 'total' && (data.value.patrimonioExternoIncluido ?? 0) > 0) {
+    return `Contas ${format(data.value.saldoBancario)} + reservas ${format(data.value.patrimonioExternoIncluido)}`
+  }
+  return 'Saldo nas contas bancárias'
 })
 
 useHead({ title: 'Dashboard — Gestão Financeira' })
