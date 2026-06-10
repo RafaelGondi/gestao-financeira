@@ -1,5 +1,7 @@
 import type { CdiContext } from './cdi'
 import { cdiAmParaMesProjecao } from './cdi'
+import { findBank } from './banks'
+import { resolveInstituicaoGrupoKey } from './patrimonio-instituicao'
 
 export type PatrimonioTipo = 'fgts' | 'consorcio' | 'renda_fixa' | 'caixinha' | 'outro'
 export type AporteModo = 'nenhum' | 'fixo_mensal' | 'manual'
@@ -14,6 +16,7 @@ export interface PatrimonioInput {
   aporte_valor: number | null
   rendimento_modo: RendimentoModo
   rendimento_valor: number | null
+  instituicao_key: string | null
   grupo_rendimento: string | null
   cdi_faixa_teto: number | null
   cdi_pct_ate_teto: number | null
@@ -179,13 +182,17 @@ export function faixasDetalheAtual(
   item: PatrimonioInput,
   saldoGrupo: number,
 ): FaixasDetalhe | undefined {
-  if (item.rendimento_modo !== 'cdi_faixas' || !item.grupo_rendimento?.trim()) return undefined
+  if (item.rendimento_modo !== 'cdi_faixas') return undefined
+  const grupoNome = item.instituicao_key?.trim()
+    ? (findBank(item.instituicao_key)?.name ?? item.instituicao_key)
+    : item.grupo_rendimento?.trim()
+  if (!grupoNome) return undefined
   const teto = item.cdi_faixa_teto ?? 0
   const pctAte = item.cdi_pct_ate_teto ?? 0
   const pctAcima = item.cdi_pct_acima ?? 0
 
   return {
-    grupo: item.grupo_rendimento.trim(),
+    grupo: grupoNome,
     saldoGrupo: r2(saldoGrupo),
     rendendoAteTeto: r2(Math.min(saldoGrupo, teto)),
     rendendoAcimaTeto: r2(Math.max(saldoGrupo - teto, 0)),
@@ -202,8 +209,7 @@ interface MembroGrupo {
 
 function chaveGrupo(item: PatrimonioInput): string | null {
   if (item.rendimento_modo !== 'cdi_faixas') return null
-  const g = item.grupo_rendimento?.trim()
-  return g || null
+  return resolveInstituicaoGrupoKey(item)
 }
 
 function configFaixas(item: PatrimonioInput) {
@@ -461,6 +467,7 @@ export const PRESETS_TIPO: Record<PatrimonioTipo, Partial<{
 
 export const PRESET_MERCADO_PAGO_FAIXAS = {
   rendimento_modo: 'cdi_faixas' as RendimentoModo,
+  instituicao_key: 'mercadopago',
   grupo_rendimento: 'Mercado Pago',
   cdi_faixa_teto: 10000,
   cdi_pct_ate_teto: 120,

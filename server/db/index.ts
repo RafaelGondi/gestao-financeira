@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import { join } from 'path'
 import { mkdirSync, existsSync } from 'fs'
+import { findBankByName } from '../utils/banks'
 
 const g = globalThis as any
 
@@ -297,6 +298,23 @@ if (!g.__db) {
 
   if (patCols.length && !patColNames.includes('cdi_dias_base')) {
     db.exec(`ALTER TABLE patrimonio_externo ADD COLUMN cdi_dias_base TEXT NOT NULL DEFAULT 'uteis'`)
+  }
+
+  const patCols2 = db.prepare(`PRAGMA table_info(patrimonio_externo)`).all() as { name: string }[]
+  const patColNames2 = patCols2.map(c => c.name)
+  if (patCols2.length && !patColNames2.includes('instituicao_key')) {
+    db.exec(`ALTER TABLE patrimonio_externo ADD COLUMN instituicao_key TEXT`)
+  }
+
+  // Idempotente: converte grupo_rendimento legado em instituicao_key (deploy seguro em produção)
+  const patBackfill = db.prepare(`
+    SELECT id, grupo_rendimento FROM patrimonio_externo
+    WHERE instituicao_key IS NULL AND grupo_rendimento IS NOT NULL AND trim(grupo_rendimento) != ''
+  `).all() as { id: number; grupo_rendimento: string }[]
+  const setInstituicaoKey = db.prepare(`UPDATE patrimonio_externo SET instituicao_key = ? WHERE id = ?`)
+  for (const row of patBackfill) {
+    const bank = findBankByName(row.grupo_rendimento)
+    if (bank) setInstituicaoKey.run(bank.key, row.id)
   }
 
   const movCols = db.prepare(`PRAGMA table_info(patrimonio_movimentos)`).all() as { name: string }[]

@@ -81,9 +81,12 @@
         </div>
       </div>
 
-      <div v-if="grupoMembros?.length" class="text-xs text-gray-500 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 rounded-lg px-4 py-3">
-        Grupo <strong>{{ item.grupo_rendimento }}</strong> · projeção considera saldo somado com
-        {{ grupoMembros.filter(g => g.id !== item.id).map(g => g.nome).join(', ') }}
+      <div v-if="grupoMembros?.length" class="text-xs text-gray-500 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 rounded-lg px-4 py-3 flex items-start gap-3">
+        <SharedBankLogo v-if="instituicaoBank" :bank="instituicaoBank" :size="28" class="rounded-md shrink-0 mt-0.5" />
+        <p>
+          Instituição <strong>{{ instituicaoNome }}</strong> · projeção considera saldo somado com
+          {{ grupoMembros.filter(g => g.id !== item.id).map(g => g.nome).join(', ') }}
+        </p>
       </div>
 
       <!-- Gráfico -->
@@ -194,7 +197,7 @@ interface PatrimonioDetail {
   item: {
     id: number; nome: string; tipo: string; saldo_atual: number; valor_alvo: number | null
     incluir_em_totais: boolean; aporte_modo: string; aporte_valor: number | null
-    grupo_rendimento: string | null; icone: string; cor: string
+    instituicao_key: string | null; grupo_rendimento: string | null; icone: string; cor: string
     projecao: { meses6: number; meses12: number; taxaAnualEfetiva: number | null; pctAlvo: number | null }
     movimentos: Movimento[]
   }
@@ -210,6 +213,15 @@ const contas = computed(() => contasData.value ?? [])
 
 const item = computed(() => data.value?.item)
 const grupoMembros = computed(() => data.value?.grupoMembros)
+const { findBank } = useBanks()
+const instituicaoBank = computed(() => {
+  const key = item.value?.instituicao_key
+  return key ? findBank(key) : undefined
+})
+const instituicaoNome = computed(() => {
+  if (instituicaoBank.value) return instituicaoBank.value.name
+  return item.value?.grupo_rendimento ?? 'Instituição'
+})
 
 const chartRef = ref<{ refresh: () => void } | null>(null)
 const movFormRef = ref<{ reset: (t?: 'ajuste' | 'aporte' | 'retirada') => void } | null>(null)

@@ -59,15 +59,41 @@
         </select>
       </div>
       <template v-if="form.rendimento_modo === 'cdi_faixas'">
-        <div class="sm:col-span-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 p-3">
+        <div class="sm:col-span-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 p-3 space-y-3">
           <UButton size="xs" color="neutral" variant="soft" class="cursor-pointer" @click="applyMercadoPagoPreset">
             Regra Mercado Pago (120% até R$ 10 mil)
           </UButton>
+          <p class="text-xs text-gray-500">
+            Caixinhas da mesma instituição somam saldo para calcular a faixa de rendimento.
+          </p>
         </div>
-        <div>
-          <p class="text-xs text-gray-500 mb-1.5">Grupo</p>
-          <input v-model="form.grupo_rendimento" type="text" placeholder="Ex: Mercado Pago"
-            class="w-full text-sm bg-gray-100 dark:bg-gray-800 border-0 rounded-lg px-3 py-2" />
+        <div class="sm:col-span-2">
+          <p class="text-xs text-gray-500 mb-1.5">Instituição <span class="text-rose-500">*</span></p>
+          <div class="grid grid-cols-4 gap-2 mb-2">
+            <button
+              v-for="bank in BANKS"
+              :key="bank.key"
+              type="button"
+              class="flex flex-col items-center gap-1.5 p-2 rounded-lg border-2 transition-all cursor-pointer"
+              :class="form.instituicaoKey === bank.key
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'"
+              @click="selectInstituicao(bank.key)"
+            >
+              <SharedBankLogo :bank="bank" :size="32" class="rounded-lg" />
+              <span class="text-[11px] text-center leading-tight"
+                :class="form.instituicaoKey === bank.key
+                  ? 'text-primary-700 dark:text-primary-400 font-medium'
+                  : 'text-gray-500 dark:text-gray-400'">
+                {{ bank.name }}
+              </span>
+            </button>
+          </div>
+          <div v-if="!form.instituicaoKey || form.instituicaoKey === 'outro'" class="mt-2">
+            <input v-model="form.instituicaoCustom" type="text" placeholder="Nome da instituição..."
+              class="w-full text-sm bg-gray-100 dark:bg-gray-800 border-0 rounded-lg px-3 py-2" />
+            <p class="text-[11px] text-gray-400 mt-1">Use a lista acima quando possível — evita agrupar caixinhas erradas.</p>
+          </div>
         </div>
         <div>
           <p class="text-xs text-gray-500 mb-1.5">Teto da faixa</p>
@@ -138,6 +164,7 @@
 
 <script setup lang="ts">
 import { PATRIMONIO_TIPOS } from '~/utils/patrimonio-labels'
+import { findBankByName } from '~/utils/banks'
 
 type PatrimonioTipo = 'fgts' | 'consorcio' | 'renda_fixa' | 'caixinha' | 'outro'
 
@@ -146,13 +173,15 @@ const props = defineProps<{
     id: number; nome: string; tipo: PatrimonioTipo; saldo_atual: number; valor_alvo: number | null
     incluir_em_totais: boolean; aporte_modo: string; aporte_valor: number | null
     rendimento_modo: string; rendimento_valor: number | null
-    grupo_rendimento: string | null; cdi_faixa_teto: number | null
+    instituicao_key: string | null; grupo_rendimento: string | null; cdi_faixa_teto: number | null
     cdi_pct_ate_teto: number | null; cdi_pct_acima: number | null; cdi_dias_base: string | null
     data_fim: string | null; icone: string; cor: string; notas: string | null
   }
 }>()
 
 const emit = defineEmits<{ saved: []; cancel: []; deleted: [] }>()
+
+const { BANKS } = useBanks()
 
 const saving = ref(false)
 const deleting = ref(false)
@@ -177,7 +206,8 @@ const form = reactive({
   nome: '', tipo: 'fgts' as PatrimonioTipo, saldo_atual: 0, valor_alvo: 0,
   incluir_em_totais: false, aporte_modo: 'fixo_mensal', aporte_valor: 0,
   rendimento_modo: 'tr_mais', rendimento_valor: '3', data_fim: '',
-  grupo_rendimento: '', cdi_faixa_teto: 0, cdi_pct_ate_teto: '120', cdi_pct_acima: '100',
+  instituicaoKey: '', instituicaoCustom: '',
+  cdi_faixa_teto: 0, cdi_pct_ate_teto: '120', cdi_pct_acima: '100',
   cdi_dias_base: 'uteis' as 'uteis' | 'corridos',
   icone: 'i-lucide-shield-check', cor: '#22c55e', notas: '',
 })
@@ -191,11 +221,17 @@ const rendimentoValorLabel = computed(() => {
 
 function applyMercadoPagoPreset() {
   form.rendimento_modo = 'cdi_faixas'
-  form.grupo_rendimento = 'Mercado Pago'
+  form.instituicaoKey = 'mercadopago'
+  form.instituicaoCustom = ''
   form.cdi_faixa_teto = 10000
   form.cdi_pct_ate_teto = '120'
   form.cdi_pct_acima = '100'
   form.cdi_dias_base = 'corridos'
+}
+
+function selectInstituicao(key: string) {
+  form.instituicaoKey = key
+  form.instituicaoCustom = ''
 }
 
 function applyPreset() {
@@ -225,7 +261,17 @@ function loadFromItem() {
   form.aporte_valor = item.aporte_valor ?? 0
   form.rendimento_modo = item.rendimento_modo
   form.rendimento_valor = item.rendimento_valor != null ? String(item.rendimento_valor) : ''
-  form.grupo_rendimento = item.grupo_rendimento ?? ''
+  if (item.instituicao_key) {
+    form.instituicaoKey = item.instituicao_key
+    form.instituicaoCustom = ''
+  } else if (item.grupo_rendimento) {
+    const bank = findBankByName(item.grupo_rendimento)
+    form.instituicaoKey = bank?.key ?? 'outro'
+    form.instituicaoCustom = bank ? '' : item.grupo_rendimento
+  } else {
+    form.instituicaoKey = ''
+    form.instituicaoCustom = ''
+  }
   form.cdi_faixa_teto = item.cdi_faixa_teto ?? 0
   form.cdi_pct_ate_teto = item.cdi_pct_ate_teto != null ? String(item.cdi_pct_ate_teto) : '120'
   form.cdi_pct_acima = item.cdi_pct_acima != null ? String(item.cdi_pct_acima) : '100'
@@ -238,8 +284,33 @@ function loadFromItem() {
 
 watch(() => props.item, loadFromItem, { immediate: true })
 
+function instituicaoValida() {
+  if (form.instituicaoKey && form.instituicaoKey !== 'outro') return true
+  if (form.instituicaoCustom.trim()) return true
+  if (props.item?.instituicao_key || props.item?.grupo_rendimento) return true
+  return false
+}
+
 function buildBody() {
   const isFaixas = form.rendimento_modo === 'cdi_faixas'
+  let instituicaoKey = isFaixas && form.instituicaoKey && form.instituicaoKey !== 'outro'
+    ? form.instituicaoKey
+    : null
+  let instituicaoCustom = isFaixas && (!instituicaoKey || form.instituicaoKey === 'outro')
+    ? form.instituicaoCustom.trim() || null
+    : null
+
+  // Preserva instituição legada ao editar sem reabrir o seletor
+  if (isFaixas && !instituicaoKey && !instituicaoCustom && props.item) {
+    if (props.item.instituicao_key) {
+      instituicaoKey = props.item.instituicao_key
+    } else if (props.item.grupo_rendimento) {
+      const bank = findBankByName(props.item.grupo_rendimento)
+      if (bank) instituicaoKey = bank.key
+      else instituicaoCustom = props.item.grupo_rendimento
+    }
+  }
+
   return {
     nome: form.nome.trim(),
     tipo: form.tipo,
@@ -251,7 +322,8 @@ function buildBody() {
     rendimento_modo: form.rendimento_modo,
     rendimento_valor: !isFaixas && form.rendimento_modo !== 'nenhum' && form.rendimento_valor
       ? parseFloat(form.rendimento_valor) : null,
-    grupo_rendimento: isFaixas ? form.grupo_rendimento.trim() || null : null,
+    instituicao_key: instituicaoKey,
+    instituicao_custom: instituicaoCustom,
     cdi_faixa_teto: isFaixas && form.cdi_faixa_teto > 0 ? form.cdi_faixa_teto : null,
     cdi_pct_ate_teto: isFaixas && form.cdi_pct_ate_teto ? parseFloat(form.cdi_pct_ate_teto) : null,
     cdi_pct_acima: isFaixas && form.cdi_pct_acima ? parseFloat(form.cdi_pct_acima) : null,
@@ -265,7 +337,7 @@ function buildBody() {
 
 async function save() {
   if (!form.nome.trim()) return
-  if (form.rendimento_modo === 'cdi_faixas' && !form.grupo_rendimento.trim()) return
+  if (form.rendimento_modo === 'cdi_faixas' && !instituicaoValida()) return
   saving.value = true
   try {
     const body = buildBody()

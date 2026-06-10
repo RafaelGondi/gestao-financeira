@@ -7,12 +7,13 @@ import {
   type PatrimonioInput,
 } from '../../utils/patrimonio-projecao'
 import { mapPatrimonioRow, toPatrimonioInput, type MovimentoRow, type PatrimonioRow } from '../../utils/patrimonio-map'
+import { instituicaoGrupoMatch } from '../../utils/patrimonio-instituicao'
 
 function loadGrupoMembros(item: PatrimonioRow, allItens: PatrimonioRow[]): PatrimonioInput[] | undefined {
-  if (item.rendimento_modo !== 'cdi_faixas' || !item.grupo_rendimento?.trim()) return undefined
-  const grupo = item.grupo_rendimento.trim()
+  if (item.rendimento_modo !== 'cdi_faixas') return undefined
+  if (!item.instituicao_key?.trim() && !item.grupo_rendimento?.trim()) return undefined
   return allItens
-    .filter(i => i.rendimento_modo === 'cdi_faixas' && i.grupo_rendimento?.trim() === grupo)
+    .filter(i => i.rendimento_modo === 'cdi_faixas' && instituicaoGrupoMatch(item, i))
     .map(toPatrimonioInput)
 }
 
@@ -39,7 +40,7 @@ export default defineEventHandler(async (event) => {
   const grupoInputs = loadGrupoMembros(item, allItens)
   const grupoMembros = grupoInputs && grupoInputs.length > 1
     ? allItens
-      .filter(i => i.rendimento_modo === 'cdi_faixas' && i.grupo_rendimento?.trim() === item.grupo_rendimento?.trim())
+      .filter(i => i.rendimento_modo === 'cdi_faixas' && instituicaoGrupoMatch(item, i))
       .map(i => ({ id: i.id, item: toPatrimonioInput(i) }))
     : undefined
 

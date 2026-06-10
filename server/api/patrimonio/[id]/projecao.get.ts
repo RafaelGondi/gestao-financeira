@@ -6,6 +6,7 @@ import {
   computePatrimonioSerieMensal,
 } from '../../../utils/patrimonio-projecao'
 import { toPatrimonioInput, type PatrimonioRow } from '../../../utils/patrimonio-map'
+import { instituicaoGrupoMatch } from '../../../utils/patrimonio-instituicao'
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
@@ -25,14 +26,14 @@ export default defineEventHandler(async (event) => {
   const projecao = computePatrimonioProjecao(input, cdi)
 
   let grupoMembros: { id: number; item: ReturnType<typeof toPatrimonioInput> }[] | undefined
-  if (item.rendimento_modo === 'cdi_faixas' && item.grupo_rendimento?.trim()) {
-    const grupo = item.grupo_rendimento.trim()
+  if (item.rendimento_modo === 'cdi_faixas' && (item.instituicao_key?.trim() || item.grupo_rendimento?.trim())) {
     const siblings = db.prepare(`
       SELECT * FROM patrimonio_externo
-      WHERE ativo = 1 AND rendimento_modo = 'cdi_faixas' AND trim(grupo_rendimento) = ?
-    `).all(grupo) as PatrimonioRow[]
-    if (siblings.length > 1) {
-      grupoMembros = siblings.map(s => ({ id: s.id, item: toPatrimonioInput(s) }))
+      WHERE ativo = 1 AND rendimento_modo = 'cdi_faixas'
+    `).all() as PatrimonioRow[]
+    const matched = siblings.filter(s => instituicaoGrupoMatch(item, s))
+    if (matched.length > 1) {
+      grupoMembros = matched.map(s => ({ id: s.id, item: toPatrimonioInput(s) }))
     }
   }
 

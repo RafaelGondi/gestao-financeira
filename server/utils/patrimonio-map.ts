@@ -11,6 +11,7 @@ export interface PatrimonioRow {
   aporte_valor: number | null
   rendimento_modo: string
   rendimento_valor: number | null
+  instituicao_key: string | null
   grupo_rendimento: string | null
   cdi_faixa_teto: number | null
   cdi_pct_ate_teto: number | null
@@ -43,7 +44,8 @@ export function toPatrimonioInput(item: PatrimonioRow): PatrimonioInput {
     aporte_valor: item.aporte_valor,
     rendimento_modo: item.rendimento_modo as RendimentoModo,
     rendimento_valor: item.rendimento_valor,
-    grupo_rendimento: item.grupo_rendimento,
+    instituicao_key: item.instituicao_key ?? null,
+    grupo_rendimento: item.grupo_rendimento ?? null,
     cdi_faixa_teto: item.cdi_faixa_teto,
     cdi_pct_ate_teto: item.cdi_pct_ate_teto,
     cdi_pct_acima: item.cdi_pct_acima,
