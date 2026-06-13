@@ -62,10 +62,15 @@
         <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
           <h2 class="font-semibold text-gray-800 dark:text-gray-100">Saldo dia a dia</h2>
           <p class="text-xs text-gray-400 mt-0.5">
-            Saldo nas contas bancárias (projetado) — alinhado ao previsto do dashboard
+            <template v-if="data.patrimonioIncluidoHoje > 0">
+              Contas + reservas incluídas nos totais gerais (projetado)
+            </template>
+            <template v-else>
+              Saldo nas contas bancárias (projetado) — alinhado ao previsto do dashboard
+            </template>
           </p>
           <p v-if="data.patrimonioIncluidoHoje > 0" class="text-xs text-gray-400 mt-1">
-            Reservas incluídas nos totais hoje: {{ format(data.patrimonioIncluidoHoje) }} (fora desta projeção de contas)
+            Reservas hoje: {{ format(data.patrimonioIncluidoHoje) }} · Previsto só contas fim do mês: {{ format(data.saldoFimMesContas) }}
           </p>
         </div>
         <div class="hidden sm:block px-5 py-5 h-72">
@@ -229,6 +234,7 @@ interface TimelineData {
   saldoMinimoDate: string | null
   diasNegativos: number
   saldoFimMes: number
+  saldoFimMesContas: number
   patrimonioIncluidoHoje: number
   dias: CashFlowDay[]
 }
