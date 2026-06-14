@@ -6,7 +6,7 @@ import { computeMonthTotals } from '../../utils/month-totals'
 import { computeSaldoAnterior } from '../../utils/saldo-anterior'
 import { localDateStr } from '../../utils/localDate'
 import { getSaldoConta } from '../../utils/getSaldoConta'
-import { getPatrimonioIncluidoTotal } from '../../utils/patrimonio-totais'
+import { getPatrimonioIncluidoTotal, lastDayOfPreviousMonth } from '../../utils/patrimonio-totais'
 
 interface Transacao {
   id: number
@@ -176,6 +176,10 @@ export default defineEventHandler((event) => {
   // Patrimônio incluído entra no saldo atual, mas não infla este previsto — evita
   // contar caixinha cadastrada manualmente como se fosse entrada extra no mês.
   const saldoPrevisto = r2(saldoAnterior + totalReceitas - totalDespesas)
+  const prevMonthEnd = lastDayOfPreviousMonth(year, mon)
+  const patrimonioInicioMes = getPatrimonioIncluidoTotal(prevMonthEnd)
+  const saldoAnteriorTotal = r2(saldoAnterior + patrimonioInicioMes)
+  const saldoPrevistoTotal = r2(saldoPrevisto + patrimonioExternoIncluido)
 
   const contasPagarItems = despesas
   const contasPagarTotal = despesas.reduce((sum, t) => sum + t.valor, 0)
@@ -213,9 +217,12 @@ export default defineEventHandler((event) => {
     saldoBancario,
     saldoGeral,
     patrimonioExternoIncluido,
+    patrimonioInicioMes,
     saldoAnterior: r2(saldoAnterior),
+    saldoAnteriorTotal,
     saldoDisponivel,
     saldoPrevisto,
+    saldoPrevistoTotal,
     receitas: { total: recebido, recebido, aReceber, items: receitas },
     despesas: { total: totalDespesas, pago, aPagar, items: despesas },
     gastosPorCategoria,

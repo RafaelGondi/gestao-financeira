@@ -88,8 +88,8 @@
           :toggle-options="saldoAtualToggleOptions"
           :toggle="saldoAtualModo"
           @update:toggle="onSaldoAtualToggle"
-          :sub1="{ label: 'Previsto fim do mês (contas)', value: data.saldoPrevisto, color: 'blue' }"
-          :sub2="{ label: 'Resultado do mês', value: data.saldoPrevisto - data.saldoAnterior, color: (data.saldoPrevisto - data.saldoAnterior) >= 0 ? 'green' : 'red' }"
+          :sub1="saldoAtualSub1"
+          :sub2="saldoAtualSub2"
         />
       </div>
 
@@ -217,6 +217,38 @@ const saldoAtualSubtitle = computed(() => {
     return `Contas ${format(data.value.saldoBancario)} + reservas ${format(data.value.patrimonioExternoIncluido)}`
   }
   return 'Saldo nas contas bancárias'
+})
+
+const saldoAtualUsaTotal = computed(
+  () => saldoAtualModo.value === 'total' && (data.value?.patrimonioExternoIncluido ?? 0) > 0,
+)
+
+const saldoAtualSub1 = computed(() => {
+  if (!data.value) return { label: 'Previsto fim do mês', value: 0, color: 'blue' as const }
+  if (saldoAtualUsaTotal.value) {
+    return {
+      label: 'Previsto fim do mês (total)',
+      value: data.value.saldoPrevistoTotal ?? data.value.saldoPrevisto,
+      color: 'blue' as const,
+    }
+  }
+  return {
+    label: 'Previsto fim do mês (contas)',
+    value: data.value.saldoPrevisto,
+    color: 'blue' as const,
+  }
+})
+
+const saldoAtualSub2 = computed(() => {
+  if (!data.value) return { label: 'Resultado do mês', value: 0, color: 'green' as const }
+  const delta = saldoAtualUsaTotal.value
+    ? (data.value.saldoPrevistoTotal ?? data.value.saldoPrevisto) - (data.value.saldoAnteriorTotal ?? data.value.saldoAnterior)
+    : data.value.saldoPrevisto - data.value.saldoAnterior
+  return {
+    label: 'Resultado do mês',
+    value: delta,
+    color: (delta >= 0 ? 'green' : 'red') as 'green' | 'red',
+  }
 })
 
 useHead({ title: 'Dashboard — Gestão Financeira' })
