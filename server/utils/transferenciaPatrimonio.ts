@@ -21,13 +21,58 @@ export function getMovimentoByTransferencia(transferenciaId: number): MovimentoR
   `).get(transferenciaId) as MovimentoRow | undefined
 }
 
-export function revertPatrimonioMovimento(mov: Pick<MovimentoRow, 'patrimonio_id' | 'tipo' | 'valor'>) {
-  if (mov.tipo === 'ajuste') return
-  const item = db.prepare(`SELECT saldo_atual FROM patrimonio_externo WHERE id = ?`).get(mov.patrimonio_id) as { saldo_atual: number }
-  let novoSaldo = item.saldo_atual
-  if (mov.tipo === 'aporte') novoSaldo -= mov.valor
-  else if (mov.tipo === 'retirada') novoSaldo += mov.valor
-  db.prepare(`UPDATE patrimonio_externo SET saldo_atual = ? WHERE id = ?`).run([novoSaldo, mov.patrimonio_id])
+const r2 = (n: number) => Math.round(n * 100) / 100
+
+function applyMovimentoToSaldo(saldo: number, mov: { tipo: string; valor: number }) {
+  if (mov.tipo === 'aporte') return saldo + mov.valor
+  if (mov.tipo === 'retirada') return saldo - mov.valor
+  if (mov.tipo === 'ajuste') return mov.valor
+  return saldo
+}
+
+function replayMovimentos(movs: { tipo: string; valor: number }[], opening: number) {
+  let saldo = opening
+  for (const m of movs) saldo = applyMovimentoToSaldo(saldo, m)
+  return saldo
+}
+
+/** Saldo antes do primeiro movimento (abertura manual ou zero). */
+function computeSaldoAbertura(
+  allMovs: { tipo: string; valor: number }[],
+  saldoAtual: number,
+) {
+  if (allMovs.length === 0) return saldoAtual
+  if (allMovs.some(m => m.tipo === 'ajuste')) return 0
+  return Math.max(0, r2(saldoAtual - replayMovimentos(allMovs, 0)))
+}
+
+/** Recalcula saldo_atual a partir dos movimentos (opcionalmente excluindo um que será apagado). */
+export function recalcularSaldoPatrimonio(patrimonioId: number, excludeMovimentoId?: number) {
+  const item = db.prepare(`
+    SELECT saldo_atual FROM patrimonio_externo WHERE id = ?
+  `).get(patrimonioId) as { saldo_atual: number } | undefined
+  if (!item) return
+
+  const allMovs = db.prepare(`
+    SELECT id, tipo, valor FROM patrimonio_movimentos
+    WHERE patrimonio_id = ?
+    ORDER BY data ASC, id ASC
+  `).all(patrimonioId) as { id: number; tipo: string; valor: number }[]
+
+  const movs = excludeMovimentoId
+    ? allMovs.filter(m => m.id !== excludeMovimentoId)
+    : allMovs
+
+  if (movs.length === 0) return
+
+  const opening = computeSaldoAbertura(allMovs, item.saldo_atual)
+  const saldo = r2(replayMovimentos(movs, opening))
+
+  db.prepare(`UPDATE patrimonio_externo SET saldo_atual = ? WHERE id = ?`).run([saldo, patrimonioId])
+}
+
+export function revertPatrimonioMovimento(mov: Pick<MovimentoRow, 'id' | 'patrimonio_id' | 'tipo' | 'valor'>) {
+  recalcularSaldoPatrimonio(mov.patrimonio_id, mov.id)
 }
 
 export function applyPatrimonioAporte(

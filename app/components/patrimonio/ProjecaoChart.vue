@@ -425,7 +425,11 @@ const chartOptions = {
       ticks: {
         color: '#9ca3af',
         font: { size: 11 },
-        callback: (val: number | string) => `R$${(Number(val) / 1000).toFixed(1)}k`,
+        callback: (val: number | string) => {
+          const n = Number(val)
+          if (Math.abs(n) < 1000) return `R$${n.toFixed(0)}`
+          return `R$${(n / 1000).toFixed(1)}k`
+        },
       },
     },
   },
@@ -456,7 +460,11 @@ const yAxisOptions = {
         color: '#9ca3af',
         font: { size: 10 },
         maxTicksLimit: 6,
-        callback: (val: number | string) => `R$${(Number(val) / 1000).toFixed(1)}k`,
+        callback: (val: number | string) => {
+          const n = Number(val)
+          if (Math.abs(n) < 1000) return `R$${n.toFixed(0)}`
+          return `R$${(n / 1000).toFixed(1)}k`
+        },
       },
     },
   },

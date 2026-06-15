@@ -415,8 +415,49 @@ if (!g.__db) {
       mes TEXT NOT NULL,
       saldo REAL NOT NULL,
       month_index INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS app_migrations (
+      name TEXT PRIMARY KEY,
+      applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `)
+
+  const patrimonioSaldoRecalc = db.prepare(`SELECT 1 FROM app_migrations WHERE name = ?`).get('patrimonio_saldo_recalc_v1')
+  if (!patrimonioSaldoRecalc) {
+    const itens = db.prepare(`SELECT id, saldo_atual FROM patrimonio_externo WHERE ativo = 1`).all() as { id: number; saldo_atual: number }[]
+    const loadMovs = db.prepare(`
+      SELECT tipo, valor FROM patrimonio_movimentos
+      WHERE patrimonio_id = ? ORDER BY data ASC, id ASC
+    `)
+    const updateSaldo = db.prepare(`UPDATE patrimonio_externo SET saldo_atual = ? WHERE id = ?`)
+
+    for (const item of itens) {
+      const movs = loadMovs.all(item.id) as { tipo: string; valor: number }[]
+      if (movs.length === 0) continue
+
+      const hasAjuste = movs.some(m => m.tipo === 'ajuste')
+      let opening = 0
+      if (!hasAjuste) {
+        let effect = 0
+        for (const m of movs) {
+          if (m.tipo === 'aporte') effect += m.valor
+          else if (m.tipo === 'retirada') effect -= m.valor
+        }
+        opening = Math.max(0, Math.round((item.saldo_atual - effect) * 100) / 100)
+      }
+
+      let saldo = opening
+      for (const m of movs) {
+        if (m.tipo === 'aporte') saldo += m.valor
+        else if (m.tipo === 'retirada') saldo -= m.valor
+        else if (m.tipo === 'ajuste') saldo = m.valor
+      }
+      updateSaldo.run([Math.round(saldo * 100) / 100, item.id])
+    }
+
+    db.prepare(`INSERT INTO app_migrations (name) VALUES (?)`).run('patrimonio_saldo_recalc_v1')
+  }
 
   g.__db = db
 }
