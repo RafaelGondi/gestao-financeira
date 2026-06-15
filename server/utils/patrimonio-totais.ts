@@ -1,5 +1,5 @@
 import db from '../db/index'
-import { computeSaldoBancario } from './saldo'
+import { getSaldoBancarioTotal } from './getSaldoConta'
 import { localDateStr } from './localDate'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -54,7 +54,7 @@ export function getPatrimonioIncluidoTotal(cutoffStr?: string): number {
 /** Saldo bancário + patrimônio externo incluído nos totais gerais. */
 export function computeSaldoGeral(cutoffStr?: string): number {
   const cutoff = cutoffStr ?? localDateStr()
-  return r2(computeSaldoBancario(cutoff) + getPatrimonioIncluidoTotal(cutoff))
+  return r2(getSaldoBancarioTotal(cutoff) + getPatrimonioIncluidoTotal(cutoff))
 }
 
 /** Último dia do mês anterior a year-mon. */

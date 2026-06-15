@@ -1,7 +1,7 @@
 import db from '../../db/index'
 import { readBody } from 'h3'
 import { computeMonthTotals } from '../../utils/month-totals'
-import { computeSaldoBancario } from '../../utils/saldo'
+import { getSaldoBancarioTotal } from '../../utils/getSaldoConta'
 
 interface Cartao { id: number; melhor_data_compra: number }
 
@@ -14,7 +14,7 @@ function buildForecast(meses = 18, referenceDate?: string) {
   const currentMon = ref.getMonth() + 1
   const refStr = referenceDate ?? `${currentYear}-${String(currentMon).padStart(2, '0')}-${String(ref.getDate()).padStart(2, '0')}`
 
-  let patrimonio = computeSaldoBancario(refStr)
+  let patrimonio = getSaldoBancarioTotal(refStr)
   const results = []
 
   for (let i = 0; i < meses; i++) {

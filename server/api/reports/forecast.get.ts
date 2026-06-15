@@ -1,10 +1,9 @@
 import db from '../../db/index'
 import { computeMonthTotals } from '../../utils/month-totals'
 import { computeSaldoAnterior } from '../../utils/saldo-anterior'
-import { getSaldoConta } from '../../utils/getSaldoConta'
+import { getSaldoConta, getSaldoBancarioTotal } from '../../utils/getSaldoConta'
 import { localDateStr } from '../../utils/localDate'
 import { fetchCdiAnual, computePatrimonioComRendimento } from '../../utils/cdi'
-import { computeSaldoBancario } from '../../utils/saldo'
 import { getPatrimonioIncluidoTotal, lastDayOfMonth } from '../../utils/patrimonio-totais'
 
 interface Cartao {
@@ -44,7 +43,7 @@ export default defineEventHandler(async () => {
     // Mesma lógica do dashboard saldoPrevisto: saldo anterior + (receitas − despesas)
     let patrimonio: number
     if (isPast) {
-      patrimonio = computeSaldoBancario(lastDayOfMonth(y, m))
+      patrimonio = getSaldoBancarioTotal(lastDayOfMonth(y, m))
     } else {
       patrimonio = r2(saldoAnterior + balance)
     }

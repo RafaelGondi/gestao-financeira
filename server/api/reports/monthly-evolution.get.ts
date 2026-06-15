@@ -1,6 +1,6 @@
 import db from '../../db/index'
 import { computeMonthTotals } from '../../utils/month-totals'
-import { computeSaldoBancario } from '../../utils/saldo'
+import { getSaldoBancarioTotal } from '../../utils/getSaldoConta'
 import { computeSaldoGeral, lastDayOfMonth } from '../../utils/patrimonio-totais'
 
 interface Cartao {
@@ -28,7 +28,7 @@ export default defineEventHandler(() => {
     const balance = r2(income - expenses)
     const endDate = lastDayOfMonth(year, mon)
     const patrimonio = computeSaldoGeral(endDate)
-    const patrimonioBancario = computeSaldoBancario(endDate)
+    const patrimonioBancario = getSaldoBancarioTotal(endDate)
 
     results.push({ month, income, expenses, balance, patrimonio, patrimonioBancario })
   }

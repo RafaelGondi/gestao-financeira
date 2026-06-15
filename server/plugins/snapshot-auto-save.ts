@@ -6,7 +6,7 @@ export default defineNitroPlugin(async () => {
   // Importar lazily para garantir que o DB já foi inicializado
   const { default: db } = await import('../db/index')
   const { computeMonthTotals } = await import('../utils/month-totals')
-  const { computeSaldoBancario } = await import('../utils/saldo')
+  const { getSaldoBancarioTotal } = await import('../utils/getSaldoConta')
 
   try {
     const hoje = new Date()
@@ -25,7 +25,7 @@ export default defineNitroPlugin(async () => {
     const currentMon = hoje.getMonth() + 1
     const todayStr = `${currentYear}-${String(currentMon).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`
 
-    let patrimonio = computeSaldoBancario(todayStr)
+    let patrimonio = getSaldoBancarioTotal(todayStr)
     const mesesPt = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
     const nomeMes = mesesPt[currentMon - 1]
     const criado_em = todayStr
