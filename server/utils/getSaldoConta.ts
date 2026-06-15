@@ -3,21 +3,23 @@ import { localDateStr } from './localDate'
 import { effectiveDate } from './dateUtils'
 import { faturaDateRange } from './fatura'
 
+const r2 = (n: number) => Math.round(n * 100) / 100
+
 /**
  * Saldo real da conta: receitas/despesas avulsas, fixas (com pagamento antecipado),
  * transferências e faturas pagas. Mesma lógica da página de lançamentos da conta.
  */
-export function getSaldoConta(contaId: number): number {
+export function getSaldoConta(contaId: number, cutoffStr?: string): number {
   const conta = db.prepare(`SELECT saldo_inicial FROM contas WHERE id = ?`).get([contaId]) as { saldo_inicial: number } | undefined
   if (!conta) return 0
 
-  const today = localDateStr()
+  const cutoff = cutoffStr ?? localDateStr()
   let saldo = conta.saldo_inicial
 
   saldo += (db.prepare(`
     SELECT COALESCE(SUM(valor), 0) AS t FROM transacoes
     WHERE tipo='receita' AND conta_id=? AND fixa=0 AND data<=?
-  `).get([contaId, today]) as { t: number }).t
+  `).get([contaId, cutoff]) as { t: number }).t
 
   saldo -= (db.prepare(`
     SELECT COALESCE(SUM(valor), 0) AS t FROM transacoes
@@ -26,16 +28,16 @@ export function getSaldoConta(contaId: number): number {
 
   saldo += (db.prepare(`
     SELECT COALESCE(SUM(valor), 0) AS t FROM transferencias WHERE conta_destino_id=? AND data<=?
-  `).get([contaId, today]) as { t: number }).t
+  `).get([contaId, cutoff]) as { t: number }).t
   saldo -= (db.prepare(`
     SELECT COALESCE(SUM(valor), 0) AS t FROM transferencias WHERE conta_origem_id=? AND data<=?
-  `).get([contaId, today]) as { t: number }).t
+  `).get([contaId, cutoff]) as { t: number }).t
 
   for (const f of db.prepare(`
     SELECT f.cartao_id, f.mes, COALESCE(f.valor_ajuste, 0) AS valor_ajuste, cr.melhor_data_compra
     FROM faturas f JOIN cartoes cr ON cr.id = f.cartao_id
     WHERE f.conta_id=? AND f.pago=1 AND f.data_pagamento<=?
-  `).all([contaId, today]) as { cartao_id: number; mes: string; valor_ajuste: number; melhor_data_compra: number }[]) {
+  `).all([contaId, cutoff]) as { cartao_id: number; mes: string; valor_ajuste: number; melhor_data_compra: number }[]) {
     const [fy, fm] = f.mes.split('-').map(Number)
     const { startDate, endDate } = faturaDateRange(fy, fm, f.melhor_data_compra)
     const total = (db.prepare(`
@@ -49,7 +51,7 @@ export function getSaldoConta(contaId: number): number {
     saldo -= total + f.valor_ajuste - extornos
   }
 
-  const todayMes = today.slice(0, 7)
+  const cutoffMes = cutoff.slice(0, 7)
   for (const t of db.prepare(`
     SELECT id, tipo, valor, data_inicio, data_fim, parcelas FROM transacoes
     WHERE conta_id=? AND fixa=1 AND cartao_id IS NULL
@@ -59,7 +61,7 @@ export function getSaldoConta(contaId: number): number {
     const earlyFuture = new Set(
       (db.prepare(`
         SELECT mes FROM pagamentos_fixas WHERE transacao_id=? AND mes>=? AND nao_pago=0
-      `).all([t.id, todayMes]) as { mes: string }[]).map(r => r.mes),
+      `).all([t.id, cutoffMes]) as { mes: string }[]).map(r => r.mes),
     )
 
     const naoPagoSet = new Set(
@@ -78,7 +80,7 @@ export function getSaldoConta(contaId: number): number {
 
       if (naoPagoSet.has(mes)) {
         // explicitamente não pago
-      } else if (occDate <= today) {
+      } else if (occDate <= cutoff) {
         count++
       } else if (earlyFuture.has(mes)) {
         count++
@@ -95,5 +97,11 @@ export function getSaldoConta(contaId: number): number {
     else saldo -= count * t.valor
   }
 
-  return Math.round(saldo * 100) / 100
+  return r2(saldo)
+}
+
+/** Soma do saldo real de todas as contas bancárias em uma data de corte. */
+export function getSaldoBancarioTotal(cutoffStr?: string): number {
+  const contas = db.prepare(`SELECT id FROM contas`).all() as { id: number }[]
+  return r2(contas.reduce((sum, c) => sum + getSaldoConta(c.id, cutoffStr), 0))
 }

@@ -1,9 +1,9 @@
 import db from '../db/index'
 import { effectiveDate } from './dateUtils'
 import { getCartoesParaMes } from './cartoes'
-import { computeSaldoBancario } from './saldo'
 import { computeSaldoAnterior } from './saldo-anterior'
 import { getPatrimonioIncluidoTotal, lastDayOfPreviousMonth } from './patrimonio-totais'
+import { getSaldoBancarioTotal } from './getSaldoConta'
 import { localDateStr } from './localDate'
 import { faturaDateRange, calcFaturaMonth } from './fatura'
 
@@ -246,6 +246,29 @@ function collectEvents(month: string, startDate: string, endDate: string, today:
     })
   }
 
+  // Entrada em conta (transferências entre contas — compensa a saída na origem)
+  const transferenciasEntrada = db.prepare(`
+    SELECT tr.descricao, tr.valor, tr.data, co.nome AS conta_origem_nome
+    FROM transferencias tr
+    JOIN contas cd ON cd.id = tr.conta_destino_id
+    LEFT JOIN contas co ON co.id = tr.conta_origem_id
+    WHERE tr.conta_destino_id IS NOT NULL
+      AND tr.patrimonio_origem_id IS NULL
+      AND tr.data >= ? AND tr.data <= ?
+  `).all([startDate, endDate]) as {
+    descricao: string | null; valor: number; data: string; conta_origem_nome: string | null
+  }[]
+
+  for (const tr of transferenciasEntrada) {
+    pushIfInMonth({
+      date: tr.data,
+      amount: tr.valor,
+      descricao: tr.descricao || `Transferência de ${tr.conta_origem_nome ?? 'origem'}`,
+      tipo: 'transferencia',
+      realizado: tr.data <= today,
+    })
+  }
+
   // Saques do patrimônio para conta (entrada na conta de destino)
   const transferenciasSaque = db.prepare(`
     SELECT tr.descricao, tr.valor, tr.data,
@@ -310,7 +333,7 @@ export function computeCashFlowTimeline(month: string): CashFlowTimeline {
   let saldoMinimoDate: string | null = startDate
   let diasNegativos = 0
   let bankProjAtToday: number | null = null
-  const saldoBancarioHoje = today >= startDate && today <= endDate ? computeSaldoBancario(today) : null
+  const saldoBancarioHoje = today >= startDate && today <= endDate ? getSaldoBancarioTotal(today) : null
   const patrimonioIncluidoHoje = getPatrimonioIncluidoTotal(today)
 
   for (let day = 1; day <= lastDay; day++) {
@@ -332,7 +355,7 @@ export function computeCashFlowTimeline(month: string): CashFlowTimeline {
 
     let bankSaldo: number
     if (date <= today) {
-      bankSaldo = computeSaldoBancario(date)
+      bankSaldo = getSaldoBancarioTotal(date)
       if (date === today) bankProjAtToday = bankProj
     } else if (saldoBancarioHoje != null && bankProjAtToday != null) {
       bankSaldo = r2(saldoBancarioHoje + (bankProj - bankProjAtToday))
