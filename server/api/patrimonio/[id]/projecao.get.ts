@@ -1,12 +1,5 @@
-import db from '../../../db/index'
 import { getQuery, getRouterParam } from 'h3'
-import { fetchCdiContext } from '../../../utils/cdi'
-import {
-  computePatrimonioProjecao,
-  computePatrimonioSerieMensal,
-} from '../../../utils/patrimonio-projecao'
-import { toPatrimonioInput, type PatrimonioRow } from '../../../utils/patrimonio-map'
-import { instituicaoGrupoMatch } from '../../../utils/patrimonio-instituicao'
+import { loadPatrimonioProjecaoSerie } from '../../../utils/patrimonio-projecao-load'
 
 export default defineEventHandler(async (event) => {
   const id = Number(getRouterParam(event, 'id'))
@@ -15,29 +8,10 @@ export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const numMeses = Math.min(Math.max(Number(query.meses) || 24, 6), 36)
 
-  const item = db.prepare(`
-    SELECT * FROM patrimonio_externo WHERE id = ? AND ativo = 1
-  `).get(id) as PatrimonioRow | undefined
+  const loaded = await loadPatrimonioProjecaoSerie(id, numMeses)
+  if (!loaded) throw createError({ statusCode: 404, message: 'Item não encontrado' })
 
-  if (!item) throw createError({ statusCode: 404, message: 'Item não encontrado' })
-
-  const cdi = await fetchCdiContext()
-  const input = toPatrimonioInput(item)
-  const projecao = computePatrimonioProjecao(input, cdi)
-
-  let grupoMembros: { id: number; item: ReturnType<typeof toPatrimonioInput> }[] | undefined
-  if (item.rendimento_modo === 'cdi_faixas' && (item.instituicao_key?.trim() || item.grupo_rendimento?.trim())) {
-    const siblings = db.prepare(`
-      SELECT * FROM patrimonio_externo
-      WHERE ativo = 1 AND rendimento_modo = 'cdi_faixas'
-    `).all() as PatrimonioRow[]
-    const matched = siblings.filter(s => instituicaoGrupoMatch(item, s))
-    if (matched.length > 1) {
-      grupoMembros = matched.map(s => ({ id: s.id, item: toPatrimonioInput(s) }))
-    }
-  }
-
-  const meses = computePatrimonioSerieMensal(input, numMeses, cdi, { grupoMembros })
+  const { item, projecao, meses } = loaded
 
   return {
     meses,

@@ -90,7 +90,12 @@
       </div>
 
       <!-- Gráfico -->
-      <PatrimonioProjecaoChart ref="chartRef" :patrimonio-id="item.id" :accent-color="item.cor" />
+      <PatrimonioProjecaoChart
+        ref="chartRef"
+        :patrimonio-id="item.id"
+        :accent-color="item.cor"
+        :enable-snapshots="item.rendimento_modo !== 'nenhum'"
+      />
 
       <!-- Movimentos -->
       <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
@@ -197,6 +202,7 @@ interface PatrimonioDetail {
   item: {
     id: number; nome: string; tipo: string; saldo_atual: number; valor_alvo: number | null
     incluir_em_totais: boolean; aporte_modo: string; aporte_valor: number | null
+    rendimento_modo: string
     instituicao_key: string | null; grupo_rendimento: string | null; icone: string; cor: string
     projecao: { meses6: number; meses12: number; taxaAnualEfetiva: number | null; pctAlvo: number | null }
     movimentos: Movimento[]

@@ -397,6 +397,24 @@ if (!g.__db) {
       receitas REAL,
       despesas REAL,
       saldo_mes REAL
+    );
+
+    CREATE TABLE IF NOT EXISTS patrimonio_snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      patrimonio_id INTEGER NOT NULL REFERENCES patrimonio_externo(id) ON DELETE CASCADE,
+      nome TEXT,
+      criado_em TEXT NOT NULL,
+      automatico INTEGER NOT NULL DEFAULT 0,
+      taxa_anual_efetiva REAL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS patrimonio_snapshot_dados (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      snapshot_id INTEGER NOT NULL REFERENCES patrimonio_snapshots(id) ON DELETE CASCADE,
+      mes TEXT NOT NULL,
+      saldo REAL NOT NULL,
+      month_index INTEGER NOT NULL DEFAULT 0
     )
   `)
 
