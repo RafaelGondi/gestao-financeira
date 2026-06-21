@@ -5,6 +5,7 @@
 SERVER="root@137.184.195.81"
 APP_DIR="/app"
 PACKAGE="gestao-output.tgz"
+SSH_OPTS="-o PreferredAuthentications=publickey -o PasswordAuthentication=no -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
 
 echo "Buildando aplicacao..."
 NUXT_IGNORE_LOCK=1 npm run build
@@ -24,14 +25,14 @@ rm -f "$PACKAGE"
 tar -czf "$PACKAGE" .output
 
 echo "Enviando pacote para o servidor..."
-scp "$PACKAGE" "$SERVER:$APP_DIR/$PACKAGE"
+scp $SSH_OPTS "$PACKAGE" "$SERVER:$APP_DIR/$PACKAGE"
 if [ $? -ne 0 ]; then
   echo "Falha no envio. Abortando."
   exit 1
 fi
 
 echo "Aplicando bundle e reiniciando..."
-ssh "$SERVER" "
+ssh $SSH_OPTS "$SERVER" "
   set -e
   rm -rf $APP_DIR/.output_new $APP_DIR/.output_prev
   mkdir -p $APP_DIR/.output_new

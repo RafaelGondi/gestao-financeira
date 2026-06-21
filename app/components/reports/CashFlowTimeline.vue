@@ -154,32 +154,24 @@
               <div class="flex items-center gap-2.5 min-w-0">
                 <div
                   class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                  :class="ev.neutro
-                    ? 'bg-violet-100 dark:bg-violet-900/30'
-                    : ev.tipo === 'receita'
-                      ? 'bg-emerald-100 dark:bg-emerald-900/30'
-                      : 'bg-rose-100 dark:bg-rose-900/30'"
+                  :class="eventoIconClass(ev)"
                 >
                   <UIcon
-                    :name="ev.neutro ? 'i-heroicons-arrows-right-left' : ev.tipo === 'receita' ? 'i-heroicons-arrow-down-circle' : 'i-heroicons-arrow-up-circle'"
+                    :name="eventoIconName(ev)"
                     class="w-4 h-4"
-                    :class="ev.neutro
-                      ? 'text-violet-600 dark:text-violet-400'
-                      : ev.tipo === 'receita' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
+                    :class="eventoIconColor(ev)"
                   />
                 </div>
                 <div class="min-w-0">
                   <p class="text-sm text-gray-700 dark:text-gray-300 truncate">{{ ev.descricao }}</p>
-                  <p class="text-xs text-gray-400">{{ ev.neutro ? 'Reserva incluída nos totais' : ev.realizado ? 'Realizado' : 'Previsto' }}</p>
+                  <p class="text-xs text-gray-400">{{ eventoSubtexto(ev) }}</p>
                 </div>
               </div>
               <span
                 class="text-sm font-medium flex-shrink-0 ml-3"
-                :class="ev.neutro
-                  ? 'text-violet-700 dark:text-violet-400'
-                  : ev.tipo === 'receita' ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'"
+                :class="eventoValorClass(ev)"
               >
-                {{ ev.neutro ? format(ev.valor) : `${ev.tipo === 'receita' ? '+' : '−'}${format(ev.valor)}` }}
+                {{ eventoValorTexto(ev) }}
               </span>
             </div>
           </div>
@@ -210,6 +202,8 @@ interface CashFlowEvent {
   tipo: 'receita' | 'despesa' | 'fatura' | 'transferencia'
   realizado: boolean
   neutro?: boolean
+  interno?: boolean
+  entrada?: boolean
 }
 
 interface CashFlowDay {
@@ -265,6 +259,42 @@ const diasCriticos = computed(() =>
 )
 
 const todayIndex = computed(() => (data.value?.dias ?? []).findIndex(d => d.isToday))
+
+function eventoSubtexto(ev: CashFlowEvent) {
+  if (ev.interno) return 'Entre contas'
+  if (ev.neutro) return 'Reserva incluída nos totais'
+  return ev.realizado ? 'Realizado' : 'Previsto'
+}
+
+function eventoIconClass(ev: CashFlowEvent) {
+  if (ev.interno || ev.neutro) return 'bg-violet-100 dark:bg-violet-900/30'
+  if (ev.tipo === 'receita' || ev.entrada) return 'bg-emerald-100 dark:bg-emerald-900/30'
+  return 'bg-rose-100 dark:bg-rose-900/30'
+}
+
+function eventoIconName(ev: CashFlowEvent) {
+  if (ev.interno || ev.neutro) return 'i-heroicons-arrows-right-left'
+  if (ev.tipo === 'receita' || ev.entrada) return 'i-heroicons-arrow-down-circle'
+  return 'i-heroicons-arrow-up-circle'
+}
+
+function eventoIconColor(ev: CashFlowEvent) {
+  if (ev.interno || ev.neutro) return 'text-violet-600 dark:text-violet-400'
+  if (ev.tipo === 'receita' || ev.entrada) return 'text-emerald-600 dark:text-emerald-400'
+  return 'text-rose-600 dark:text-rose-400'
+}
+
+function eventoValorClass(ev: CashFlowEvent) {
+  if (ev.interno || ev.neutro) return 'text-violet-700 dark:text-violet-400'
+  if (ev.tipo === 'receita' || ev.entrada) return 'text-emerald-700 dark:text-emerald-400'
+  return 'text-rose-700 dark:text-rose-400'
+}
+
+function eventoValorTexto(ev: CashFlowEvent) {
+  if (ev.interno || ev.neutro) return format(ev.valor)
+  const positivo = ev.tipo === 'receita' || ev.entrada
+  return `${positivo ? '+' : '−'}${format(ev.valor)}`
+}
 
 function saldoClass(val: number) {
   if (val < 0) return 'text-rose-700 dark:text-rose-400'
@@ -388,9 +418,10 @@ const tooltipConfig = {
       const idx = items[0]?.dataIndex ?? 0
       const d = data.value?.dias[idx]
       if (!d?.eventos.length) return []
-      return d.eventos.slice(0, 3).map(e =>
-        ` ${e.tipo === 'receita' ? '+' : '−'}${e.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ${e.descricao}`
-      )
+      return d.eventos.slice(0, 3).map(e => {
+        const sinal = e.neutro || e.interno ? '↔' : (e.tipo === 'receita' || e.entrada) ? '+' : '−'
+        return ` ${sinal}${e.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ${e.descricao}`
+      })
     },
   },
 }

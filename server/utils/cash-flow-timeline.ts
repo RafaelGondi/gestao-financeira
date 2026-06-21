@@ -14,7 +14,12 @@ export interface CashFlowEvent {
   valor: number
   tipo: 'receita' | 'despesa' | 'fatura' | 'transferencia'
   realizado: boolean
+  /** Não altera patrimônio consolidado (ex.: reserva incluída nos totais). */
   neutro?: boolean
+  /** Movimento entre contas — compensa no total bancário, não é despesa/receita real. */
+  interno?: boolean
+  /** Entrada (+) vs saída (−) para exibição. */
+  entrada?: boolean
 }
 
 export interface CashFlowDay {
@@ -54,6 +59,8 @@ interface RawEvent {
   realizado: boolean
   /** Transferência para patrimônio incluído nos totais — não altera patrimônio geral */
   neutro?: boolean
+  /** Transferência entre contas — par compensado, não é saída líquida do sistema */
+  interno?: boolean
 }
 
 function resolveEventDate(
@@ -236,6 +243,7 @@ function collectEvents(month: string, startDate: string, endDate: string, today:
   for (const tr of transferenciasSaida) {
     const destino = tr.patrimonio_destino_nome ?? tr.conta_destino_nome ?? 'destino'
     const incluidoNosTotais = tr.patrimonio_destino_nome != null && tr.incluir_em_totais === 1
+    const interno = tr.patrimonio_destino_nome == null && tr.conta_destino_nome != null
     pushIfInMonth({
       date: tr.data,
       amount: -tr.valor,
@@ -243,6 +251,7 @@ function collectEvents(month: string, startDate: string, endDate: string, today:
       tipo: 'transferencia',
       realizado: tr.data <= today,
       neutro: incluidoNosTotais,
+      interno,
     })
   }
 
@@ -260,12 +269,14 @@ function collectEvents(month: string, startDate: string, endDate: string, today:
   }[]
 
   for (const tr of transferenciasEntrada) {
+    const interno = tr.conta_origem_nome != null
     pushIfInMonth({
       date: tr.data,
       amount: tr.valor,
       descricao: tr.descricao || `Transferência de ${tr.conta_origem_nome ?? 'origem'}`,
       tipo: 'transferencia',
       realizado: tr.data <= today,
+      interno,
     })
   }
 
@@ -343,8 +354,8 @@ export function computeCashFlowTimeline(month: string): CashFlowTimeline {
     let entradas = 0
     let saidas = 0
     for (const e of dayEvents) {
-      if (e.neutro) {
-        // Transferência para reserva incluída nos totais — visível mas não conta como saída do patrimônio geral
+      if (e.neutro || e.interno) {
+        // Visível no detalhe, mas não entra em entradas/saídas do dia (movimento compensado)
       } else if (e.amount > 0) {
         entradas += e.amount
       } else {
@@ -387,6 +398,8 @@ export function computeCashFlowTimeline(month: string): CashFlowTimeline {
         tipo: e.tipo,
         realizado: e.realizado,
         neutro: e.neutro,
+        interno: e.interno,
+        entrada: e.amount > 0,
       })),
       isPast: date < today,
       isToday: date === today,
