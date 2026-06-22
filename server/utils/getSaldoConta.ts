@@ -23,8 +23,9 @@ export function getSaldoConta(contaId: number, cutoffStr?: string): number {
 
   saldo -= (db.prepare(`
     SELECT COALESCE(SUM(valor), 0) AS t FROM transacoes
-    WHERE tipo='despesa' AND conta_id=? AND cartao_id IS NULL AND fixa=0 AND pago=1
-  `).get([contaId]) as { t: number }).t
+    WHERE tipo='despesa' AND conta_id=? AND cartao_id IS NULL AND fixa=0 AND pago=1 AND despago=0
+      AND COALESCE(data_pagamento, data) <= ?
+  `).get([contaId, cutoff]) as { t: number }).t
 
   saldo += (db.prepare(`
     SELECT COALESCE(SUM(valor), 0) AS t FROM transferencias WHERE conta_destino_id=? AND data<=?
@@ -51,17 +52,17 @@ export function getSaldoConta(contaId: number, cutoffStr?: string): number {
     saldo -= total + f.valor_ajuste - extornos
   }
 
-  const cutoffMes = cutoff.slice(0, 7)
   for (const t of db.prepare(`
     SELECT id, tipo, valor, data_inicio, data_fim, parcelas FROM transacoes
     WHERE conta_id=? AND fixa=1 AND cartao_id IS NULL
   `).all([contaId]) as { id: number; tipo: string; valor: number; data_inicio: string; data_fim: string | null; parcelas: number }[]) {
     const [iy, im] = t.data_inicio.split('-').map(Number)
 
-    const earlyFuture = new Set(
+    const earlyPaidByCutoff = new Set(
       (db.prepare(`
-        SELECT mes FROM pagamentos_fixas WHERE transacao_id=? AND mes>=? AND nao_pago=0
-      `).all([t.id, cutoffMes]) as { mes: string }[]).map(r => r.mes),
+        SELECT mes FROM pagamentos_fixas
+        WHERE transacao_id = ? AND nao_pago = 0 AND data_pagamento IS NOT NULL AND data_pagamento <= ?
+      `).all([t.id, cutoff]) as { mes: string }[]).map(r => r.mes),
     )
 
     const naoPagoSet = new Set(
@@ -82,7 +83,7 @@ export function getSaldoConta(contaId: number, cutoffStr?: string): number {
         // explicitamente não pago
       } else if (occDate <= cutoff) {
         count++
-      } else if (earlyFuture.has(mes)) {
+      } else if (earlyPaidByCutoff.has(mes)) {
         count++
       } else {
         break

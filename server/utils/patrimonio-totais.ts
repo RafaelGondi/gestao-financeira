@@ -1,5 +1,6 @@
 import db from '../db/index'
 import { getSaldoBancarioTotal } from './getSaldoConta'
+import { getPatrimonioSaldoAtDate } from './transferenciaPatrimonio'
 import { localDateStr } from './localDate'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -32,20 +33,7 @@ export function getPatrimonioIncluidoTotal(cutoffStr?: string): number {
   for (const item of itens) {
     const createdDate = item.created_at.slice(0, 10)
     if (createdDate > cutoff) continue
-
-    let saldo = item.saldo_atual
-    const movsAfter = db.prepare(`
-      SELECT tipo, valor FROM patrimonio_movimentos
-      WHERE patrimonio_id = ? AND data > ?
-      ORDER BY data DESC, id DESC
-    `).all(item.id, cutoff) as { tipo: string; valor: number }[]
-
-    for (const m of movsAfter) {
-      if (m.tipo === 'aporte') saldo -= m.valor
-      else if (m.tipo === 'retirada') saldo += m.valor
-    }
-
-    total += Math.max(0, saldo)
+    total += getPatrimonioSaldoAtDate(item.id, cutoff)
   }
 
   return r2(total)

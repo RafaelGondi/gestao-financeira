@@ -71,6 +71,28 @@ export function recalcularSaldoPatrimonio(patrimonioId: number, excludeMovimento
   db.prepare(`UPDATE patrimonio_externo SET saldo_atual = ? WHERE id = ?`).run([saldo, patrimonioId])
 }
 
+export function getPatrimonioSaldoAtDate(patrimonioId: number, cutoff: string): number {
+  const item = db.prepare(`
+    SELECT saldo_atual, created_at FROM patrimonio_externo WHERE id = ? AND ativo = 1
+  `).get(patrimonioId) as { saldo_atual: number; created_at: string } | undefined
+  if (!item) return 0
+  if (item.created_at.slice(0, 10) > cutoff) return 0
+
+  const allMovs = db.prepare(`
+    SELECT id, tipo, valor, data FROM patrimonio_movimentos
+    WHERE patrimonio_id = ? ORDER BY data ASC, id ASC
+  `).all(patrimonioId) as { id: number; tipo: string; valor: number; data: string }[]
+
+  const movsUntil = allMovs.filter(m => m.data <= cutoff)
+  if (movsUntil.length === 0) {
+    if (allMovs.length === 0) return r2(item.saldo_atual)
+    return Math.max(0, r2(computeSaldoAbertura(allMovs, item.saldo_atual)))
+  }
+
+  const opening = computeSaldoAbertura(allMovs, item.saldo_atual)
+  return Math.max(0, r2(replayMovimentos(movsUntil, opening)))
+}
+
 export function revertPatrimonioMovimento(mov: Pick<MovimentoRow, 'id' | 'patrimonio_id' | 'tipo' | 'valor'>) {
   recalcularSaldoPatrimonio(mov.patrimonio_id, mov.id)
 }

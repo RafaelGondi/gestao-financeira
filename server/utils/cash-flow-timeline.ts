@@ -1,8 +1,7 @@
 import db from '../db/index'
 import { effectiveDate } from './dateUtils'
 import { getCartoesParaMes } from './cartoes'
-import { computeSaldoAnterior } from './saldo-anterior'
-import { getPatrimonioIncluidoTotal, lastDayOfPreviousMonth } from './patrimonio-totais'
+import { getPatrimonioIncluidoTotal, lastDayOfPreviousMonth, computeSaldoGeral } from './patrimonio-totais'
 import { getSaldoBancarioTotal } from './getSaldoConta'
 import { localDateStr } from './localDate'
 import { faturaDateRange, calcFaturaMonth } from './fatura'
@@ -318,10 +317,9 @@ export function computeCashFlowTimeline(month: string): CashFlowTimeline {
   const endDate = `${yearStr}-${monStr}-${String(lastDay).padStart(2, '0')}`
   const today = localDateStr()
 
-  const cartoes = getCartoesParaMes(month) as { id: number; melhor_data_compra: number }[]
   const prevMonthEnd = lastDayOfPreviousMonth(year, mon)
-  // Base bancária alinhada ao dashboard (saldoAnterior / previsto contas).
-  const saldoInicialBancario = computeSaldoAnterior(year, mon, cartoes)
+  // Saldo bancário real ao fim do mês anterior (mesma base do saldo por dia).
+  const saldoInicialBancario = getSaldoBancarioTotal(prevMonthEnd)
   let bankProj = saldoInicialBancario
   const rawEvents = collectEvents(month, startDate, endDate, today)
 
@@ -366,14 +364,16 @@ export function computeCashFlowTimeline(month: string): CashFlowTimeline {
 
     let bankSaldo: number
     if (date <= today) {
+      saldo = computeSaldoGeral(date)
       bankSaldo = getSaldoBancarioTotal(date)
       if (date === today) bankProjAtToday = bankProj
     } else if (saldoBancarioHoje != null && bankProjAtToday != null) {
       bankSaldo = r2(saldoBancarioHoje + (bankProj - bankProjAtToday))
+      saldo = r2(computeSaldoGeral(today) + (bankSaldo - saldoBancarioHoje))
     } else {
       bankSaldo = bankProj
+      saldo = saldoComReservas(bankProj, date)
     }
-    saldo = saldoComReservas(bankSaldo, date)
 
     entradas = r2(entradas)
     saidas = r2(saidas)
