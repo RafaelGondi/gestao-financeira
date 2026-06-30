@@ -79,11 +79,9 @@
             >{{ format(item.valor) }}</span>
             <span
               class="text-xs px-2 py-0.5 rounded-full"
-              :class="item.pago
-                ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-500'"
+              :class="entradaStatus(item).class"
             >
-              {{ item.pago ? 'Recebido' : 'A receber' }}
+              {{ entradaStatus(item).label }}
             </span>
           </div>
         </div>
@@ -144,17 +142,38 @@ const grupos = computed<Grupo[]>(() => {
   const soma = (ls: Item[]) => ls.reduce((s, i) => s + i.valor, 0)
 
   const recebidos = sorted.value.filter(i => i.pago)
+  const atraso    = sorted.value.filter(i => !i.pago && i.data < today)
   const hoje      = sorted.value.filter(i => !i.pago && i.data === today)
   const amanha    = sorted.value.filter(i => !i.pago && i.data === tomorrow)
-  const aReceber  = sorted.value.filter(i => !i.pago && i.data !== today && i.data !== tomorrow)
+  const aReceber  = sorted.value.filter(i => !i.pago && i.data > tomorrow)
 
-  if (recebidos.length) result.push({ label: 'recebidos',  items: recebidos, subtotal: soma(recebidos) })
-  if (hoje.length)      result.push({ label: 'hoje',       items: hoje,      subtotal: soma(hoje) })
-  if (amanha.length)    result.push({ label: 'amanhã',     items: amanha,    subtotal: soma(amanha) })
-  if (aReceber.length)  result.push({ label: 'a receber',  items: aReceber,  subtotal: soma(aReceber) })
+  if (recebidos.length) result.push({ label: 'recebidos',   items: recebidos, subtotal: soma(recebidos) })
+  if (atraso.length)    result.push({ label: 'em atraso',   items: atraso,    subtotal: soma(atraso) })
+  if (hoje.length)      result.push({ label: 'hoje',        items: hoje,      subtotal: soma(hoje) })
+  if (amanha.length)    result.push({ label: 'amanhã',      items: amanha,    subtotal: soma(amanha) })
+  if (aReceber.length)  result.push({ label: 'a receber',   items: aReceber,  subtotal: soma(aReceber) })
 
   return sortAsc.value ? result : result.reverse()
 })
+
+function entradaStatus(item: Item) {
+  if (item.pago) {
+    return {
+      label: 'Recebido',
+      class: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400',
+    }
+  }
+  if (item.data < today) {
+    return {
+      label: 'Em atraso',
+      class: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400',
+    }
+  }
+  return {
+    label: 'A receber',
+    class: 'bg-gray-100 dark:bg-gray-800 text-gray-500',
+  }
+}
 
 function formatDate(dateStr: string) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR')

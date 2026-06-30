@@ -18,6 +18,7 @@ export default defineEventHandler((event) => {
       SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data, t.data_inicio, t.data_fim, t.conta_id, t.notas, t.nome_fatura,
         c.nome AS conta_nome, c.banco_key,
         CASE
+          WHEN t.despago = 1 THEN 0
           WHEN t.fixa = 1 THEN
             CASE WHEN t.data_fim IS NOT NULL AND t.data_fim < ? THEN 2 ELSE 1 END
           WHEN t.data <= ? THEN 1 ELSE 0
@@ -38,7 +39,7 @@ export default defineEventHandler((event) => {
     SELECT t.id, t.descricao, t.valor, t.categoria, 0 AS fixa, 0 AS parcelas, t.data, NULL AS data_inicio, NULL AS data_fim, t.conta_id, t.notas, t.nome_fatura,
       c.nome AS conta_nome, c.banco_key,
       cat.cor AS categoria_cor, cat.icone AS categoria_icone,
-      CASE WHEN t.pago = 1 OR t.data <= ? THEN 1 ELSE 0 END AS recebido
+      CASE WHEN t.despago = 1 THEN 0 WHEN t.pago = 1 OR t.data <= ? THEN 1 ELSE 0 END AS recebido
     FROM transacoes t
     LEFT JOIN contas c ON c.id = t.conta_id
     LEFT JOIN categorias cat ON cat.nome = t.categoria
@@ -50,20 +51,23 @@ export default defineEventHandler((event) => {
     SELECT t.id, t.descricao, t.valor, t.categoria, 1 AS fixa, t.parcelas,
       t.data_inicio, t.data_fim, t.conta_id, t.notas, t.nome_fatura,
       c.nome AS conta_nome, c.banco_key,
-      cat.cor AS categoria_cor, cat.icone AS categoria_icone
+      cat.cor AS categoria_cor, cat.icone AS categoria_icone,
+      pf.nao_pago, pf.id AS pf_id
     FROM transacoes t
     LEFT JOIN contas c ON c.id = t.conta_id
     LEFT JOIN categorias cat ON cat.nome = t.categoria
+    LEFT JOIN pagamentos_fixas pf ON pf.transacao_id = t.id AND pf.mes = ?
     WHERE t.tipo = 'receita' AND t.fixa = 1
       AND t.data_inicio <= ?
       AND (t.data_fim IS NULL OR t.data_fim >= ?)
     ORDER BY t.data_inicio ASC
-  `).all([endDate, startDate]) as any[]).map(t => {
+  `).all([month, endDate, startDate]) as any[]).map(t => {
     const data = effectiveDate(month, t.data_inicio)
+    const recebido = t.nao_pago ? 0 : (t.pf_id != null || data <= today ? 1 : 2)
     return {
       ...t,
       data,
-      recebido: data <= today ? 1 : 2,
+      recebido,
       parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null,
     }
   })

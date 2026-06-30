@@ -10,9 +10,8 @@ interface Cartao {
 const r2 = (n: number) => Math.round(n * 100) / 100
 
 /**
- * Computes total income and expenses for a given month using the same logic
- * as the dashboard: credit card transactions are grouped by fatura month
- * (respecting melhor_data_compra cutoff), not by calendar month.
+ * Totais previstos do mês (receitas e despesas agendadas), independente de liquidação.
+ * Usado em evolução mensal, previsão e orçamento — não reflete saldo real da conta.
  */
 export function computeMonthTotals(year: number, mon: number, cartoes: Cartao[]) {
   const monthStr = `${year}-${String(mon).padStart(2, '0')}`

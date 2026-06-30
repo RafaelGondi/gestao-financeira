@@ -5,6 +5,7 @@ import { getPatrimonioIncluidoTotal, lastDayOfPreviousMonth, computeSaldoGeral }
 import { getSaldoBancarioTotal } from './getSaldoConta'
 import { localDateStr } from './localDate'
 import { faturaDateRange, calcFaturaMonth } from './fatura'
+import { isReceitaAvulsaRecebida, isDespesaAvulsaPaga, isFixaLiquidada, isEventoRealizado } from './liquidacao'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 
@@ -89,23 +90,23 @@ function collectEvents(month: string, startDate: string, endDate: string, today:
 
   // Receitas avulsas (conta bancária)
   const recAvulsas = db.prepare(`
-    SELECT descricao, valor, data, pago, data_pagamento
+    SELECT descricao, valor, data, pago, despago, data_pagamento
     FROM transacoes
     WHERE tipo = 'receita' AND fixa = 0 AND cartao_id IS NULL AND conta_id IS NOT NULL
       AND data >= ? AND data <= ?
   `).all([startDate, endDate]) as {
-    descricao: string; valor: number; data: string; pago: number; data_pagamento: string | null
+    descricao: string; valor: number; data: string; pago: number; despago: number; data_pagamento: string | null
   }[]
 
   for (const t of recAvulsas) {
-    const isPaid = t.pago === 1 || t.data <= today
-    const { date, realizado } = resolveEventDate(t.data, t.data_pagamento, isPaid, today)
+    const liquidado = isReceitaAvulsaRecebida(t, today)
+    const { date } = resolveEventDate(t.data, t.data_pagamento, liquidado, today)
     pushIfInMonth({
       date,
       amount: t.valor,
       descricao: t.descricao,
       tipo: 'receita',
-      realizado,
+      realizado: isEventoRealizado(liquidado, date, today),
     })
   }
 
@@ -114,20 +115,20 @@ function collectEvents(month: string, startDate: string, endDate: string, today:
     SELECT descricao, valor, data, pago, despago, data_pagamento
     FROM transacoes
     WHERE tipo = 'despesa' AND fixa = 0 AND cartao_id IS NULL AND conta_id IS NOT NULL
-      AND data >= ? AND data <= ? AND despago = 0
+      AND data >= ? AND data <= ?
   `).all([startDate, endDate]) as {
     descricao: string; valor: number; data: string; pago: number; despago: number; data_pagamento: string | null
   }[]
 
   for (const t of despAvulsas) {
-    const isPaid = t.pago === 1 || (t.data <= today && t.despago === 0)
-    const { date, realizado } = resolveEventDate(t.data, t.data_pagamento, isPaid, today)
+    const liquidado = isDespesaAvulsaPaga(t, today)
+    const { date } = resolveEventDate(t.data, t.data_pagamento, liquidado, today)
     pushIfInMonth({
       date,
       amount: -t.valor,
       descricao: t.descricao,
       tipo: 'despesa',
-      realizado,
+      realizado: isEventoRealizado(liquidado, date, today),
     })
   }
 
@@ -146,17 +147,16 @@ function collectEvents(month: string, startDate: string, endDate: string, today:
   }[]
 
   for (const t of fixas) {
-    if (t.nao_pago) continue
     const scheduled = effectiveDate(month, t.data_inicio)
-    const isPaid = t.data_pagamento != null || scheduled <= today
-    const { date, realizado } = resolveEventDate(scheduled, t.data_pagamento, isPaid, today)
+    const liquidado = isFixaLiquidada(t, scheduled, today)
+    const { date } = resolveEventDate(scheduled, t.data_pagamento, liquidado, today)
     const sign = t.tipo === 'receita' ? 1 : -1
     pushIfInMonth({
       date,
       amount: sign * t.valor,
       descricao: t.descricao,
       tipo: t.tipo === 'receita' ? 'receita' : 'despesa',
-      realizado,
+      realizado: isEventoRealizado(liquidado, date, today),
     })
   }
 

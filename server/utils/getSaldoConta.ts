@@ -18,7 +18,8 @@ export function getSaldoConta(contaId: number, cutoffStr?: string): number {
 
   saldo += (db.prepare(`
     SELECT COALESCE(SUM(valor), 0) AS t FROM transacoes
-    WHERE tipo='receita' AND conta_id=? AND fixa=0 AND data<=?
+    WHERE tipo='receita' AND conta_id=? AND fixa=0 AND despago=0
+      AND (pago=1 OR data<=?)
   `).get([contaId, cutoff]) as { t: number }).t
 
   saldo -= (db.prepare(`

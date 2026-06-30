@@ -173,11 +173,14 @@
           <div class="flex items-center gap-1.5 sm:gap-2">
             <span
               v-if="lanc.tipo === 'receita'"
-              class="hidden sm:inline text-xs px-2 py-0.5 rounded-full"
-              :class="lanc.pago
-                ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-500'"
-            >{{ lanc.pago ? 'Recebido' : 'A receber' }}</span>
+              class="text-xs px-2 py-0.5 rounded-full"
+              :class="statusReceita(lanc).class"
+            >{{ statusReceita(lanc).label }}</span>
+            <span
+              v-else-if="lanc.tipo === 'despesa'"
+              class="text-xs px-2 py-0.5 rounded-full"
+              :class="statusDespesa(lanc).class"
+            >{{ statusDespesa(lanc).label }}</span>
             <p class="text-sm font-medium whitespace-nowrap" :class="isPositivo(lanc) ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
               {{ isPositivo(lanc) ? '+' : '-' }} {{ format(lanc.valor) }}
             </p>
@@ -209,11 +212,14 @@
               title="Marcar como recebido"
               @click="abrirReceberModal(lanc)"
             />
-            <UIcon
+            <button
               v-else-if="lanc.tipo === 'receita' && lanc.pago"
-              name="i-heroicons-check-circle-solid"
-              class="w-4 h-4 text-emerald-500 flex-shrink-0"
-            />
+              class="text-emerald-500 hover:text-orange-400 transition-colors cursor-pointer flex-shrink-0"
+              title="Clique para desmarcar recebimento"
+              @click="desreceberLanc(lanc)"
+            >
+              <UIcon name="i-heroicons-check-circle-solid" class="w-4 h-4" />
+            </button>
           </div>
 
           <!-- Ações: editar e excluir (não disponível para faturas) -->
@@ -438,6 +444,9 @@ interface ContaDetalhe { id: number; nome: string; banco: string; banco_key: str
 const route = useRoute()
 const { format } = useCurrency()
 const { findBank } = useBanks()
+const { localDateStr } = useLocalDate()
+const todayStr = localDateStr()
+const toast = useToast()
 
 const now = new Date()
 const currentMonth = ref(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
@@ -478,6 +487,44 @@ function isPositivo(l: Lancamento) {
   if (l.tipo === 'receita') return true
   if (l.tipo === 'transferencia') return l.direcao === 'entrada'
   return false
+}
+
+function statusReceita(l: Lancamento) {
+  if (l.pago) {
+    return {
+      label: 'Recebido',
+      class: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400',
+    }
+  }
+  if (l.data > todayStr) {
+    return {
+      label: 'A receber',
+      class: 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
+    }
+  }
+  return {
+    label: 'Em atraso',
+    class: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400',
+  }
+}
+
+function statusDespesa(l: Lancamento) {
+  if (l.pago) {
+    return {
+      label: 'Pago',
+      class: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400',
+    }
+  }
+  if (l.data > todayStr) {
+    return {
+      label: 'A pagar',
+      class: 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400',
+    }
+  }
+  return {
+    label: 'Em atraso',
+    class: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400',
+  }
 }
 
 function iconName(l: Lancamento) {
@@ -704,6 +751,20 @@ async function handleDelete(scope: 'one' | 'all') {
   }, 5000)
 }
 
+// --- Desmarcar como recebido ---
+async function desreceberLanc(lanc: Lancamento) {
+  try {
+    const body: Record<string, string> = {}
+    if (lanc.fixa) body.mes = currentMonth.value
+    await $fetch(`/api/transacoes/${lanc.id}/desreceber`, { method: 'PATCH', body })
+    await refresh()
+    refreshNuxtData()
+    toast.add({ title: 'Recebimento desmarcado', color: 'success', icon: 'i-heroicons-check-circle' })
+  } catch (e: any) {
+    toast.add({ title: 'Erro ao desmarcar', description: e?.data?.message ?? e?.message, color: 'error' })
+  }
+}
+
 // --- Marcar como recebido ---
 const showReceberModal = ref(false)
 const receberLanc = ref<Lancamento | null>(null)
@@ -755,7 +816,6 @@ const showPagarModal = ref(false)
 const pagarLanc = ref<Lancamento | null>(null)
 const pagarData = ref('')
 const salvandoPagamento = ref(false)
-const toast = useToast()
 
 // Garante que o timeout de exclusão pendente dispara ao sair da página
 onBeforeUnmount(() => {

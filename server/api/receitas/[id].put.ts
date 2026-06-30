@@ -169,6 +169,7 @@ export default defineEventHandler(async (event) => {
     SELECT t.id, t.descricao, t.valor, t.categoria, t.fixa, t.parcelas, t.data_inicio, t.data_fim, t.data, t.conta_id, t.notas, t.nome_fatura,
       c.nome AS conta_nome, c.banco_key,
       CASE
+        WHEN t.despago = 1 THEN 0
         WHEN t.fixa = 1 THEN
           CASE WHEN t.data_fim IS NOT NULL AND t.data_fim < ? THEN 2 ELSE 1 END
         WHEN t.data <= ? THEN 1 ELSE 0
