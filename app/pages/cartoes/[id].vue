@@ -837,7 +837,7 @@ const { data, pending, error, refresh } = await useFetch<{ cartao: CartaoDetalhe
 const cardStyle = computed(() => {
   const cartao = data.value?.cartao
   const color = cartao?.cor ?? findBank(cartao?.banco_key ?? '')?.color ?? '#6366f1'
-  return { background: `linear-gradient(135deg, ${color}dd 0%, ${color}88 100%)` }
+  return { background: `linear-gradient(135deg, ${color}ee 0%, ${color}cc 100%)` }
 })
 
 const totalExtornos = computed(() =>

@@ -374,7 +374,7 @@ const { findBank } = useBanks()
 
 function cartaoStyle(grupo: GrupoCartao) {
   const color = grupo.cartao_cor ?? findBank(grupo.cartao_banco_key ?? '')?.color ?? '#6366f1'
-  return { background: `linear-gradient(135deg, ${color}ee 0%, ${color}99 100%)` }
+  return { background: `linear-gradient(135deg, ${color}f5 0%, ${color}dd 100%)` }
 }
 
 const now = new Date()

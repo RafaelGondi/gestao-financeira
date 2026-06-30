@@ -152,19 +152,21 @@ const { BANKS, findBank } = useBanks()
 const isEdit = computed(() => !!props.initial?.id)
 
 const colorPresets = [
-  { label: 'Preto',     value: '#111827', gradient: 'linear-gradient(135deg, #1f2937ee, #111827cc)' },
-  { label: 'Marinho',   value: '#1E3A8A', gradient: 'linear-gradient(135deg, #1e40afee, #1E3A8Acc)' },
-  { label: 'Azul',      value: '#1D4ED8', gradient: 'linear-gradient(135deg, #2563ebee, #1D4ED8cc)' },
-  { label: 'Ciano',     value: '#0E7490', gradient: 'linear-gradient(135deg, #0891b2ee, #0E7490cc)' },
-  { label: 'Verde',     value: '#065F46', gradient: 'linear-gradient(135deg, #059669ee, #065F46cc)' },
-  { label: 'Lima',      value: '#15803D', gradient: 'linear-gradient(135deg, #16a34aee, #15803Dcc)' },
-  { label: 'Índigo',    value: '#3730A3', gradient: 'linear-gradient(135deg, #4338caee, #3730A3cc)' },
-  { label: 'Roxo',      value: '#6D28D9', gradient: 'linear-gradient(135deg, #7c3aedee, #6D28D9cc)' },
-  { label: 'Rosa',      value: '#BE185D', gradient: 'linear-gradient(135deg, #db2777ee, #BE185Dcc)' },
-  { label: 'Vermelho',  value: '#B91C1C', gradient: 'linear-gradient(135deg, #dc2626ee, #B91C1Ccc)' },
-  { label: 'Laranja',   value: '#C2410C', gradient: 'linear-gradient(135deg, #ea580cee, #C2410Ccc)' },
-  { label: 'Dourado',   value: '#92400E', gradient: 'linear-gradient(135deg, #D97706ee, #92400Ecc)' },
-  { label: 'Prata',     value: '#64748B', gradient: 'linear-gradient(135deg, #94a3b8ee, #64748Bcc)' },
+  { label: 'Preto',     value: '#111827', gradient: 'linear-gradient(135deg, #1f2937f5, #111827e0)' },
+  { label: 'Marinho',     value: '#1A347A', gradient: 'linear-gradient(135deg, #1b3d96f5, #1A347Ae0)' },
+  { label: 'Azul escuro', value: '#1E40AF', gradient: 'linear-gradient(135deg, #1d4ed8f5, #1E40AFe0)' },
+  { label: 'Azul',        value: '#1D4ED8', gradient: 'linear-gradient(135deg, #2563ebf5, #1D4ED8e0)' },
+  { label: 'Azul claro',  value: '#3B82F6', gradient: 'linear-gradient(135deg, #60a5faf5, #3B82F6e0)' },
+  { label: 'Ciano',       value: '#0E7490', gradient: 'linear-gradient(135deg, #0891b2f5, #0E7490e0)' },
+  { label: 'Verde',     value: '#065F46', gradient: 'linear-gradient(135deg, #059669f5, #065F46e0)' },
+  { label: 'Lima',      value: '#15803D', gradient: 'linear-gradient(135deg, #16a34af5, #15803De0)' },
+  { label: 'Índigo',    value: '#3730A3', gradient: 'linear-gradient(135deg, #4338caf5, #3730A3e0)' },
+  { label: 'Roxo',      value: '#6D28D9', gradient: 'linear-gradient(135deg, #7c3aedf5, #6D28D9e0)' },
+  { label: 'Rosa',      value: '#BE185D', gradient: 'linear-gradient(135deg, #db2777f5, #BE185De0)' },
+  { label: 'Vermelho',  value: '#B91C1C', gradient: 'linear-gradient(135deg, #dc2626f5, #B91C1Ce0)' },
+  { label: 'Laranja',   value: '#C2410C', gradient: 'linear-gradient(135deg, #ea580cf5, #C2410Ce0)' },
+  { label: 'Dourado',   value: '#92400E', gradient: 'linear-gradient(135deg, #D97706f5, #92400Ee0)' },
+  { label: 'Prata',     value: '#64748B', gradient: 'linear-gradient(135deg, #94a3b8f5, #64748Be0)' },
 ]
 
 const form = reactive({
@@ -213,12 +215,12 @@ const selectedBankName = computed(() =>
 const bankColor = computed(() => selectedBank.value?.color ?? '#6366f1')
 
 const bankColorStyle = computed(() => ({
-  background: `linear-gradient(135deg, ${bankColor.value}ee 0%, ${bankColor.value}99 100%)`
+  background: `linear-gradient(135deg, ${bankColor.value}f5 0%, ${bankColor.value}dd 100%)`
 }))
 
 const previewStyle = computed(() => {
   const color = form.cor ?? bankColor.value
-  return { background: `linear-gradient(135deg, ${color}ee 0%, ${color}99 100%)` }
+  return { background: `linear-gradient(135deg, ${color}f5 0%, ${color}dd 100%)` }
 })
 
 watch(() => form.ultimos_digitos, (value) => {

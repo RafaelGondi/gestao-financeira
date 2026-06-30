@@ -178,7 +178,7 @@ const tomorrow = localTomorrow()
 
 function miniCardStyle(cartao: Cartao) {
   const color = cartao.cor ?? findBank(cartao.banco_key)?.color ?? '#6366f1'
-  return { background: `linear-gradient(135deg, ${color}ee 0%, ${color}99 100%)` }
+  return { background: `linear-gradient(135deg, ${color}f5 0%, ${color}dd 100%)` }
 }
 
 const linhas = computed<Linha[]>(() => {
