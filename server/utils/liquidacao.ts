@@ -25,3 +25,16 @@ export function isFixaLiquidada(t: FixaRow, scheduled: string, today: string = l
 export function isEventoRealizado(liquidado: boolean, eventDate: string, today: string = localDateStr()): boolean {
   return liquidado && eventDate <= today
 }
+
+/** Data de exibição: liquidação real quando pago, senão vencimento previsto. */
+export function resolveEventDate(
+  scheduled: string,
+  dataPagamento: string | null,
+  isPaid: boolean,
+  today: string = localDateStr(),
+): { date: string; realizado: boolean } {
+  if (isPaid && dataPagamento) {
+    return { date: dataPagamento, realizado: dataPagamento <= today }
+  }
+  return { date: scheduled, realizado: scheduled <= today }
+}

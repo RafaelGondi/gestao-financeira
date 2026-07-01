@@ -30,7 +30,7 @@
         <!-- Linhas do grupo -->
         <div
           v-for="item in grupo.items"
-          :key="`${item.id}-${item.fixa}`"
+          :key="`${item.id}-${item.data}`"
           class="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 dark:border-gray-800 transition-colors"
           :class="[
             item.pago ? 'opacity-60' : '',

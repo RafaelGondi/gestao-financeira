@@ -5,7 +5,7 @@ import { getPatrimonioIncluidoTotal, lastDayOfPreviousMonth, computeSaldoGeral }
 import { getSaldoBancarioTotal } from './getSaldoConta'
 import { localDateStr } from './localDate'
 import { faturaDateRange, calcFaturaMonth } from './fatura'
-import { isReceitaAvulsaRecebida, isDespesaAvulsaPaga, isFixaLiquidada, isEventoRealizado } from './liquidacao'
+import { isReceitaAvulsaRecebida, isDespesaAvulsaPaga, isFixaLiquidada, isEventoRealizado, resolveEventDate } from './liquidacao'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 
@@ -61,18 +61,6 @@ interface RawEvent {
   neutro?: boolean
   /** Transferência entre contas — par compensado, não é saída líquida do sistema */
   interno?: boolean
-}
-
-function resolveEventDate(
-  scheduled: string,
-  dataPagamento: string | null,
-  isPaid: boolean,
-  today: string,
-): { date: string; realizado: boolean } {
-  if (isPaid && dataPagamento) {
-    return { date: dataPagamento, realizado: dataPagamento <= today }
-  }
-  return { date: scheduled, realizado: scheduled <= today }
 }
 
 function collectEvents(month: string, startDate: string, endDate: string, today: string): RawEvent[] {
@@ -157,6 +145,29 @@ function collectEvents(month: string, startDate: string, endDate: string, today:
       descricao: t.descricao,
       tipo: t.tipo === 'receita' ? 'receita' : 'despesa',
       realizado: isEventoRealizado(liquidado, date, today),
+    })
+  }
+
+  const fixasLiquidadasTarde = db.prepare(`
+    SELECT t.descricao, t.valor, t.tipo, pf.data_pagamento
+    FROM pagamentos_fixas pf
+    JOIN transacoes t ON t.id = pf.transacao_id
+    WHERE t.fixa = 1 AND t.cartao_id IS NULL AND t.conta_id IS NOT NULL
+      AND pf.nao_pago = 0
+      AND pf.data_pagamento >= ? AND pf.data_pagamento <= ?
+      AND pf.mes != ?
+  `).all([startDate, endDate, month]) as {
+    descricao: string; valor: number; tipo: string; data_pagamento: string
+  }[]
+
+  for (const t of fixasLiquidadasTarde) {
+    const sign = t.tipo === 'receita' ? 1 : -1
+    pushIfInMonth({
+      date: t.data_pagamento,
+      amount: sign * t.valor,
+      descricao: t.descricao,
+      tipo: t.tipo === 'receita' ? 'receita' : 'despesa',
+      realizado: t.data_pagamento <= today,
     })
   }
 

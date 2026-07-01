@@ -7,6 +7,8 @@ import { computeSaldoAnterior } from '../../utils/saldo-anterior'
 import { localDateStr } from '../../utils/localDate'
 import { getSaldoConta } from '../../utils/getSaldoConta'
 import { getPatrimonioIncluidoTotal, lastDayOfPreviousMonth } from '../../utils/patrimonio-totais'
+import { effectiveDate } from '../../utils/dateUtils'
+import { isFixaLiquidada, resolveEventDate } from '../../utils/liquidacao'
 
 interface Transacao {
   id: number
@@ -80,7 +82,7 @@ export default defineEventHandler((event) => {
   const fixasNormaisRaw = db.prepare(`
     SELECT t.id, t.descricao, t.valor, t.tipo, t.categoria, t.cartao_id, 1 AS fixa,
       t.data_inicio,
-      pf.nao_pago, pf.id AS pf_id,
+      pf.nao_pago, pf.id AS pf_id, pf.data_pagamento,
       cat.icone AS categoria_icone, cat.cor AS categoria_cor
     FROM transacoes t
     LEFT JOIN categorias cat ON cat.nome = t.categoria
@@ -90,10 +92,41 @@ export default defineEventHandler((event) => {
       AND (t.data_fim IS NULL OR t.data_fim >= ?)
   `).all([month, endDate, startDate]) as any[]
   const fixasNormais: Transacao[] = fixasNormaisRaw.map(t => {
-    const data = effectiveDate(month, t.data_inicio)
-    const pago = t.nao_pago ? 0 : (t.pf_id != null || data <= todayStr) ? 1 : 0
-    return { ...t, data, pago }
+    const scheduled = effectiveDate(month, t.data_inicio)
+    const liquidado = isFixaLiquidada({ nao_pago: t.nao_pago, data_pagamento: t.data_pagamento }, scheduled, todayStr)
+    const { date } = resolveEventDate(scheduled, t.data_pagamento, liquidado, todayStr)
+    return { ...t, data: date, pago: liquidado ? 1 : 0 }
   })
+
+  // Receitas fixas de competências anteriores recebidas neste mês (ex.: Flash de junho pago em 01/07)
+  const fixasRecebidasTarde = db.prepare(`
+    SELECT t.id, t.descricao, t.valor, t.tipo, t.categoria, t.cartao_id, 1 AS fixa,
+      pf.data_pagamento,
+      cat.icone AS categoria_icone, cat.cor AS categoria_cor
+    FROM pagamentos_fixas pf
+    JOIN transacoes t ON t.id = pf.transacao_id
+    LEFT JOIN categorias cat ON cat.nome = t.categoria
+    WHERE t.fixa = 1 AND t.cartao_id IS NULL AND t.tipo = 'receita'
+      AND pf.nao_pago = 0
+      AND pf.data_pagamento >= ? AND pf.data_pagamento <= ?
+      AND pf.mes != ?
+  `).all([startDate, endDate, month]) as any[]
+
+  for (const t of fixasRecebidasTarde) {
+    fixasNormais.push({
+      id: t.id,
+      descricao: t.descricao,
+      valor: t.valor,
+      tipo: t.tipo,
+      categoria: t.categoria,
+      cartao_id: t.cartao_id,
+      fixa: 1,
+      data: t.data_pagamento,
+      pago: 1,
+      categoria_icone: t.categoria_icone,
+      categoria_cor: t.categoria_cor,
+    })
+  }
 
   // Faturas pagas por cartão no mês selecionado
   const faturasPagasNoMes = new Set<number>(
