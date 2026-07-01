@@ -194,10 +194,11 @@ export default defineEventHandler((event) => {
     (db.prepare(`SELECT COALESCE(SUM(valor_ajuste), 0) AS total FROM faturas WHERE mes = ?`).get([month]) as any).total
   )
 
-  const totalReceitas = r2(receitas.reduce((sum, t) => sum + t.valor, 0))
-  const totalDespesas = r2(despesas.reduce((sum, t) => sum + t.valor, 0) + totalAjustes - totalExtornos)
   const recebido = r2(receitas.filter(t => t.pago).reduce((sum, t) => sum + t.valor, 0))
   const aReceber = r2(receitas.filter(t => !t.pago).reduce((sum, t) => sum + t.valor, 0))
+  // Previsto do mês: competência (alinha com saldoAnterior), não soma liquidações atrasadas já contadas no mês anterior
+  const { totalReceitas: totalReceitasMes } = computeMonthTotals(year, mon, cartoes)
+  const totalDespesas = r2(despesas.reduce((sum, t) => sum + t.valor, 0) + totalAjustes - totalExtornos)
   // For pago: include ajuste only for paid faturas
   const totalAjustesPagos = r2(
     (db.prepare(`SELECT COALESCE(SUM(valor_ajuste), 0) AS total FROM faturas WHERE mes = ? AND pago = 1`).get([month]) as any).total
@@ -205,12 +206,12 @@ export default defineEventHandler((event) => {
   const pago = r2(despesas.filter(t => t.pago).reduce((sum, t) => sum + t.valor, 0) + totalAjustesPagos - totalExtornos)
   const aPagar = r2(despesas.filter(t => !t.pago).reduce((sum, t) => sum + t.valor, 0) + (totalAjustes - totalAjustesPagos))
 
-  const saldo = r2(totalReceitas - totalDespesas)
+  const saldo = r2(totalReceitasMes - totalDespesas)
   const saldoDisponivel = saldoGeral
   // Previsão de fim do mês: só contas bancárias (receitas − despesas do mês).
   // Patrimônio incluído entra no saldo atual, mas não infla este previsto — evita
   // contar caixinha cadastrada manualmente como se fosse entrada extra no mês.
-  const saldoPrevisto = r2(saldoAnterior + totalReceitas - totalDespesas)
+  const saldoPrevisto = r2(saldoAnterior + totalReceitasMes - totalDespesas)
   const prevMonthEnd = lastDayOfPreviousMonth(year, mon)
   const patrimonioInicioMes = getPatrimonioIncluidoTotal(prevMonthEnd)
   const saldoAnteriorTotal = r2(saldoAnterior + patrimonioInicioMes)
