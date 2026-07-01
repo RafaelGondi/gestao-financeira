@@ -8,7 +8,7 @@ import { localDateStr } from '../../utils/localDate'
 import { getSaldoConta } from '../../utils/getSaldoConta'
 import { getPatrimonioIncluidoTotal, lastDayOfPreviousMonth } from '../../utils/patrimonio-totais'
 import { effectiveDate } from '../../utils/dateUtils'
-import { isFixaLiquidada, resolveEventDate } from '../../utils/liquidacao'
+import { isFixaLiquidada, resolveFixaForViewingMonth } from '../../utils/liquidacao'
 
 interface Transacao {
   id: number
@@ -91,12 +91,14 @@ export default defineEventHandler((event) => {
       AND t.data_inicio <= ?
       AND (t.data_fim IS NULL OR t.data_fim >= ?)
   `).all([month, endDate, startDate]) as any[]
-  const fixasNormais: Transacao[] = fixasNormaisRaw.map(t => {
+  const fixasNormais: Transacao[] = []
+  for (const t of fixasNormaisRaw) {
     const scheduled = effectiveDate(month, t.data_inicio)
     const liquidado = isFixaLiquidada({ nao_pago: t.nao_pago, data_pagamento: t.data_pagamento }, scheduled, todayStr)
-    const { date } = resolveEventDate(scheduled, t.data_pagamento, liquidado, todayStr)
-    return { ...t, data: date, pago: liquidado ? 1 : 0 }
-  })
+    const { include, date } = resolveFixaForViewingMonth(scheduled, t.data_pagamento, liquidado, startDate, endDate, todayStr)
+    if (!include) continue
+    fixasNormais.push({ ...t, data: date, pago: liquidado ? 1 : 0 })
+  }
 
   // Receitas fixas de competências anteriores recebidas neste mês (ex.: Flash de junho pago em 01/07)
   const fixasRecebidasTarde = db.prepare(`

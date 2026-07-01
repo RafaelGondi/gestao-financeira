@@ -38,3 +38,16 @@ export function resolveEventDate(
   }
   return { date: scheduled, realizado: scheduled <= today }
 }
+
+/** Ocorrência fixa entra no mês visualizado pela data de caixa ou vencimento. */
+export function resolveFixaForViewingMonth(
+  scheduled: string,
+  dataPagamento: string | null,
+  liquidado: boolean,
+  monthStart: string,
+  monthEnd: string,
+  today: string = localDateStr(),
+): { include: boolean; date: string } {
+  const { date } = resolveEventDate(scheduled, dataPagamento, liquidado, today)
+  return { include: date >= monthStart && date <= monthEnd, date }
+}
