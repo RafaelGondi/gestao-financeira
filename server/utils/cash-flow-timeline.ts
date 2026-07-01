@@ -2,7 +2,7 @@ import db from '../db/index'
 import { effectiveDate } from './dateUtils'
 import { getCartoesParaMes } from './cartoes'
 import { getPatrimonioIncluidoTotal, lastDayOfPreviousMonth } from './patrimonio-totais'
-import { getSaldoBancarioTotal } from './getSaldoConta'
+import { getSaldoBancarioTotal, isFixaOccurrenceCountedAtCutoff } from './getSaldoConta'
 import { localDateStr } from './localDate'
 import { faturaDateRange, calcFaturaMonth } from './fatura'
 import { isReceitaAvulsaRecebida, isDespesaAvulsaPaga, isFixaLiquidada, isEventoRealizado, resolveEventDate } from './liquidacao'
@@ -71,6 +71,7 @@ function collectEvents(month: string, startDate: string, endDate: string, today:
   const prevYear = mon === 1 ? year - 1 : year
   const prevMon = mon === 1 ? 12 : mon - 1
   const prevMonStr = `${prevYear}-${String(prevMon).padStart(2, '0')}`
+  const prevMonthEnd = lastDayOfPreviousMonth(year, mon)
 
   const pushIfInMonth = (e: RawEvent) => {
     if (e.date >= startDate && e.date <= endDate) events.push(e)
@@ -149,7 +150,8 @@ function collectEvents(month: string, startDate: string, endDate: string, today:
   }
 
   const fixasLiquidadasTarde = db.prepare(`
-    SELECT t.descricao, t.valor, t.tipo, pf.data_pagamento
+    SELECT t.id, t.descricao, t.valor, t.tipo, t.data_inicio, t.data_fim,
+      pf.mes AS competencia_mes, pf.data_pagamento
     FROM pagamentos_fixas pf
     JOIN transacoes t ON t.id = pf.transacao_id
     WHERE t.fixa = 1 AND t.cartao_id IS NULL AND t.conta_id IS NOT NULL
@@ -157,10 +159,15 @@ function collectEvents(month: string, startDate: string, endDate: string, today:
       AND pf.data_pagamento >= ? AND pf.data_pagamento <= ?
       AND pf.mes != ?
   `).all([startDate, endDate, month]) as {
-    descricao: string; valor: number; tipo: string; data_pagamento: string
+    id: number; descricao: string; valor: number; tipo: string
+    data_inicio: string; data_fim: string | null
+    competencia_mes: string; data_pagamento: string
   }[]
 
   for (const t of fixasLiquidadasTarde) {
+    if (isFixaOccurrenceCountedAtCutoff(t.id, t.competencia_mes, t.data_inicio, t.data_fim, prevMonthEnd)) {
+      continue
+    }
     const sign = t.tipo === 'receita' ? 1 : -1
     pushIfInMonth({
       date: t.data_pagamento,

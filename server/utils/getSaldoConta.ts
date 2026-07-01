@@ -5,6 +5,32 @@ import { faturaDateRange } from './fatura'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 
+/** Ocorrência fixa já entra no saldo real na data de corte (mesma regra do loop abaixo). */
+export function isFixaOccurrenceCountedAtCutoff(
+  transacaoId: number,
+  competenceMes: string,
+  dataInicio: string,
+  dataFim: string | null,
+  cutoff: string,
+): boolean {
+  const naoPago = db.prepare(`
+    SELECT 1 FROM pagamentos_fixas WHERE transacao_id = ? AND mes = ? AND nao_pago = 1
+  `).get([transacaoId, competenceMes])
+  if (naoPago) return false
+
+  const occDate = effectiveDate(competenceMes, dataInicio)
+  if (dataFim && occDate > dataFim) return false
+
+  const earlyPaid = db.prepare(`
+    SELECT 1 FROM pagamentos_fixas
+    WHERE transacao_id = ? AND mes = ? AND nao_pago = 0
+      AND data_pagamento IS NOT NULL AND data_pagamento <= ?
+  `).get([transacaoId, competenceMes, cutoff])
+  if (earlyPaid) return true
+
+  return occDate <= cutoff
+}
+
 /**
  * Saldo real da conta: receitas/despesas avulsas, fixas (com pagamento antecipado),
  * transferências e faturas pagas. Mesma lógica da página de lançamentos da conta.

@@ -2,7 +2,9 @@ import db from '../../../db/index'
 import { getRouterParam, getQuery } from 'h3'
 import { localDateStr } from '../../../utils/localDate'
 import { getSaldoConta } from '../../../utils/getSaldoConta'
-import { isReceitaAvulsaRecebida, isDespesaAvulsaPaga, isFixaLiquidada } from '../../../utils/liquidacao'
+import { effectiveDate } from '../../../utils/dateUtils'
+import { isReceitaAvulsaRecebida, isDespesaAvulsaPaga } from '../../../utils/liquidacao'
+import { collectFixasSemCartaoForMonth } from '../../../utils/fixas-month-list'
 
 function parcelaAtual(dataInicio: string, month: string): number {
   const [iy, im] = dataInicio.split('-').map(Number)
@@ -50,24 +52,34 @@ export default defineEventHandler((event) => {
   }
 
   // Receitas fixas
-  for (const t of db.prepare(`
-    SELECT t.id, t.descricao, t.valor, t.categoria, t.data_inicio, t.data_fim, t.notas, t.nome_fatura, 1 AS fixa, t.parcelas,
-      c.cor AS categoria_cor, c.icone AS categoria_icone,
-      pf.data_pagamento AS pago_data, pf.nao_pago AS nao_pago
-    FROM transacoes t
-    LEFT JOIN categorias c ON c.nome = t.categoria
-    LEFT JOIN pagamentos_fixas pf ON pf.transacao_id = t.id AND pf.mes = ?
-    WHERE t.tipo = 'receita' AND t.conta_id = ? AND t.fixa = 1
-      AND t.data_inicio <= ? AND (t.data_fim IS NULL OR t.data_fim >= ?)
-  `).all([month, contaId, endDate, startDate]) as any[]) {
-    const data = effectiveDate(month, t.data_inicio)
-    const pagoAntecipado = t.pago_data != null && !t.nao_pago
-    const pago = isFixaLiquidada(t, data, today) ? 1 : 0
+  for (const t of collectFixasSemCartaoForMonth({
+    month,
+    startDate,
+    endDate,
+    today,
+    tipo: 'receita',
+    contaId,
+    includeLatePayments: true,
+  })) {
+    const pagoAntecipado = t.data_pagamento != null && t.liquidado && t.data !== effectiveDate(month, t.data_inicio)
     lancamentos.push({
-      ...t, tipo: 'receita', data,
-      pago,
+      id: t.id,
+      descricao: t.descricao,
+      valor: t.valor,
+      categoria: t.categoria,
+      data_inicio: t.data_inicio,
+      data_fim: t.data_fim,
+      notas: t.notas,
+      nome_fatura: t.nome_fatura,
+      fixa: 1,
+      parcelas: t.parcelas ?? 0,
+      categoria_cor: t.categoria_cor,
+      categoria_icone: t.categoria_icone,
+      tipo: 'receita',
+      data: t.data,
+      pago: t.liquidado ? 1 : 0,
       pago_antecipado: pagoAntecipado,
-      parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null
+      parcela_atual: t.parcelas && t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null,
     })
   }
 
@@ -91,23 +103,34 @@ export default defineEventHandler((event) => {
   }
 
   // Despesas fixas (não cartão)
-  for (const t of db.prepare(`
-    SELECT t.id, t.descricao, t.valor, t.categoria, t.data_inicio, t.data_fim, t.notas, t.nome_fatura, 1 AS fixa, t.parcelas,
-      c.cor AS categoria_cor, c.icone AS categoria_icone,
-      pf.data_pagamento AS pago_data, pf.nao_pago AS nao_pago
-    FROM transacoes t
-    LEFT JOIN categorias c ON c.nome = t.categoria
-    LEFT JOIN pagamentos_fixas pf ON pf.transacao_id = t.id AND pf.mes = ?
-    WHERE t.tipo = 'despesa' AND t.conta_id = ? AND t.cartao_id IS NULL AND t.fixa = 1
-      AND t.data_inicio <= ? AND (t.data_fim IS NULL OR t.data_fim >= ?)
-  `).all([month, contaId, endDate, startDate]) as any[]) {
-    const data = effectiveDate(month, t.data_inicio)
-    const pagoAntecipado = t.pago_data != null && !t.nao_pago
-    const pago = isFixaLiquidada(t, data, today) ? 1 : 0
+  for (const t of collectFixasSemCartaoForMonth({
+    month,
+    startDate,
+    endDate,
+    today,
+    tipo: 'despesa',
+    contaId,
+    includeLatePayments: true,
+  })) {
+    const pagoAntecipado = t.data_pagamento != null && t.liquidado && t.data !== effectiveDate(month, t.data_inicio)
     lancamentos.push({
-      ...t, tipo: 'despesa', data, pago,
+      id: t.id,
+      descricao: t.descricao,
+      valor: t.valor,
+      categoria: t.categoria,
+      data_inicio: t.data_inicio,
+      data_fim: t.data_fim,
+      notas: t.notas,
+      nome_fatura: t.nome_fatura,
+      fixa: 1,
+      parcelas: t.parcelas ?? 0,
+      categoria_cor: t.categoria_cor,
+      categoria_icone: t.categoria_icone,
+      tipo: 'despesa',
+      data: t.data,
+      pago: t.liquidado ? 1 : 0,
       pago_antecipado: pagoAntecipado,
-      parcela_atual: t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null
+      parcela_atual: t.parcelas && t.parcelas > 0 ? parcelaAtual(t.data_inicio, month) : null,
     })
   }
 
