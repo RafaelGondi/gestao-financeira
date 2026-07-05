@@ -374,7 +374,15 @@ export function computeCashFlowTimeline(month: string): CashFlowTimeline {
       } else {
         saidas += Math.abs(e.amount)
       }
-      bankProj = r2(bankProj + e.amount)
+    }
+
+    // Dias passados/hoje: saldo real (mesma regra das contas). Futuro: projeção acumulada.
+    if (date <= today) {
+      bankProj = getSaldoBancarioTotal(date)
+    } else {
+      for (const e of dayEvents) {
+        bankProj = r2(bankProj + e.amount)
+      }
     }
 
     const saldo = saldoComReservas(bankProj, date)
