@@ -3,6 +3,8 @@ import { effectiveDate } from './dateUtils'
 import { getCartoesParaMes } from './cartoes'
 import { getPatrimonioIncluidoTotal, lastDayOfPreviousMonth } from './patrimonio-totais'
 import { getSaldoBancarioTotal, isFixaOccurrenceCountedAtCutoff } from './getSaldoConta'
+import { computeSaldoAnterior } from './saldo-anterior'
+import { computeMonthTotals } from './month-totals'
 import { localDateStr } from './localDate'
 import { faturaDateRange, calcFaturaMonth } from './fatura'
 import { isReceitaAvulsaRecebida, isDespesaAvulsaPaga, isFixaLiquidada, isEventoRealizado, resolveEventDate } from './liquidacao'
@@ -336,8 +338,11 @@ export function computeCashFlowTimeline(month: string): CashFlowTimeline {
   const today = localDateStr()
 
   const prevMonthEnd = lastDayOfPreviousMonth(year, mon)
-  // Saldo bancário real ao fim do mês anterior (mesma base do saldo por dia).
-  const saldoInicialBancario = getSaldoBancarioTotal(prevMonthEnd)
+  const cartoes = getCartoesParaMes(month) as { id: number; melhor_data_compra: number }[]
+  // Mês anterior ainda no futuro: saldo teórico (igual ao dashboard). Senão: saldo real na data.
+  const saldoInicialBancario = prevMonthEnd > today
+    ? computeSaldoAnterior(year, mon, cartoes)
+    : getSaldoBancarioTotal(prevMonthEnd)
   let bankProj = saldoInicialBancario
   const rawEvents = collectEvents(month, startDate, endDate, today)
 
@@ -421,8 +426,23 @@ export function computeCashFlowTimeline(month: string): CashFlowTimeline {
 
   const saldoAtualIdx = dias.findIndex(d => d.isToday)
   const saldoAtual = saldoAtualIdx >= 0 ? dias[saldoAtualIdx].saldo : (today > endDate ? dias[dias.length - 1].saldo : saldoInicial)
+
+  // Fim do mês ainda no futuro: mesma fórmula do dashboard (saldoAnterior + receitas − despesas).
+  let saldoFinalBancario = bankProj
+  if (endDate > today) {
+    const { totalReceitas, totalDespesas } = computeMonthTotals(year, mon, cartoes)
+    saldoFinalBancario = r2(computeSaldoAnterior(year, mon, cartoes) + totalReceitas - totalDespesas)
+    const lastIdx = dias.length - 1
+    if (lastIdx >= 0) {
+      const lastDate = dias[lastIdx].date
+      dias[lastIdx] = {
+        ...dias[lastIdx],
+        saldo: saldoComReservas(saldoFinalBancario, lastDate),
+      }
+    }
+  }
+
   const saldoFinal = dias[dias.length - 1]?.saldo ?? saldoInicial
-  const saldoFinalBancario = bankProj
 
   return {
     month,
